@@ -10,8 +10,8 @@
   "tileheight": 32,
   "width": 75,
   "height": 50,
-  "nextlayerid": 4,
-  "nextobjectid": 100,
+  "nextlayerid": 5,
+  "nextobjectid": 300,
   "tilesets": [],
   "layers": [
     {
@@ -75,6 +75,57 @@
       "y": 0,
       "objects": [
         { "id": 50, "name": "playerStart", "type": "", "x": 420, "y": 1440, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "props",
+      "type": "objectgroup",
+      "draworder": "topdown",
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0,
+      "objects": [
+        { "id": 200, "name": "prop_desk", "type": "", "x": 860, "y": 600, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 201, "name": "prop_desk", "type": "", "x": 1040, "y": 600, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 202, "name": "prop_desk", "type": "", "x": 1220, "y": 600, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 203, "name": "prop_desk", "type": "", "x": 1400, "y": 600, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 204, "name": "prop_desk_small", "type": "", "x": 860, "y": 790, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 205, "name": "prop_desk_small", "type": "", "x": 1040, "y": 790, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 206, "name": "prop_desk_small", "type": "", "x": 1220, "y": 790, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 207, "name": "prop_desk_small", "type": "", "x": 1400, "y": 790, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 210, "name": "prop_counter", "type": "", "x": 1120, "y": 1090, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 211, "name": "prop_counter_alt", "type": "", "x": 1240, "y": 1090, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 212, "name": "prop_cabinet", "type": "", "x": 1440, "y": 1090, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 220, "name": "prop_counter", "type": "", "x": 400, "y": 600, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 221, "name": "prop_counter_alt", "type": "", "x": 470, "y": 600, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 222, "name": "prop_cabinet", "type": "", "x": 400, "y": 720, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 223, "name": "prop_bin", "type": "", "x": 600, "y": 740, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 230, "name": "prop_cabinet", "type": "", "x": 300, "y": 980, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 231, "name": "prop_server_alt", "type": "", "x": 300, "y": 1120, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 232, "name": "prop_bin", "type": "", "x": 430, "y": 1180, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 240, "name": "prop_shelf", "type": "", "x": 1800, "y": 940, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 241, "name": "prop_shelf_alt", "type": "", "x": 1900, "y": 940, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 242, "name": "prop_shelf", "type": "", "x": 2000, "y": 940, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 243, "name": "prop_shelf_alt", "type": "", "x": 2100, "y": 940, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 244, "name": "prop_crate", "type": "", "x": 1800, "y": 1120, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 245, "name": "prop_bin", "type": "", "x": 1900, "y": 1120, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 246, "name": "prop_crate", "type": "", "x": 2000, "y": 1120, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 247, "name": "prop_fence", "type": "", "x": 2270, "y": 1000, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 248, "name": "prop_fence", "type": "", "x": 2270, "y": 1080, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 250, "name": "prop_desk", "type": "", "x": 1800, "y": 470, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 251, "name": "prop_server", "type": "", "x": 1960, "y": 460, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 252, "name": "prop_desk_small", "type": "", "x": 1800, "y": 640, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 260, "name": "prop_server", "type": "", "x": 2140, "y": 450, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 261, "name": "prop_server_alt", "type": "", "x": 2210, "y": 450, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 262, "name": "prop_server", "type": "", "x": 2280, "y": 450, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 263, "name": "prop_server_alt", "type": "", "x": 2140, "y": 560, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 264, "name": "prop_server", "type": "", "x": 2210, "y": 560, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 265, "name": "prop_server_alt", "type": "", "x": 2280, "y": 560, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 266, "name": "prop_server", "type": "", "x": 2140, "y": 670, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 267, "name": "prop_server_alt", "type": "", "x": 2210, "y": 670, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 268, "name": "prop_server", "type": "", "x": 2280, "y": 670, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true }
       ]
     }
   ]

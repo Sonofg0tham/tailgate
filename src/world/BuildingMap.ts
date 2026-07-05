@@ -17,6 +17,14 @@ export interface WallRect {
   height: number;
 }
 
+/** A furniture prop read from the Tiled `props` object layer. */
+export interface PropPoint {
+  /** Texture key to draw, matching a key in IMAGE_ASSETS (e.g. "prop_desk"). */
+  key: string;
+  x: number;
+  y: number;
+}
+
 /**
  * Loads the hand-authored Building C map and reads its object layers into plain
  * data. Nothing is rendered here; the renderer and the scene decide what to draw
@@ -28,6 +36,7 @@ export interface WallRect {
 export class BuildingMap {
   readonly zones: ZoneRect[];
   readonly walls: WallRect[];
+  readonly props: PropPoint[];
   readonly spawn: Phaser.Math.Vector2;
   readonly widthInPixels: number;
   readonly heightInPixels: number;
@@ -39,6 +48,7 @@ export class BuildingMap {
 
     this.zones = BuildingMap.readZones(map);
     this.walls = BuildingMap.readWalls(map);
+    this.props = BuildingMap.readProps(map);
     this.spawn = BuildingMap.readSpawn(map);
   }
 
@@ -66,6 +76,18 @@ export class BuildingMap {
       y: obj.y ?? 0,
       width: obj.width ?? 0,
       height: obj.height ?? 0,
+    }));
+  }
+
+  private static readProps(map: Phaser.Tilemaps.Tilemap): PropPoint[] {
+    const layer = map.getObjectLayer('props');
+    if (!layer) {
+      return [];
+    }
+    return layer.objects.map((obj) => ({
+      key: obj.name ?? '',
+      x: obj.x ?? 0,
+      y: obj.y ?? 0,
     }));
   }
 
