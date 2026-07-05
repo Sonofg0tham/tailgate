@@ -26,7 +26,7 @@ async function waitForFonts(): Promise<void> {
 async function boot(): Promise<void> {
   await waitForFonts();
 
-  new Phaser.Game({
+  const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
     width: GAME_WIDTH,
@@ -46,6 +46,11 @@ async function boot(): Promise<void> {
     },
     scene: [BuildingScene],
   });
+
+  // Dev-only handle for manual inspection. Stripped from production builds.
+  if (import.meta.env.DEV) {
+    (window as unknown as { __game: Phaser.Game }).__game = game;
+  }
 }
 
 void boot();

@@ -41,6 +41,7 @@ export class DebugOverlay {
       `SPEED   ${intent.speed.toUpperCase()}`,
       `NOISE   ${player.noiseRadius} px`,
       `DEVICE  ${intent.device.toUpperCase()}`,
+      `[G]     grid`,
     ]);
   }
 }

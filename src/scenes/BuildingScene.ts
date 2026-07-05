@@ -1,23 +1,25 @@
 import Phaser from 'phaser';
 import { MOVEMENT } from '../config/movement';
+import { IMAGE_ASSETS } from '../config/tiles';
 import { Player } from '../entities/Player';
 import type { KeyboardKeys } from '../input/KeyboardInput';
 import { MovementController } from '../input/MovementController';
 import { DebugOverlay } from '../ui/DebugOverlay';
 import { BuildingMap } from '../world/BuildingMap';
-import { GreyboxRenderer } from '../world/GreyboxRenderer';
+import { WorldRenderer } from '../world/WorldRenderer';
 
 const MAP_KEY = 'buildingC';
 
 /**
- * The real gameplay scene for Phase 1: load Building C, render it in greybox,
- * drop the player at the van and let them creep, walk and run around the whole
- * floor plan with the noise radius on show. No guards or objectives yet.
+ * The real gameplay scene: load Building C, render it from Kenney tiles, drop
+ * the player at the van and let them creep, walk and run around the whole floor
+ * plan with the noise radius on show. No guards or objectives yet.
  */
 export class BuildingScene extends Phaser.Scene {
   private player!: Player;
   private controller!: MovementController;
   private overlay!: DebugOverlay;
+  private world!: WorldRenderer;
   private keys?: KeyboardKeys;
 
   constructor() {
@@ -26,11 +28,14 @@ export class BuildingScene extends Phaser.Scene {
 
   preload(): void {
     this.load.tilemapTiledJSON(MAP_KEY, 'maps/building-c.json');
+    for (const [key, path] of Object.entries(IMAGE_ASSETS)) {
+      this.load.image(key, path);
+    }
   }
 
   create(): void {
     const map = new BuildingMap(this, MAP_KEY);
-    new GreyboxRenderer(this, map);
+    this.world = new WorldRenderer(this, map);
 
     this.player = new Player(this, map.spawn.x, map.spawn.y);
     this.buildWalls(map);
@@ -47,14 +52,18 @@ export class BuildingScene extends Phaser.Scene {
     this.keys = this.buildKeyboard();
     this.controller = new MovementController(this.player);
     this.overlay = new DebugOverlay(this);
+
+    // G toggles the debug reference grid (off by default).
+    this.input.keyboard?.on('keydown-G', () => this.world.toggleGrid());
   }
 
-  update(): void {
+  update(_time: number, delta: number): void {
     const gamepadPlugin = this.input.gamepad;
     const pad =
       gamepadPlugin && gamepadPlugin.total > 0 ? gamepadPlugin.getPad(0) : undefined;
 
     const intent = this.controller.update(pad, this.keys);
+    this.player.applyMotion(intent, delta);
     this.overlay.update(this.player, intent);
   }
 
@@ -80,7 +89,7 @@ export class BuildingScene extends Phaser.Scene {
     }
 
     // Stop these keys scrolling the page or triggering browser shortcuts.
-    kb.addCapture('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,C');
+    kb.addCapture('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,C,G');
 
     const cursors = kb.createCursorKeys();
     const codes = Phaser.Input.Keyboard.KeyCodes;
