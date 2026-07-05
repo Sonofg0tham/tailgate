@@ -4,7 +4,7 @@ import './style.css';
 
 import Phaser from 'phaser';
 import { PALETTE } from './config/palette';
-import { PlaceholderScene } from './scenes/PlaceholderScene';
+import { BuildingScene } from './scenes/BuildingScene';
 
 export const GAME_WIDTH = 960;
 export const GAME_HEIGHT = 540;
@@ -36,7 +36,15 @@ async function boot(): Promise<void> {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
-    scene: [PlaceholderScene],
+    physics: {
+      default: 'arcade',
+      // Flip debug to true to see Arcade's own collision boxes while tuning.
+      arcade: { debug: false },
+    },
+    input: {
+      gamepad: true,
+    },
+    scene: [BuildingScene],
   });
 }
 

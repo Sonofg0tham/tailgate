@@ -1,0 +1,81 @@
+{
+  "compressionlevel": -1,
+  "infinite": false,
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "tiledversion": "1.10.2",
+  "type": "map",
+  "version": "1.10",
+  "tilewidth": 32,
+  "tileheight": 32,
+  "width": 75,
+  "height": 50,
+  "nextlayerid": 4,
+  "nextobjectid": 100,
+  "tilesets": [],
+  "layers": [
+    {
+      "id": 1,
+      "name": "zones",
+      "type": "objectgroup",
+      "draworder": "topdown",
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0,
+      "objects": [
+        { "id": 1, "name": "carPark", "type": "", "x": 0, "y": 1248, "width": 2400, "height": 352, "rotation": 0, "visible": true },
+        { "id": 2, "name": "reception", "type": "", "x": 1000, "y": 1000, "width": 560, "height": 248, "rotation": 0, "visible": true },
+        { "id": 3, "name": "office", "type": "", "x": 760, "y": 520, "width": 880, "height": 384, "rotation": 0, "visible": true },
+        { "id": 4, "name": "kitchen", "type": "", "x": 320, "y": 520, "width": 360, "height": 288, "rotation": 0, "visible": true },
+        { "id": 5, "name": "maintenance", "type": "", "x": 120, "y": 904, "width": 360, "height": 344, "rotation": 0, "visible": true },
+        { "id": 6, "name": "loadingDock", "type": "", "x": 1712, "y": 852, "width": 624, "height": 396, "rotation": 0, "visible": true },
+        { "id": 7, "name": "securityOffice", "type": "", "x": 1712, "y": 384, "width": 336, "height": 384, "rotation": 0, "visible": true },
+        { "id": 8, "name": "serverRoom", "type": "", "x": 2080, "y": 384, "width": 256, "height": 384, "rotation": 0, "visible": true }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "walls",
+      "type": "objectgroup",
+      "draworder": "topdown",
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0,
+      "objects": [
+        { "id": 20, "name": "extTop", "type": "", "x": 64, "y": 352, "width": 2272, "height": 24, "rotation": 0, "visible": true },
+        { "id": 21, "name": "extLeft", "type": "", "x": 64, "y": 352, "width": 24, "height": 896, "rotation": 0, "visible": true },
+        { "id": 22, "name": "extRight", "type": "", "x": 2312, "y": 352, "width": 24, "height": 896, "rotation": 0, "visible": true },
+        { "id": 23, "name": "extBottomLeft", "type": "", "x": 64, "y": 1224, "width": 1116, "height": 24, "rotation": 0, "visible": true },
+        { "id": 24, "name": "extBottomRight", "type": "", "x": 1380, "y": 1224, "width": 956, "height": 24, "rotation": 0, "visible": true },
+        { "id": 25, "name": "leftColumnWallUpper", "type": "", "x": 712, "y": 520, "width": 24, "height": 380, "rotation": 0, "visible": true },
+        { "id": 26, "name": "leftColumnWallLower", "type": "", "x": 712, "y": 1000, "width": 24, "height": 248, "rotation": 0, "visible": true },
+        { "id": 27, "name": "officeBottomLeft", "type": "", "x": 760, "y": 904, "width": 360, "height": 24, "rotation": 0, "visible": true },
+        { "id": 28, "name": "officeBottomRight", "type": "", "x": 1280, "y": 904, "width": 360, "height": 24, "rotation": 0, "visible": true },
+        { "id": 29, "name": "officeRightUpper", "type": "", "x": 1664, "y": 384, "width": 24, "height": 236, "rotation": 0, "visible": true },
+        { "id": 30, "name": "officeRightLower", "type": "", "x": 1664, "y": 720, "width": 24, "height": 184, "rotation": 0, "visible": true },
+        { "id": 31, "name": "serverDividerUpper", "type": "", "x": 2056, "y": 384, "width": 24, "height": 136, "rotation": 0, "visible": true },
+        { "id": 32, "name": "serverDividerLower", "type": "", "x": 2056, "y": 620, "width": 24, "height": 148, "rotation": 0, "visible": true },
+        { "id": 33, "name": "loadingDockTopLeft", "type": "", "x": 1712, "y": 828, "width": 188, "height": 24, "rotation": 0, "visible": true },
+        { "id": 34, "name": "loadingDockTopRight", "type": "", "x": 2020, "y": 828, "width": 316, "height": 24, "rotation": 0, "visible": true },
+        { "id": 35, "name": "receptionLeft", "type": "", "x": 976, "y": 1000, "width": 24, "height": 224, "rotation": 0, "visible": true },
+        { "id": 36, "name": "receptionRight", "type": "", "x": 1560, "y": 1000, "width": 24, "height": 224, "rotation": 0, "visible": true },
+        { "id": 37, "name": "van", "type": "", "x": 180, "y": 1360, "width": 170, "height": 104, "rotation": 0, "visible": true }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "spawn",
+      "type": "objectgroup",
+      "draworder": "topdown",
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0,
+      "objects": [
+        { "id": 50, "name": "playerStart", "type": "", "x": 420, "y": 1440, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true }
+      ]
+    }
+  ]
+}

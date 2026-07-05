@@ -72,4 +72,6 @@ Two decisions that are already made. Do not fall back to Tailwind blue or a gene
 
 ## Out of scope for v1
 
-Do not build any of these without Craig explicitly confirming, even if a request drifts near them: combat or takedowns, multiple levels, procedural generation, multiplayer, mobile or gamepad controls, cutscenes, dialogue systems, accounts or cloud saves. The full parking lot is in GAME_DESIGN.md.
+Do not build any of these without Craig explicitly confirming, even if a request drifts near them: combat or takedowns, multiple levels, procedural generation, multiplayer, mobile or touch controls, cutscenes, dialogue systems, accounts or cloud saves. The full parking lot is in GAME_DESIGN.md.
+
+Note: gamepad support IS in scope for v1 as of Phase 1. An Xbox controller is the primary input (left analogue stick sets direction and variable speed), keyboard is the fallback. This was an accessibility decision. Mobile and touch stay out of scope.
