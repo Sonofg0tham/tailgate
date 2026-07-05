@@ -24,7 +24,7 @@ Target mission length: 10-15 minutes for a first clear.
 
 ## Player verbs (v1, exactly four)
 
-- **Move** at three speeds: creep (silent), walk (small noise radius), run (large noise radius). Held modifier keys switch speed.
+- **Move** at three speeds: creep (silent), walk (small noise radius), run (large noise radius). The primary control is an Xbox gamepad: the left analogue stick sets direction and speed together, by how far it is pushed. Keyboard is the full fallback: default pace is walk, hold Shift to creep, hold C to run.
 - **Interact**: doors, breaker box, objectives. Context prompt appears when in range.
 - **Tailgate**: staff badge through secured doors on schedules. The door stays open 1.6 seconds after they pass. Slipping through in that window is entry without a badge. A guard who sees it happen goes suspicious.
 - **Distract**: throw a bolt to create a noise ping guards investigate. Supply of 3 per run.
@@ -103,6 +103,7 @@ A one-page pentest report generated from the actual run, rendered in IBM Plex Mo
 ## Accessibility (design constraints, not afterthoughts)
 
 - No twitch inputs. The tailgate window is generous (1.6s) and interactions are hold, not mash.
+- An Xbox gamepad is the primary control: the left analogue stick sets direction and variable speed in one motion, so changing pace needs no twitch key combination. Keyboard is a full fallback. Mobile and touch remain out of scope.
 - Guard and camera states are never communicated by colour alone: cone colour changes AND edge style changes (solid, dashed, pulsing) AND an audio cue fires.
 - High-contrast UI, scalable HUD text setting, screen shake has an off toggle.
 - Assist option in settings: guard speed 90 percent. No achievement penalty, no shame copy.
@@ -114,7 +115,7 @@ Each phase is one branch, one PR, one deployed preview. "Done when" is the accep
 **Phase 0, skeleton.** Vite + Phaser + TypeScript scaffold, ESLint, folder structure, web fonts loaded, placeholder scene, Vercel deployment, README stub with the pitch, empty CREDITS.md, gitignore including `.env`.
 Done when: a deployed URL shows a moving rectangle at 60fps and all four npm scripts pass.
 
-**Phase 1, the space.** Tiled greybox map of Building C, collision, camera follow, three movement speeds with a debug view showing the player's current noise radius.
+**Phase 1, the space.** Tiled greybox map of Building C, collision, camera follow, three movement speeds (gamepad left stick as primary, keyboard as fallback) with a debug view showing the player's current noise radius.
 Done when: you can creep, walk and run around the entire floor plan and the noise radius visibly changes.
 
 **Phase 2, being watched.** One guard driven by patrol data, vision cone with wall occlusion, suspicion meter, CURIOUS and ALERT states, detain and restart. Debug overlay showing cones and state.
@@ -134,4 +135,4 @@ Done when: a public URL and a repo Craig would happily put on his CV.
 
 ## v2 parking lot (do not build in v1)
 
-Hi-vis disguise system, takedowns and body management, hijacking the security office camera feed, fire exit and window ingress if cut from v1, a second building, roof ingress, daily-seed leaderboard, gamepad and mobile support, report sharing as an image.
+Hi-vis disguise system, takedowns and body management, hijacking the security office camera feed, fire exit and window ingress if cut from v1, a second building, roof ingress, daily-seed leaderboard, mobile and touch support, report sharing as an image.
