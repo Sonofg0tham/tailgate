@@ -1,0 +1,19 @@
+# Dependencies and build output
+node_modules/
+dist/
+
+# Environment files, no secrets in the repo ever
+.env
+.env.*
+
+# Vercel local project link
+.vercel/
+
+# Editor and assistant local state
+.claude/
+.remember/
+*.local
+
+# OS noise
+Thumbs.db
+.DS_Store
