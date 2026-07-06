@@ -27,6 +27,18 @@ export const AUDIO = {
     ambience: 0.35,
   },
 
+  /** Security console cues: short quiet triangle tones on the sting bus. */
+  console: {
+    toneType: 'triangle' as OscillatorType,
+    openHz: 660,
+    freezeHz: 440,
+    deniedHz: 220,
+    attackMs: 4,
+    holdMs: 45,
+    releaseMs: 120,
+    peakGain: 0.22,
+  },
+
   /** Which floor surface each zone reads as, by ZoneRect name. */
   zoneSurface: {
     office: 'carpet',

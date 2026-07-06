@@ -173,6 +173,16 @@ export function generateReport(
     });
   }
 
+  // The security console: looped feeds are a control-room failure, not a
+  // camera failure, so they get their own finding.
+  if (stats.feedsFrozen.length > 0) {
+    const feedCount = stats.feedsFrozen.length;
+    findings.push({
+      severity: 'HIGH',
+      text: `Security office console left signed in and unattended. Consultant looped ${feedCount} CCTV feed(s) starting at ${stampClock(stats.firstHijackAtMs ?? 0)}; monitoring staff did not notice the repeated footage.`,
+    });
+  }
+
   // Secondary objectives, photographed as evidence.
   const workstationAt = stats.secondaries['workstation'];
   if (workstationAt !== undefined) {

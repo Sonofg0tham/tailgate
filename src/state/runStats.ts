@@ -31,6 +31,10 @@ export interface RunStats {
   plantedAtMs: number | null;
   /** Elapsed ms when each secondary was photographed, keyed by objective id. */
   secondaries: Record<string, number>;
+  /** Camera ids whose feeds were looped from the console, in loop order. */
+  feedsFrozen: string[];
+  /** Elapsed ms when the console was first used to loop a feed, or null. */
+  firstHijackAtMs: number | null;
   /** Elapsed ms at exfil (mission end), or null while still on site. */
   exfilAtMs: number | null;
 }
@@ -47,6 +51,8 @@ function freshStats(): RunStats {
     maxAlertLevel: 0,
     plantedAtMs: null,
     secondaries: {},
+    feedsFrozen: [],
+    firstHijackAtMs: null,
     exfilAtMs: null,
   };
 }
@@ -98,6 +104,14 @@ export function recordPlanted(): void {
 export function recordSecondary(id: string): void {
   if (!(id in stats.secondaries)) {
     stats.secondaries[id] = elapsedMs();
+  }
+}
+
+/** Records a looped camera feed for the report. */
+export function recordFeedFrozen(cameraId: string): void {
+  stats.feedsFrozen.push(cameraId);
+  if (stats.firstHijackAtMs === null) {
+    stats.firstHijackAtMs = elapsedMs();
   }
 }
 
