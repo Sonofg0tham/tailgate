@@ -1,0 +1,12 @@
+{
+  "guards": [
+    {
+      "id": "office-patrol",
+      "route": [
+        { "x": 1000, "y": 700, "pauseMs": 600 },
+        { "x": 1500, "y": 700, "pauseMs": 600 },
+        { "x": 1200, "y": 850, "pauseMs": 1600 }
+      ]
+    }
+  ]
+}

@@ -45,6 +45,8 @@ export const IMAGE_ASSETS: Record<string, string> = {
   // Player
   player_hold: 'assets/characters/player_hold.png',
   player_stand: 'assets/characters/player_stand.png',
+  // Guard
+  guard: 'assets/characters/guard.png',
 };
 
 /** Which floor texture each zone uses. Zone tint (zones.ts) is layered on top. */

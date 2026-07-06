@@ -13,5 +13,13 @@ export default tseslint.config(
         ...globals.browser,
       },
     },
+    rules: {
+      // Allow deliberately unused args/vars when prefixed with an underscore,
+      // e.g. an update(_time, delta) signature or a Phase 5 placeholder hook.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+    },
   }
 );
