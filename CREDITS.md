@@ -42,6 +42,8 @@ Pack: https://kenney.nl/assets/top-down-shooter | Kenney | CC0 1.0
 - public/assets/characters/player_hold.png | pack PNG/Hitman 1/hitman1_hold.png | Kenney | CC0 1.0
 - public/assets/characters/player_stand.png | pack PNG/Hitman 1/hitman1_stand.png | Kenney | CC0 1.0
 - public/assets/characters/guard.png | pack PNG/Soldier 1/soldier1_stand.png | Kenney | CC0 1.0
+- public/assets/characters/staff_a.png | pack PNG/Man Blue/manBlue_stand.png | Kenney | CC0 1.0
+- public/assets/characters/staff_b.png | pack PNG/Woman Green/womanGreen_stand.png | Kenney | CC0 1.0
 
 ## Audio
 

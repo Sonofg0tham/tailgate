@@ -66,6 +66,12 @@ export const DETECTION = {
   timing: {
     /** How long the guard looks around at an investigation point. */
     investigatePauseMs: 2000,
+    /**
+     * Hard cap on a single CURIOUS episode. The guard gives up and returns to
+     * patrol after this even if it never reached the spot (stops it getting
+     * stuck chasing an unreachable noise).
+     */
+    maxCuriousMs: 9000,
     /** How long an ALERT guard keeps chasing after losing sight before giving up. */
     alertGiveUpMs: 4000,
     /** How long the DETAINED flash shows before the run resets. */

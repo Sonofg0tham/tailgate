@@ -2,28 +2,39 @@ import Phaser from 'phaser';
 import { DETECTION } from '../config/detection';
 import { MOVEMENT } from '../config/movement';
 import { FONTS, PALETTE } from '../config/palette';
+import { THROW } from '../config/throw';
 import { IMAGE_ASSETS } from '../config/tiles';
+import { Door } from '../entities/Door';
 import { Guard, type GuardState, type PatrolNode } from '../entities/Guard';
 import { Player } from '../entities/Player';
+import { Staff, type StaffDef } from '../entities/Staff';
 import type { KeyboardKeys } from '../input/KeyboardInput';
 import { MovementController } from '../input/MovementController';
 import { getRunStats, recordDetain, recordSpotted } from '../state/runStats';
+import { ThrowController } from '../systems/ThrowController';
 import { DebugOverlay, type GuardHudInfo } from '../ui/DebugOverlay';
 import { BuildingMap } from '../world/BuildingMap';
 import { WorldRenderer } from '../world/WorldRenderer';
 
 const MAP_KEY = 'buildingC';
 const GUARD_DATA_KEY = 'guards';
+const STAFF_DATA_KEY = 'staff';
+
+/** How close authorised staff must be to a badge door to open it. */
+const STAFF_BADGE_DISTANCE = 75;
 
 interface GuardsData {
   guards: { id: string; route: PatrolNode[] }[];
 }
+interface StaffData {
+  staff: StaffDef[];
+}
 
 /**
- * The gameplay scene: Building C rendered from Kenney tiles, the player at the
- * van, and a patrolling guard whose vision cone fills a suspicion meter and
- * escalates PATROL to CURIOUS to ALERT. Getting caught flashes DETAINED and
- * restarts the run.
+ * The gameplay scene. Building C, the player at the van, one patrolling guard,
+ * staff on their rounds, and three gated ways in: a badge gate you tailgate, a
+ * timed smokers' door and a timed loading-dock shutter. The player can throw
+ * bolts to distract the guard, and running footsteps make noise the guard hears.
  */
 export class BuildingScene extends Phaser.Scene {
   private player!: Player;
@@ -33,6 +44,9 @@ export class BuildingScene extends Phaser.Scene {
   private walls!: Phaser.Physics.Arcade.StaticGroup;
   private keys?: KeyboardKeys;
   private guard?: Guard;
+  private doors: Door[] = [];
+  private staff: Staff[] = [];
+  private throwController!: ThrowController;
   private guardDebug!: Phaser.GameObjects.Graphics;
   private guardDebugOn = false;
   private detained = false;
@@ -46,6 +60,7 @@ export class BuildingScene extends Phaser.Scene {
   preload(): void {
     this.load.tilemapTiledJSON(MAP_KEY, 'maps/building-c.json');
     this.load.json(GUARD_DATA_KEY, 'data/guards.json');
+    this.load.json(STAFF_DATA_KEY, 'data/staff.json');
     for (const [key, path] of Object.entries(IMAGE_ASSETS)) {
       this.load.image(key, path);
     }
@@ -53,6 +68,8 @@ export class BuildingScene extends Phaser.Scene {
 
   create(): void {
     this.detained = false;
+    this.doors = [];
+    this.staff = [];
 
     const map = new BuildingMap(this, MAP_KEY);
     this.world = new WorldRenderer(this, map);
@@ -60,6 +77,9 @@ export class BuildingScene extends Phaser.Scene {
     this.player = new Player(this, map.spawn.x, map.spawn.y);
     this.buildWalls(map);
     this.spawnGuard(map);
+    this.spawnDoors(map);
+    this.spawnStaff();
+    this.wireDoorColliders();
 
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
@@ -74,10 +94,9 @@ export class BuildingScene extends Phaser.Scene {
     this.controller = new MovementController(this.player);
     this.overlay = new DebugOverlay(this);
     this.guardDebug = this.add.graphics().setDepth(50);
+    this.throwController = new ThrowController(this, (x, y) => this.onNoise(x, y));
 
-    // The debug-toggle family: G shows the reference grid, H the guard internals.
-    // Edge-triggered Key objects (not .on listeners) so nothing stacks up when a
-    // detain restarts the scene.
+    // Debug toggles. Edge-triggered keys so nothing stacks up on scene.restart.
     this.gridKey = this.input.keyboard?.addKey('G');
     this.guardDebugKey = this.input.keyboard?.addKey('H');
   }
@@ -97,6 +116,7 @@ export class BuildingScene extends Phaser.Scene {
       return; // frozen during the DETAINED flash
     }
 
+    const now = this.time.now;
     const gamepadPlugin = this.input.gamepad;
     const pad =
       gamepadPlugin && gamepadPlugin.total > 0 ? gamepadPlugin.getPad(0) : undefined;
@@ -104,13 +124,18 @@ export class BuildingScene extends Phaser.Scene {
     const intent = this.controller.update(pad, this.keys);
     this.player.applyMotion(intent, delta);
 
+    this.updateDoorsAndStaff(now);
+    this.hearFootsteps();
+
     if (this.guard) {
+      const closedDoors = this.doors.filter((d) => !d.isOpen).map((d) => d.rect);
       const tick = this.guard.update(
-        this.time.now,
+        now,
         delta,
         this.player.x,
         this.player.y,
-        intent.speed
+        intent.speed,
+        closedDoors
       );
       if (tick.spottedNow) {
         recordSpotted();
@@ -119,10 +144,102 @@ export class BuildingScene extends Phaser.Scene {
         this.detain();
         return;
       }
+      this.witnessTailgate();
     }
 
-    this.overlay.update(this.player, intent, this.guardInfo());
+    this.throwController.update(this, delta, this.player.x, this.player.y, pad);
+
+    this.overlay.update(this.player, intent, {
+      bolts: this.throwController.remaining,
+      guard: this.guardInfo(),
+      doors: this.doorDebugLines(),
+    });
     this.drawGuardDebug();
+  }
+
+  private spawnDoors(map: BuildingMap): void {
+    this.doors = map.doors.map((rect) => new Door(this, rect));
+  }
+
+  private spawnStaff(): void {
+    const data = this.cache.json.get(STAFF_DATA_KEY) as StaffData | undefined;
+    for (const def of data?.staff ?? []) {
+      this.staff.push(new Staff(this, def));
+    }
+  }
+
+  private wireDoorColliders(): void {
+    for (const door of this.doors) {
+      this.physics.add.collider(this.player.sprite, door.gameObject);
+      if (this.guard) {
+        this.physics.add.collider(this.guard.sprite, door.gameObject);
+      }
+      for (const member of this.staff) {
+        this.physics.add.collider(member.sprite, door.gameObject);
+      }
+    }
+  }
+
+  /** Advances doors and staff, and lets authorised staff badge open badge doors. */
+  private updateDoorsAndStaff(now: number): void {
+    for (const member of this.staff) {
+      member.update(now);
+    }
+    for (const door of this.doors) {
+      if (door.kind === 'badge') {
+        // Any authorised staff standing near a badge door opens it (the tailgate
+        // window keeps it open for a moment after they walk on).
+        for (const member of this.staff) {
+          if (
+            member.isAuthorisedFor(door.id) &&
+            Phaser.Math.Distance.Between(member.x, member.y, door.centreX, door.centreY) <
+              STAFF_BADGE_DISTANCE
+          ) {
+            door.badge(now);
+          }
+        }
+      }
+      door.update(now);
+    }
+  }
+
+  /** Running (and, up close, walking) footsteps make noise the guard investigates. */
+  private hearFootsteps(): void {
+    if (!this.guard || this.player.noiseRadius <= 0) {
+      return;
+    }
+    const dist = Phaser.Math.Distance.Between(
+      this.player.x,
+      this.player.y,
+      this.guard.x,
+      this.guard.y
+    );
+    if (dist <= this.player.noiseRadius) {
+      this.guard.investigatePoint(this.player.x, this.player.y);
+    }
+  }
+
+  /** A bolt landed: pull any guard within earshot to investigate the spot. */
+  private onNoise(x: number, y: number): void {
+    if (!this.guard) {
+      return;
+    }
+    if (Phaser.Math.Distance.Between(x, y, this.guard.x, this.guard.y) <= THROW.noiseRadiusPx) {
+      this.guard.investigatePoint(x, y);
+    }
+  }
+
+  /** If the player slips through an open badge door in a guard's sight, it reacts. */
+  private witnessTailgate(): void {
+    if (!this.guard || !this.guard.canSeePlayer) {
+      return;
+    }
+    for (const door of this.doors) {
+      if (door.kind === 'badge' && door.isOpen && door.contains(this.player.x, this.player.y)) {
+        this.guard.investigatePoint(this.player.x, this.player.y);
+        return;
+      }
+    }
   }
 
   private spawnGuard(map: BuildingMap): void {
@@ -175,6 +292,13 @@ export class BuildingScene extends Phaser.Scene {
       spotted: stats.timesSpotted,
       detains: stats.detains,
     };
+  }
+
+  private doorDebugLines(): string[] | null {
+    if (!this.guardDebugOn) {
+      return null;
+    }
+    return this.doors.map((d) => `${d.id.padEnd(7)} ${d.isOpen ? 'OPEN' : 'shut'}`);
   }
 
   /** Guard debug (H): the sight line to the player and a suspicion bar overhead. */
