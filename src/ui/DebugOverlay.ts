@@ -19,10 +19,14 @@ export interface HudExtra {
   bolts: number;
   /** Building alert status line, e.g. "CALM". Always shown. */
   site: string;
+  /** Light level at the player as a percentage, shown only in guard debug. */
+  light: number | null;
   /** Guard readouts, shown only when the guard debug view is on. */
   guard: GuardHudInfo | null;
   /** Door state lines, shown only when the guard debug view is on. */
   doors: string[] | null;
+  /** Camera state lines, shown only when the guard debug view is on. */
+  cameras: string[] | null;
 }
 
 /**
@@ -65,7 +69,7 @@ export class DebugOverlay {
       `BOLTS   ${extra.bolts}`,
       `SITE    ${extra.site}`,
       `DEVICE  ${intent.device.toUpperCase()}`,
-      `[G] grid   [H] guard`,
+      `[G] grid  [H] guard  [L] lights`,
     ];
     if (extra.guard) {
       lines.push(
@@ -73,12 +77,16 @@ export class DebugOverlay {
         `GUARD   ${extra.guard.state.toUpperCase()}`,
         `SUSP    ${Math.round(extra.guard.suspicion)}%`,
         `SEES    ${extra.guard.sees ? 'YES' : 'no'}`,
+        `LIGHT   ${extra.light ?? 0}%`,
         `SPOTS   ${extra.guard.spotted}`,
         `CATCH   ${extra.guard.detains}`
       );
     }
     if (extra.doors) {
       lines.push('', ...extra.doors);
+    }
+    if (extra.cameras) {
+      lines.push('', ...extra.cameras);
     }
     this.text.setText(lines);
   }

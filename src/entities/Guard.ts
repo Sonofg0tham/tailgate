@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CONE_RANGE_PX, DETECTION } from '../config/detection';
+import { LIGHTING } from '../config/lighting';
 import { RENDER } from '../config/tiles';
 import type { SpeedState } from '../input/InputState';
 import { VisionCone, type ConeEdge } from '../systems/VisionCone';
@@ -124,13 +125,14 @@ export class Guard {
     playerX: number,
     playerY: number,
     playerSpeed: SpeedState,
-    closedDoors: WallRect[] = []
+    closedDoors: WallRect[] = [],
+    lightLevel = 1
   ): GuardTick {
     const dtSec = dtMs / 1000;
 
     // Closed doors block sight this frame just like walls do.
     this.cone.setDynamicOccluders(closedDoors);
-    this.perceive(playerX, playerY, playerSpeed, dtSec);
+    this.perceive(playerX, playerY, playerSpeed, dtSec, lightLevel);
     const spottedNow = this.updateState(now);
     this.act(now, playerX, playerY);
     this.sprite.setRotation(this.facing);
@@ -170,14 +172,27 @@ export class Guard {
     this.investigateUntil = 0;
   }
 
-  private perceive(px: number, py: number, playerSpeed: SpeedState, dtSec: number): void {
+  private perceive(
+    px: number,
+    py: number,
+    playerSpeed: SpeedState,
+    dtSec: number,
+    lightLevel: number
+  ): void {
     this.sawPlayer = this.cone.canSee(this.x, this.y, this.facing, px, py);
     if (this.sawPlayer) {
       this.lastSeen.set(px, py);
       this.investigateUntil = 0; // re-seen: go to the fresh position, do not keep scanning old spot
       const proximity = this.proximityFactor(px, py);
       const speed = DETECTION.suspicion.speedFactor[playerSpeed];
-      this.suspicionValue += DETECTION.suspicion.baseFillPerSecond * proximity * speed * dtSec;
+      // Darkness is cover: in the dark the fill slows toward the concealment floor.
+      const darkness = Phaser.Math.Linear(
+        LIGHTING.concealmentFloor,
+        1,
+        Phaser.Math.Clamp(lightLevel, 0, 1)
+      );
+      this.suspicionValue +=
+        DETECTION.suspicion.baseFillPerSecond * proximity * speed * darkness * dtSec;
     } else {
       this.suspicionValue -= DETECTION.suspicion.decayPerSecond * dtSec;
     }
