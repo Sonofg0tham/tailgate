@@ -29,6 +29,8 @@ interface MissionState {
   planted: boolean;
   /** Ids of photographed secondary objectives. */
   photographed: string[];
+  /** Console loop charges spent this engagement. Survives a detain restart. */
+  hijackChargesUsed: number;
 }
 
 function freshMission(levelId: string | null): MissionState {
@@ -39,6 +41,7 @@ function freshMission(levelId: string | null): MissionState {
     checkpoint: null,
     planted: false,
     photographed: [],
+    hijackChargesUsed: 0,
   };
 }
 
@@ -54,6 +57,11 @@ export function setCheckpoint(cp: Checkpoint): void {
 
 export function setPlanted(): void {
   state.planted = true;
+}
+
+/** Spends one console loop charge. The caller checks availability first. */
+export function useHijackCharge(): void {
+  state.hijackChargesUsed += 1;
 }
 
 export function addPhotographed(id: string): void {
