@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { FONTS, PALETTE } from '../config/palette';
 import { NOISE_RING_TINT } from '../config/zones';
+import { getSettings } from '../state/settings';
 import type { Player } from '../entities/Player';
 import type { MovementIntent } from '../input/InputState';
 
@@ -57,6 +58,11 @@ export class DebugOverlay {
   }
 
   update(player: Player, intent: MovementIntent, extra: HudExtra): void {
+    // The HUD text scale setting applies live, so a change from the pause menu
+    // takes effect the moment the player resumes. The ring is world space and
+    // is not scaled.
+    this.text.setScale(getSettings().hudScale);
+
     this.ring.clear();
     if (player.noiseRadius > 0) {
       this.ring.lineStyle(2, NOISE_RING_TINT, 0.8);

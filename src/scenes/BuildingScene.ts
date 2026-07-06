@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { AudioManager } from '../audio/AudioManager';
+import { AudioManager, setAudioMasterVolume, setAudioMuted } from '../audio/AudioManager';
 import { DETECTION } from '../config/detection';
 import { JUICE } from '../config/juice';
 import { LIGHTING } from '../config/lighting';
@@ -101,8 +101,11 @@ export class BuildingScene extends Phaser.Scene {
   private guardDebugKey?: Phaser.Input.Keyboard.Key;
   private lightingKey?: Phaser.Input.Keyboard.Key;
   private interactKey?: Phaser.Input.Keyboard.Key;
+  private pauseKey?: Phaser.Input.Keyboard.Key;
   /** Last frame's pad A state, so the breaker sees a fresh press not a hold. */
   private padInteractWasDown = false;
+  /** Last frame's pad Start state, so pause fires on a fresh press not a hold. */
+  private padStartWasDown = false;
 
   constructor() {
     super('building');
@@ -188,6 +191,10 @@ export class BuildingScene extends Phaser.Scene {
     this.lightingRenderer = new LightingRenderer(this);
     this.audio = new AudioManager();
     this.audio.init(this);
+    // Apply the saved audio preferences to the shared mix. Safe before unlock:
+    // the values are stored and take effect when the graph is first built.
+    setAudioMasterVolume(getSettings().masterVolume);
+    setAudioMuted(getSettings().muted);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.audio.suspendForRestart());
 
     // Debug toggles. Edge-triggered keys so nothing stacks up on scene.restart.
@@ -195,6 +202,7 @@ export class BuildingScene extends Phaser.Scene {
     this.guardDebugKey = this.input.keyboard?.addKey('H');
     this.lightingKey = this.input.keyboard?.addKey('L');
     this.interactKey = this.input.keyboard?.addKey('E');
+    this.pauseKey = this.input.keyboard?.addKey('ESC');
 
     if (import.meta.env.DEV) {
       const dev = this as unknown as {
@@ -226,15 +234,23 @@ export class BuildingScene extends Phaser.Scene {
       this.lightingRenderer.setVisible(!this.lightingHidden);
     }
 
+    const gamepadPlugin = this.input.gamepad;
+    const pad =
+      gamepadPlugin && gamepadPlugin.total > 0 ? gamepadPlugin.getPad(0) : undefined;
+
+    // Pause on Escape or the pad Start button. Read the edge every frame so the
+    // held state never goes stale, but only act when actually in play.
+    const wantsPause = this.pausePressed(pad);
+    if (wantsPause && !this.detained && !this.missionOver) {
+      this.openPause();
+      return;
+    }
+
     if (this.detained || this.missionOver) {
       return; // frozen during the DETAINED flash or the handover to the report
     }
 
     const now = this.time.now;
-    const gamepadPlugin = this.input.gamepad;
-    const pad =
-      gamepadPlugin && gamepadPlugin.total > 0 ? gamepadPlugin.getPad(0) : undefined;
-
     const intent = this.controller.update(pad, this.keys);
     this.player.applyMotion(intent, delta);
     this.updateLookAhead(intent.direction);
@@ -319,6 +335,7 @@ export class BuildingScene extends Phaser.Scene {
     }
     // The objective prompt wins; the breaker prompt shows only when free.
     this.promptText.setText(objTick.prompt ?? camTick.prompt ?? '');
+    this.promptText.setScale(getSettings().hudScale);
 
     this.throwController.update(this, delta, this.player.x, this.player.y, pad);
 
@@ -391,6 +408,21 @@ export class BuildingScene extends Phaser.Scene {
     const padEdge = aDown && !this.padInteractWasDown;
     this.padInteractWasDown = aDown;
     return keyEdge || padEdge;
+  }
+
+  /** True on the frame Escape or the pad Start button is freshly pressed. */
+  private pausePressed(pad: Phaser.Input.Gamepad.Gamepad | undefined): boolean {
+    const escEdge = this.pauseKey ? Phaser.Input.Keyboard.JustDown(this.pauseKey) : false;
+    const startDown = pad?.buttons?.[9]?.pressed ?? false;
+    const startEdge = startDown && !this.padStartWasDown;
+    this.padStartWasDown = startDown;
+    return escEdge || startEdge;
+  }
+
+  /** Freezes the building and opens the lanyard pause badge over the top. */
+  private openPause(): void {
+    this.scene.launch('pause');
+    this.scene.pause();
   }
 
   /** True if a staff member or the guard is pressed up against the player. */

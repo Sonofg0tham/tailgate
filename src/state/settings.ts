@@ -14,10 +14,15 @@ interface Settings {
   masterVolume: number;
   /** Global mute. */
   muted: boolean;
-  /** Multiplier on HUD text size, reserved for the Phase 6 accessibility menu. */
+  /** Multiplier on HUD text size, for the accessibility menu. */
   hudScale: number;
   /** Extra brightness on top of the lighting visibility floor, 0 to 1. */
   extraBrightness: number;
+  /**
+   * Assist mode: guards move at a reduced speed. No score penalty and no shame
+   * copy anywhere, per the accessibility design. Default off.
+   */
+  assistMode: boolean;
 }
 
 const STORAGE_KEY = 'tailgate.settings';
@@ -28,6 +33,7 @@ const settings: Settings = {
   muted: false,
   hudScale: 1,
   extraBrightness: 0,
+  assistMode: false,
 };
 
 // Load any persisted overrides. Guarded so a headless build never throws.
@@ -74,5 +80,10 @@ export function setHudScale(v: number): void {
 
 export function setExtraBrightness(v: number): void {
   settings.extraBrightness = Math.max(0, Math.min(1, v));
+  persist();
+}
+
+export function setAssistMode(on: boolean): void {
+  settings.assistMode = on;
   persist();
 }
