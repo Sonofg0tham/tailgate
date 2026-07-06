@@ -6,6 +6,7 @@ import Phaser from 'phaser';
 import { PALETTE } from './config/palette';
 import { BuildingScene } from './scenes/BuildingScene';
 import { ContractSelectScene } from './scenes/ContractSelectScene';
+import { HijackScene } from './scenes/HijackScene';
 import { MenuScene } from './scenes/MenuScene';
 import { PauseScene } from './scenes/PauseScene';
 import { ReportScene } from './scenes/ReportScene';
@@ -52,7 +53,15 @@ async function boot(): Promise<void> {
     },
     // The kiosk boots first; it opens the contract schedule, which starts the
     // building. Pause and settings are overlays launched on top.
-    scene: [MenuScene, ContractSelectScene, BuildingScene, ReportScene, PauseScene, SettingsScene],
+    scene: [
+      MenuScene,
+      ContractSelectScene,
+      BuildingScene,
+      ReportScene,
+      PauseScene,
+      SettingsScene,
+      HijackScene,
+    ],
   });
 
   // Dev-only handles for manual inspection. Stripped from production builds.

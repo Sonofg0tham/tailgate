@@ -80,6 +80,11 @@ export class LightingRenderer {
     this.rt.setVisible(visible);
   }
 
+  /** The screen-fixed veil texture, so secondary feed cameras can ignore it. */
+  get veil(): Phaser.GameObjects.RenderTexture {
+    return this.rt;
+  }
+
   private eraseLight(sx: number, sy: number, radiusPx: number, intensity: number): void {
     this.brush.setScale((radiusPx * 2) / MASK_SIZE);
     this.brush.setAlpha(Phaser.Math.Clamp(intensity, 0, 1));

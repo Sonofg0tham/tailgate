@@ -57,6 +57,11 @@ export class DebugOverlay {
       .setDepth(1000);
   }
 
+  /** The screen-fixed HUD text, so secondary feed cameras can ignore it. */
+  get hudText(): Phaser.GameObjects.Text {
+    return this.text;
+  }
+
   update(player: Player, intent: MovementIntent, extra: HudExtra): void {
     // The HUD text scale setting applies live, so a change from the pause menu
     // takes effect the moment the player resumes. The ring is world space and

@@ -521,6 +521,38 @@ export class AudioManager {
     });
   }
 
+  /**
+   * Plays a security console cue: open (rising blip), freeze (mid blip) or
+   * denied (a low double-knock). Audio is one of the three channels that
+   * announce a looped feed, alongside the halted dashed cone and the ring pip.
+   */
+  playConsoleCue(kind: 'open' | 'freeze' | 'denied'): void {
+    if (!graph || graph.ctx.state !== 'running') {
+      return;
+    }
+    const cfg = AUDIO.console;
+    const frequencyHz =
+      kind === 'open' ? cfg.openHz : kind === 'freeze' ? cfg.freezeHz : cfg.deniedHz;
+    playToneBurst(graph.ctx, graph.buses.sting.gain, {
+      type: cfg.toneType,
+      frequencyHz,
+      attackMs: cfg.attackMs,
+      holdMs: cfg.holdMs,
+      releaseMs: cfg.releaseMs,
+      peakGain: cfg.peakGain,
+    });
+    if (kind === 'denied') {
+      playToneBurst(graph.ctx, graph.buses.sting.gain, {
+        type: cfg.toneType,
+        frequencyHz: frequencyHz * 0.75,
+        attackMs: cfg.attackMs,
+        holdMs: cfg.holdMs,
+        releaseMs: cfg.releaseMs,
+        peakGain: cfg.peakGain,
+      });
+    }
+  }
+
   /** Plays one player footstep for the given floor surface. */
   playFootstep(surface: Surface): void {
     if (!graph || graph.ctx.state !== 'running') {

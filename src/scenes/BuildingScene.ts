@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { AudioManager, setAudioMasterVolume, setAudioMuted } from '../audio/AudioManager';
 import { DETECTION } from '../config/detection';
+import { HIJACK } from '../config/hijack';
 import { JUICE } from '../config/juice';
 import { LIGHTING } from '../config/lighting';
 import { MOVEMENT } from '../config/movement';
@@ -15,7 +16,13 @@ import type { KeyboardKeys } from '../input/KeyboardInput';
 import { MovementController } from '../input/MovementController';
 import { getActiveLevel, type LevelDef } from '../state/levels';
 import { getSettings } from '../state/settings';
-import { CameraSystem, type CamerasData } from '../systems/CameraSystem';
+import {
+  CameraSystem,
+  type CamerasData,
+  type ConsoleDef,
+  type FeedInfo,
+  type FreezeResult,
+} from '../systems/CameraSystem';
 import { LightModel } from '../systems/LightModel';
 import { LightingRenderer } from '../systems/LightingRenderer';
 import type { WallRect, ZoneRect } from '../world/BuildingMap';
@@ -25,12 +32,14 @@ import {
   decayAlert,
   touchAlert,
   setCheckpoint,
+  useHijackCharge,
 } from '../state/mission';
 import {
   getRunStats,
   recordAlertLevel,
   recordDetain,
   recordExfil,
+  recordFeedFrozen,
   recordIngress,
   recordSpotted,
   type IngressRoute,
@@ -104,6 +113,12 @@ export class BuildingScene extends Phaser.Scene {
   private padStartWasDown = false;
   /** The contract being played, pinned in init before any loading happens. */
   private level!: LevelDef;
+  /** The security office console, if this level has one. */
+  private consoleDef?: ConsoleDef;
+  /** True while the CCTV multiplexer overlay is open. */
+  private consoleOpen = false;
+  /** The secondary camera rendering the live feed inside the multiplexer. */
+  private feedCam?: Phaser.Cameras.Scene2D.Camera;
 
   constructor() {
     super('building');
@@ -168,11 +183,14 @@ export class BuildingScene extends Phaser.Scene {
     this.spawnStaff();
     this.wireDoorColliders();
     this.objectives = new ObjectiveSystem(this, map.objectives, map.spawn.clone());
-    this.cameraSystem = new CameraSystem(
-      this,
-      map.walls,
-      this.cache.json.get(this.cameraDataKey) as CamerasData | undefined
-    );
+    const camerasData = this.cache.json.get(this.cameraDataKey) as CamerasData | undefined;
+    this.cameraSystem = new CameraSystem(this, map.walls, camerasData);
+    this.consoleOpen = false;
+    this.feedCam = undefined;
+    this.consoleDef = camerasData?.console;
+    if (this.consoleDef) {
+      this.drawConsoleMarker(this.consoleDef);
+    }
 
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
@@ -258,9 +276,10 @@ export class BuildingScene extends Phaser.Scene {
       gamepadPlugin && gamepadPlugin.total > 0 ? gamepadPlugin.getPad(0) : undefined;
 
     // Pause on Escape or the pad Start button. Read the edge every frame so the
-    // held state never goes stale, but only act when actually in play.
+    // held state never goes stale, but only act when actually in play. While
+    // the console is open, Escape and B belong to the multiplexer instead.
     const wantsPause = this.pausePressed(pad);
-    if (wantsPause && !this.detained && !this.missionOver) {
+    if (wantsPause && !this.detained && !this.missionOver && !this.consoleOpen) {
       this.openPause();
       return;
     }
@@ -270,11 +289,21 @@ export class BuildingScene extends Phaser.Scene {
     }
 
     const now = this.time.now;
-    const intent = this.controller.update(pad, this.keys);
+    // Read the interact edge exactly once per frame (it latches key and pad state).
+    const interactPressed = this.isInteractJustPressed(pad);
+    // At the console the player stands still, but the world keeps moving: that
+    // is the whole point of watching the feeds.
+    const intent = this.consoleOpen
+      ? this.controller.update(undefined, undefined)
+      : this.controller.update(pad, this.keys);
     this.player.applyMotion(intent, delta);
     this.updateLookAhead(intent.direction);
 
     this.updateAlertLevel(now);
+    // Lockdown slams the console session shut mid-use.
+    if (this.consoleOpen && getMission().alertLevel >= HIJACK.lockoutAlertLevel) {
+      this.closeConsole('denied');
+    }
     this.updateDoorsAndStaff(now);
     this.trackIngressAndCheckpoint();
     this.hearFootsteps();
@@ -317,7 +346,7 @@ export class BuildingScene extends Phaser.Scene {
       this.player.x,
       this.player.y,
       closedDoors,
-      this.isInteractJustPressed(pad)
+      this.consoleOpen ? false : interactPressed
     );
     for (const p of camTick.investigatePoints) {
       this.guard?.investigatePoint(p.x, p.y);
@@ -333,7 +362,7 @@ export class BuildingScene extends Phaser.Scene {
       dtMs: delta,
       playerX: this.player.x,
       playerY: this.player.y,
-      interactHeld: this.isInteractHeld(pad),
+      interactHeld: this.consoleOpen ? false : this.isInteractHeld(pad),
       playerMoving: intent.speed !== 'idle',
       seenByGuard: this.guard?.canSeePlayer ?? false,
       bumped: this.isBumped(),
@@ -352,11 +381,17 @@ export class BuildingScene extends Phaser.Scene {
       this.scene.start('report');
       return;
     }
-    // The objective prompt wins; the breaker prompt shows only when free.
-    this.promptText.setText(objTick.prompt ?? camTick.prompt ?? '');
+    // The objective prompt wins, then the console, then the breaker. The
+    // multiplexer overlay owns the screen while it is open.
+    const consoleLine = this.updateConsole(interactPressed);
+    this.promptText.setText(
+      this.consoleOpen ? '' : (objTick.prompt ?? consoleLine ?? camTick.prompt ?? '')
+    );
     this.promptText.setScale(getSettings().hudScale);
 
-    this.throwController.update(this, delta, this.player.x, this.player.y, pad);
+    if (!this.consoleOpen) {
+      this.throwController.update(this, delta, this.player.x, this.player.y, pad);
+    }
 
     this.audio.update({
       nowMs: now,
@@ -442,6 +477,134 @@ export class BuildingScene extends Phaser.Scene {
   private openPause(): void {
     this.scene.launch('pause');
     this.scene.pause();
+  }
+
+  /**
+   * The security console prompt and interact. Returns the HUD line, or null
+   * when out of range or the console is already open. Lockdown refuses
+   * service; the multiplexer overlay opens on a fresh interact press.
+   */
+  private updateConsole(interactPressed: boolean): string | null {
+    const def = this.consoleDef;
+    if (!def || this.consoleOpen) {
+      return null;
+    }
+    const inRange =
+      Phaser.Math.Distance.Between(this.player.x, this.player.y, def.x, def.y) <=
+      HIJACK.console.interactRangePx;
+    if (!inRange) {
+      return null;
+    }
+    if (getMission().alertLevel >= HIJACK.lockoutAlertLevel) {
+      return 'CONSOLE LOCKED: SITE ON LOCKDOWN';
+    }
+    if (interactPressed) {
+      this.openConsole();
+      return null;
+    }
+    return '[E] SECURITY CONSOLE';
+  }
+
+  private openConsole(): void {
+    this.consoleOpen = true;
+    this.audio.playConsoleCue('open');
+    this.scene.launch('hijack');
+  }
+
+  /** Closes the multiplexer, optionally with a cue ('denied' on lockdown). */
+  closeConsole(cue: 'denied' | null = null): void {
+    if (!this.consoleOpen) {
+      return;
+    }
+    this.consoleOpen = false;
+    if (cue) {
+      this.audio.playConsoleCue(cue);
+    }
+    this.scene.stop('hijack');
+    this.destroyFeedView();
+  }
+
+  /** Feed list plus remaining loop charges, for the multiplexer UI. */
+  hijackFeeds(): { feeds: FeedInfo[]; chargesRemaining: number } {
+    return {
+      feeds: this.cameraSystem.feedInfos(this.time.now),
+      chargesRemaining: Math.max(0, HIJACK.charges - getMission().hijackChargesUsed),
+    };
+  }
+
+  /** Spends a charge to loop the named feed, with cues for every outcome. */
+  hijackFreeze(id: string): FreezeResult | 'no-charges' {
+    if (HIJACK.charges - getMission().hijackChargesUsed <= 0) {
+      this.audio.playConsoleCue('denied');
+      return 'no-charges';
+    }
+    const result = this.cameraSystem.freezeCamera(id, this.time.now);
+    if (result === 'frozen') {
+      useHijackCharge();
+      recordFeedFrozen(id);
+      this.audio.playConsoleCue('freeze');
+    } else {
+      this.audio.playConsoleCue('denied');
+    }
+    return result;
+  }
+
+  /** Points the live feed at the named camera, creating the view on demand. */
+  hijackShowFeed(cameraId: string): void {
+    const feed = this.cameraSystem
+      .feedInfos(this.time.now)
+      .find((f) => f.id === cameraId);
+    if (!feed) {
+      return;
+    }
+    this.ensureFeedView();
+    this.feedCam?.centerOn(feed.x, feed.y);
+  }
+
+  /** The multiplexer's exit path (B or Escape on the console). */
+  hijackClose(): void {
+    this.closeConsole();
+  }
+
+  /**
+   * The feed view is a second scene camera with a small viewport, scrolled to
+   * whichever CCTV the multiplexer is showing. It skips the screen-fixed veil
+   * and HUD: greybox feeds show the unlit world, dressed in Phase 10.
+   */
+  private ensureFeedView(): void {
+    if (this.feedCam) {
+      return;
+    }
+    const { x, y, width, height } = HIJACK.feed;
+    this.feedCam = this.cameras.add(x, y, width, height);
+    this.feedCam.setBounds(
+      0,
+      0,
+      this.physics.world.bounds.width,
+      this.physics.world.bounds.height
+    );
+    this.feedCam.ignore([
+      this.lightingRenderer.veil,
+      this.promptText,
+      this.overlay.hudText,
+      this.guardDebug,
+    ]);
+  }
+
+  private destroyFeedView(): void {
+    if (this.feedCam) {
+      this.cameras.remove(this.feedCam);
+      this.feedCam = undefined;
+    }
+  }
+
+  /** The greybox console marker: a small desk unit with an amber screen. */
+  private drawConsoleMarker(def: ConsoleDef): void {
+    this.add
+      .rectangle(def.x, def.y, 26, 18, 0x2a2f38)
+      .setStrokeStyle(1.5, PALETTE_HEX.amber, 0.9)
+      .setDepth(15);
+    this.add.rectangle(def.x, def.y - 2, 16, 7, PALETTE_HEX.amber, 0.45).setDepth(16);
   }
 
   /** True if a staff member or the guard is pressed up against the player. */
@@ -637,6 +800,7 @@ export class BuildingScene extends Phaser.Scene {
 
   /** Caught: a sharp DETAINED beat, then reset the run to the last checkpoint. */
   private detain(): void {
+    this.closeConsole();
     recordDetain();
     this.detained = true;
     this.physics.pause();
