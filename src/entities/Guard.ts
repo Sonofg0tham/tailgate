@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { CONE_RANGE_PX, DETECTION } from '../config/detection';
 import { LIGHTING } from '../config/lighting';
 import { RENDER } from '../config/tiles';
+import { getSettings } from '../state/settings';
 import type { SpeedState } from '../input/InputState';
 import { VisionCone, type ConeEdge } from '../systems/VisionCone';
 import type { WallRect } from '../world/BuildingMap';
@@ -261,8 +262,14 @@ export class Guard {
     this.guardState = 'curious';
   }
 
+  /** Combined speed scale: the alert-level multiplier and the assist option. */
+  private speedScale(): number {
+    const assist = getSettings().assistMode ? DETECTION.assist.guardSpeedScale : 1;
+    return this.speedMultiplier * assist;
+  }
+
   private act(now: number, playerX: number, playerY: number): void {
-    const mult = this.speedMultiplier;
+    const mult = this.speedScale();
     switch (this.guardState) {
       case 'alert':
         // Chase the player's current position.
@@ -298,7 +305,7 @@ export class Guard {
       return;
     }
     const node = this.route[this.routeIndex];
-    if (this.moveToward(node.x, node.y, DETECTION.speed.patrol * this.speedMultiplier)) {
+    if (this.moveToward(node.x, node.y, DETECTION.speed.patrol * this.speedScale())) {
       this.stop();
       this.resumeAt = now + node.pauseMs;
       this.routeIndex = (this.routeIndex + 1) % this.route.length;

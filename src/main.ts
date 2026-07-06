@@ -5,7 +5,11 @@ import './style.css';
 import Phaser from 'phaser';
 import { PALETTE } from './config/palette';
 import { BuildingScene } from './scenes/BuildingScene';
+import { MenuScene } from './scenes/MenuScene';
+import { PauseScene } from './scenes/PauseScene';
 import { ReportScene } from './scenes/ReportScene';
+import { SettingsScene } from './scenes/SettingsScene';
+import { getSettings } from './state/settings';
 
 export const GAME_WIDTH = 960;
 export const GAME_HEIGHT = 540;
@@ -45,12 +49,15 @@ async function boot(): Promise<void> {
     input: {
       gamepad: true,
     },
-    scene: [BuildingScene, ReportScene],
+    // The kiosk boots first; it starts the building. Pause and settings are
+    // overlays launched on top of whatever is running.
+    scene: [MenuScene, BuildingScene, ReportScene, PauseScene, SettingsScene],
   });
 
-  // Dev-only handle for manual inspection. Stripped from production builds.
+  // Dev-only handles for manual inspection. Stripped from production builds.
   if (import.meta.env.DEV) {
     (window as unknown as { __game: Phaser.Game }).__game = game;
+    (window as unknown as { __settings: typeof getSettings }).__settings = getSettings;
   }
 }
 

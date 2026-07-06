@@ -57,6 +57,36 @@ interface AudioGraph {
 
 let graph: AudioGraph | null = null;
 
+// Master volume and mute live at module scope alongside the graph singleton, so
+// any scene (the settings menu, the building) can set them and they apply to the
+// one shared mix, whether or not audio has unlocked yet.
+let masterVolume01 = 1;
+let masterMuted = false;
+
+/** The effective master gain: zero when muted, else the tuned master times 0..1. */
+function effectiveMasterGain(): number {
+  return masterMuted ? 0 : AUDIO.volumes.master * masterVolume01;
+}
+
+/**
+ * Sets the overall volume, 0 to 1, on top of the tuned master gain. Safe before
+ * audio unlocks: the value is stored and applied when the graph is built.
+ */
+export function setAudioMasterVolume(v01: number): void {
+  masterVolume01 = Phaser.Math.Clamp(v01, 0, 1);
+  if (graph && !masterMuted) {
+    graph.masterGain.gain.setValueAtTime(effectiveMasterGain(), graph.ctx.currentTime);
+  }
+}
+
+/** Mutes or unmutes the whole mix with a short click-free ramp. */
+export function setAudioMuted(muted: boolean): void {
+  masterMuted = muted;
+  if (graph) {
+    rampGain(graph.ctx, graph.masterGain.gain, effectiveMasterGain(), 30);
+  }
+}
+
 /** Builds one steady ambience voice for a bed, routed through its own gain. */
 function buildAmbienceVoice(ctx: AudioContext, noiseBuffer: AudioBuffer, bed: AmbienceBed): AmbienceVoice | null {
   if (bed === 'none') {
@@ -210,8 +240,6 @@ function rampGain(ctx: AudioContext, param: AudioParam, target: number, duration
  * second ambience bed).
  */
 export class AudioManager {
-  private muted = false;
-  private masterVolume01 = 1;
   private stingCount = 0;
 
   private lastFrameMs: number | null = null;
@@ -251,7 +279,7 @@ export class AudioManager {
     if (!graph) {
       const ctx = new AudioCtor();
       graph = buildGraph(ctx);
-      graph.masterGain.gain.value = this.muted ? 0 : AUDIO.volumes.master * this.masterVolume01;
+      graph.masterGain.gain.value = effectiveMasterGain();
     }
 
     if (graph.ctx.state === 'suspended') {
@@ -505,28 +533,6 @@ export class AudioManager {
       peakGain: settings.peakGain,
       decayMs: settings.decayMs,
     });
-  }
-
-  /** Mutes or unmutes the whole mix with a short click-free ramp. */
-  setMuted(muted: boolean): void {
-    this.muted = muted;
-    if (!graph) {
-      return;
-    }
-    const target = muted ? 0 : AUDIO.volumes.master * this.masterVolume01;
-    rampGain(graph.ctx, graph.masterGain.gain, target, 30);
-  }
-
-  /** Sets the overall master volume, 0 to 1, on top of the tuned master gain. */
-  setMasterVolume(v01: number): void {
-    this.masterVolume01 = Phaser.Math.Clamp(v01, 0, 1);
-    if (!graph || this.muted) {
-      return;
-    }
-    graph.masterGain.gain.setValueAtTime(
-      AUDIO.volumes.master * this.masterVolume01,
-      graph.ctx.currentTime
-    );
   }
 
   /**

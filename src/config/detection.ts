@@ -96,6 +96,16 @@ export const DETECTION = {
     /** Guard speed multiplier during lockdown (the sweep). Never decays. */
     level2SpeedMult: 1.6,
   },
+
+  /** Accessibility assist option (settings.assistMode). */
+  assist: {
+    /**
+     * Guard speed multiplier when assist mode is on. GAME_DESIGN: 90 percent.
+     * Applied on top of the alert-level multiplier so the whole game slows,
+     * never below this, with no score penalty attached.
+     */
+    guardSpeedScale: 0.9,
+  },
 } as const;
 
 /** Cone range in pixels, derived from the tile range. */

@@ -3,6 +3,7 @@ import { FONTS, PALETTE } from '../config/palette';
 import { generateReport, type Finding, type ReportModel } from '../report/generateReport';
 import { getMission, resetMission } from '../state/mission';
 import { getRunStats, resetRunStats } from '../state/runStats';
+import { MenuController } from '../ui/MenuController';
 
 /** Page geometry. The report sits on the near-black like a printed sheet. */
 const PAGE = {
@@ -25,7 +26,7 @@ const WRAP_WIDTH = PAGE.width - PAGE.padX * 2 - 70;
  * fresh engagement and drops the player back into the building.
  */
 export class ReportScene extends Phaser.Scene {
-  private resetButton?: Phaser.GameObjects.Text;
+  private menu!: MenuController;
 
   constructor() {
     super('report');
@@ -56,10 +57,13 @@ export class ReportScene extends Phaser.Scene {
     y = this.drawClientDetections(left, y, model);
     this.drawSummary(left, y, model);
     this.drawRating(centreX, model);
-    this.drawResetButton(centreX);
+    this.buildMenu(centreX);
+  }
 
-    // Keyboard shortcut: N starts a new engagement, matching the button.
-    this.input.keyboard?.once('keydown-N', () => this.newEngagement());
+  update(): void {
+    const plugin = this.input.gamepad;
+    const pad = plugin && plugin.total > 0 ? plugin.getPad(0) : undefined;
+    this.menu.update(pad);
   }
 
   /** Draws the confidential caption, big title and the header fields. */
@@ -153,7 +157,7 @@ export class ReportScene extends Phaser.Scene {
 
   /** Draws the big outcome rating and its dry remark, bottom of the page. */
   private drawRating(centreX: number, model: ReportModel): void {
-    const y = this.scale.height / 2 + PAGE.height / 2 - 96;
+    const y = this.scale.height / 2 + PAGE.height / 2 - 132;
     const detained = model.rating === 'DETAINED';
     const colour = detained ? PALETTE.alarm : PALETTE.amber;
 
@@ -176,40 +180,31 @@ export class ReportScene extends Phaser.Scene {
       .setOrigin(0.5, 0);
   }
 
-  /** Draws the interactive new engagement button at the bottom of the page. */
-  private drawResetButton(centreX: number): void {
-    const y = this.scale.height / 2 + PAGE.height / 2 - 30;
-    const button = this.add
-      .text(centreX, y, '[ NEW ENGAGEMENT ]', {
-        fontFamily: FONTS.mono,
-        fontSize: '14px',
-        color: PALETTE.amber,
-        backgroundColor: undefined,
-        padding: { x: 10, y: 5 },
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-
-    // Hover inverts to amber fill with dark text, then reverts on pointer out.
-    button.on('pointerover', () => {
-      button.setColor(PALETTE.base);
-      button.setBackgroundColor(PALETTE.amber);
-    });
-    button.on('pointerout', () => {
-      button.setColor(PALETTE.amber);
-      button.setBackgroundColor('rgba(0,0,0,0)');
-    });
-    button.on('pointerdown', () => this.newEngagement());
-
-    this.resetButton = button;
+  /** The end-of-run actions, navigable on pad, keyboard and mouse alike. */
+  private buildMenu(centreX: number): void {
+    const top = this.scale.height / 2 + PAGE.height / 2 - 64;
+    this.menu = new MenuController(
+      this,
+      [
+        { kind: 'action', label: '[ NEW ENGAGEMENT ]', onSelect: () => this.newEngagement() },
+        { kind: 'action', label: '[ MAIN MENU ]', onSelect: () => this.mainMenu() },
+      ],
+      { x: centreX, top, rowHeight: 30, width: 340, labelSize: 15 }
+    );
   }
 
   /** Starts a completely fresh engagement and returns to the building. */
   private newEngagement(): void {
-    this.resetButton?.disableInteractive();
     resetRunStats();
     resetMission();
     this.scene.start('building');
+  }
+
+  /** Clears the run and returns to the sign-in kiosk. */
+  private mainMenu(): void {
+    resetRunStats();
+    resetMission();
+    this.scene.start('menu');
   }
 
   /** Small helper for a left-aligned mono line, keeping create() readable. */
