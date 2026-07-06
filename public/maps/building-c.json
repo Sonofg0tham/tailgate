@@ -10,7 +10,7 @@
   "tileheight": 32,
   "width": 75,
   "height": 50,
-  "nextlayerid": 6,
+  "nextlayerid": 7,
   "nextobjectid": 500,
   "tilesets": [],
   "layers": [
@@ -143,6 +143,21 @@
         { "id": 400, "name": "smokers", "type": "smokers", "x": 300, "y": 1216, "width": 120, "height": 40, "rotation": 0, "visible": true },
         { "id": 401, "name": "reception", "type": "badge", "x": 1180, "y": 1216, "width": 200, "height": 40, "rotation": 0, "visible": true },
         { "id": 402, "name": "shutter", "type": "shutter", "x": 1950, "y": 1216, "width": 150, "height": 40, "rotation": 0, "visible": true }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "objectives",
+      "type": "objectgroup",
+      "draworder": "topdown",
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0,
+      "objects": [
+        { "id": 450, "name": "rack4", "type": "plant", "x": 2175, "y": 560, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 451, "name": "workstation", "type": "photo", "x": 1040, "y": 636, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 452, "name": "stickynote", "type": "photo", "x": 1440, "y": 636, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true }
       ]
     }
   ]

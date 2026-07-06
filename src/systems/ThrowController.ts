@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { THROW } from '../config/throw';
 import { Bolt } from '../entities/Bolt';
+import { recordBoltThrown } from '../state/runStats';
 
 /**
  * Handles the distraction throw: aiming, the throw trigger, the live bolts and
@@ -12,14 +13,19 @@ import { Bolt } from '../entities/Bolt';
  * scene turns that into a guard investigation.
  */
 export class ThrowController {
-  private boltsLeft = THROW.boltCount;
+  private boltsLeft: number;
   private readonly bolts: Bolt[] = [];
   private readonly reticle: Phaser.GameObjects.Graphics;
   private prevThrow = false;
   private readonly onNoise: (x: number, y: number) => void;
 
-  constructor(scene: Phaser.Scene, onNoise: (x: number, y: number) => void) {
+  constructor(
+    scene: Phaser.Scene,
+    onNoise: (x: number, y: number) => void,
+    initialBolts: number = THROW.boltCount
+  ) {
     this.onNoise = onNoise;
+    this.boltsLeft = initialBolts;
     this.reticle = scene.add.graphics().setDepth(45);
   }
 
@@ -41,6 +47,7 @@ export class ThrowController {
     if (throwHeld && !this.prevThrow && this.boltsLeft > 0) {
       this.bolts.push(new Bolt(scene, playerX, playerY, aim.x, aim.y, this.onNoise));
       this.boltsLeft -= 1;
+      recordBoltThrown();
     }
     this.prevThrow = throwHeld;
 

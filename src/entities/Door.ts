@@ -85,27 +85,34 @@ export class Door {
     );
   }
 
-  /** An authorised staff member badged through: open for the tailgate window. */
-  badge(now: number): void {
-    if (this.rect.kind !== 'badge') {
+  /**
+   * An authorised staff member badged through: open for the tailgate window.
+   * During lockdown badge doors deny everyone, staff included.
+   */
+  badge(now: number, lockdown = false): void {
+    if (this.rect.kind !== 'badge' || lockdown) {
       return;
     }
     this.tailgateCloseAt = now + DOORS.tailgateWindowMs;
   }
 
-  /** Recomputes open/closed for this frame. */
-  update(now: number): void {
+  /**
+   * Recomputes open/closed for this frame. In lockdown the badge doors deny all
+   * and the smokers' door stays sealed; only the loading-dock shutter keeps its
+   * delivery schedule, so it is the one way out.
+   */
+  update(now: number, lockdown = false): void {
     let shouldOpen: boolean;
     switch (this.rect.kind) {
       case 'smokers':
-        shouldOpen = scheduleOpen(now, DOORS.smokers);
+        shouldOpen = !lockdown && scheduleOpen(now, DOORS.smokers);
         break;
       case 'shutter':
         shouldOpen = scheduleOpen(now, DOORS.shutter);
         break;
       case 'badge':
       default:
-        shouldOpen = now < this.tailgateCloseAt;
+        shouldOpen = !lockdown && now < this.tailgateCloseAt;
         break;
     }
     if (shouldOpen !== this.isOpenNow) {

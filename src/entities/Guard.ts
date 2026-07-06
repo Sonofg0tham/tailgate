@@ -43,11 +43,15 @@ export class Guard {
   readonly sprite: Phaser.Physics.Arcade.Sprite;
   readonly cone: VisionCone;
 
+  /** Movement speed multiplier, raised while the building is on alert. */
+  speedMultiplier = 1;
+
   private guardState: GuardState = 'patrol';
   private suspicionValue = 0;
   private facing = 0;
+  private alertSinceMs = 0; // when the current ALERT episode began, 0 when calm
 
-  private readonly route: PatrolNode[];
+  private route: PatrolNode[];
   private routeIndex = 0;
   private resumeAt = 0; // timestamp the guard resumes after a pause
   private readonly lastSeen = new Phaser.Math.Vector2();
@@ -92,6 +96,16 @@ export class Guard {
   }
   get facingAngle(): number {
     return this.facing;
+  }
+  /** Scene-clock ms when the current ALERT episode started, or 0 if not alert. */
+  get alertSince(): number {
+    return this.alertSinceMs;
+  }
+
+  /** Swaps the patrol route (e.g. adding cautious nodes when the alert rises). */
+  setRoute(route: PatrolNode[]): void {
+    this.route = route;
+    this.routeIndex = route.length > 0 ? this.routeIndex % route.length : 0;
   }
   get x(): number {
     return this.sprite.x;
@@ -214,6 +228,9 @@ export class Guard {
       this.enterCurious(now);
     }
 
+    // Track when the current ALERT episode began, for the radio rule.
+    this.alertSinceMs = this.guardState === 'alert' ? this.alertSinceMs || now : 0;
+
     if (this.guardState !== previous) {
       this.onStateCue(this.guardState);
     }
@@ -230,17 +247,20 @@ export class Guard {
   }
 
   private act(now: number, playerX: number, playerY: number): void {
+    const mult = this.speedMultiplier;
     switch (this.guardState) {
       case 'alert':
         // Chase the player's current position.
-        this.moveToward(playerX, playerY, DETECTION.speed.chase);
+        this.moveToward(playerX, playerY, DETECTION.speed.chase * mult);
         break;
       case 'curious':
         if (now < this.investigateUntil) {
           // Arrived at the point of interest: look around by sweeping the cone.
           this.stop();
           this.facing = this.investigateBaseFacing + Math.sin(now / 350) * 0.7;
-        } else if (this.moveToward(this.lastSeen.x, this.lastSeen.y, DETECTION.speed.investigate)) {
+        } else if (
+          this.moveToward(this.lastSeen.x, this.lastSeen.y, DETECTION.speed.investigate * mult)
+        ) {
           // Just reached the last-seen spot: start the timed look-around.
           this.investigateBaseFacing = this.facing;
           this.investigateUntil = now + DETECTION.timing.investigatePauseMs;
@@ -263,7 +283,7 @@ export class Guard {
       return;
     }
     const node = this.route[this.routeIndex];
-    if (this.moveToward(node.x, node.y, DETECTION.speed.patrol)) {
+    if (this.moveToward(node.x, node.y, DETECTION.speed.patrol * this.speedMultiplier)) {
       this.stop();
       this.resumeAt = now + node.pauseMs;
       this.routeIndex = (this.routeIndex + 1) % this.route.length;

@@ -25,6 +25,16 @@ export interface PropPoint {
   y: number;
 }
 
+/** An objective marker read from the Tiled `objectives` layer. */
+export interface ObjectivePoint {
+  /** Objective id, e.g. "rack4", "workstation", "stickynote". */
+  id: string;
+  /** What interacting does: "plant" or "photo". */
+  kind: string;
+  x: number;
+  y: number;
+}
+
 /** How a door opens. Matches the `type` on each object in the Tiled `doors` layer. */
 export type DoorKind = 'badge' | 'smokers' | 'shutter';
 
@@ -51,6 +61,7 @@ export class BuildingMap {
   readonly walls: WallRect[];
   readonly props: PropPoint[];
   readonly doors: DoorRect[];
+  readonly objectives: ObjectivePoint[];
   readonly spawn: Phaser.Math.Vector2;
   readonly widthInPixels: number;
   readonly heightInPixels: number;
@@ -64,7 +75,21 @@ export class BuildingMap {
     this.walls = BuildingMap.readWalls(map);
     this.props = BuildingMap.readProps(map);
     this.doors = BuildingMap.readDoors(map);
+    this.objectives = BuildingMap.readObjectives(map);
     this.spawn = BuildingMap.readSpawn(map);
+  }
+
+  private static readObjectives(map: Phaser.Tilemaps.Tilemap): ObjectivePoint[] {
+    const layer = map.getObjectLayer('objectives');
+    if (!layer) {
+      return [];
+    }
+    return layer.objects.map((obj) => ({
+      id: obj.name ?? '',
+      kind: obj.type ?? 'photo',
+      x: obj.x ?? 0,
+      y: obj.y ?? 0,
+    }));
   }
 
   private static readZones(map: Phaser.Tilemaps.Tilemap): ZoneRect[] {

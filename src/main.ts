@@ -5,6 +5,7 @@ import './style.css';
 import Phaser from 'phaser';
 import { PALETTE } from './config/palette';
 import { BuildingScene } from './scenes/BuildingScene';
+import { ReportScene } from './scenes/ReportScene';
 
 export const GAME_WIDTH = 960;
 export const GAME_HEIGHT = 540;
@@ -44,7 +45,7 @@ async function boot(): Promise<void> {
     input: {
       gamepad: true,
     },
-    scene: [BuildingScene],
+    scene: [BuildingScene, ReportScene],
   });
 
   // Dev-only handle for manual inspection. Stripped from production builds.
