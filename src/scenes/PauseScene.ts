@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { FONTS, PALETTE, PALETTE_HEX } from '../config/palette';
+import { getActiveLevelId } from '../state/levels';
 import { resetMission } from '../state/mission';
 import { resetRunStats } from '../state/runStats';
 import { MenuController } from '../ui/MenuController';
@@ -119,7 +120,8 @@ export class PauseScene extends Phaser.Scene {
   }
 
   private restart(): void {
-    resetMission();
+    // Restart the same contract from the van: fresh mission, same level.
+    resetMission(getActiveLevelId());
     resetRunStats();
     this.scene.stop();
     this.scene.start('building');

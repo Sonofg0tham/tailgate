@@ -124,14 +124,23 @@ function used(routes: readonly IngressRoute[], route: IngressRoute): boolean {
   return routes.includes(route);
 }
 
+/** The contract copy printed in the report header, from the level registry. */
+export interface ReportLevelMeta {
+  client: string;
+  site: string;
+  ref: string;
+}
+
 /**
  * Builds the full report from a finished run. Only things that actually
  * happened produce findings, so a quiet run reads as a short report and a
- * messy one as a long one.
+ * messy one as a long one. The header names whichever contract was played;
+ * the Building C copy stands as the fallback.
  */
 export function generateReport(
   stats: RunStats,
   mission: { planted: boolean; photographed: string[] },
+  level?: ReportLevelMeta,
 ): ReportModel {
   const findings: Omit<Finding, 'ref'>[] = [];
 
@@ -220,10 +229,10 @@ export function generateReport(
 
   return {
     header: {
-      client: 'MERIDIAN BUSINESS PARK',
-      site: 'BUILDING C',
+      client: level?.client ?? 'MERIDIAN BUSINESS PARK',
+      site: level?.site ?? 'BUILDING C',
       consultant: 'S0N0FG0THAM CONSULTING',
-      ref: 'ENG-2026-0417/C',
+      ref: level?.ref ?? 'ENG-2026-0417/C',
       date: '05 JULY 2026',
     },
     findings: numbered,

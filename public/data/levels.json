@@ -1,0 +1,43 @@
+{
+  "levels": [
+    {
+      "id": "building-c",
+      "playable": true,
+      "name": "BUILDING C",
+      "client": "MERIDIAN BUSINESS PARK",
+      "site": "BUILDING C",
+      "scope": "PLANT ROGUE DEVICE ON RACK 4. PHOTOGRAPH OPPORTUNISTIC FINDINGS.",
+      "ref": "ENG-2026-0417/C",
+      "map": "maps/building-c.json",
+      "guards": "data/building-c/guards.json",
+      "staff": "data/building-c/staff.json",
+      "cameras": "data/building-c/cameras.json"
+    },
+    {
+      "id": "data-centre",
+      "playable": false,
+      "name": "DATA CENTRE",
+      "client": "HALVORSEN DATA SERVICES",
+      "site": "MERIDIAN DC-2",
+      "scope": "SITE SURVEY PENDING.",
+      "ref": "ENG-2026-0522/D",
+      "map": "",
+      "guards": "",
+      "staff": "",
+      "cameras": ""
+    },
+    {
+      "id": "warehouse",
+      "playable": false,
+      "name": "DISTRIBUTION WAREHOUSE",
+      "client": "TRENT VALLEY DISTRIBUTION",
+      "site": "UNIT 9, TRENT VALLEY PARK",
+      "scope": "SITE SURVEY PENDING.",
+      "ref": "ENG-2026-0640/W",
+      "map": "",
+      "guards": "",
+      "staff": "",
+      "cameras": ""
+    }
+  ]
+}

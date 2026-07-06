@@ -13,6 +13,7 @@ import { Player } from '../entities/Player';
 import { Staff, type StaffDef } from '../entities/Staff';
 import type { KeyboardKeys } from '../input/KeyboardInput';
 import { MovementController } from '../input/MovementController';
+import { getActiveLevel, type LevelDef } from '../state/levels';
 import { getSettings } from '../state/settings';
 import { CameraSystem, type CamerasData } from '../systems/CameraSystem';
 import { LightModel } from '../systems/LightModel';
@@ -39,11 +40,6 @@ import { ThrowController } from '../systems/ThrowController';
 import { DebugOverlay, type GuardHudInfo } from '../ui/DebugOverlay';
 import { BuildingMap } from '../world/BuildingMap';
 import { WorldRenderer } from '../world/WorldRenderer';
-
-const MAP_KEY = 'buildingC';
-const GUARD_DATA_KEY = 'guards';
-const STAFF_DATA_KEY = 'staff';
-const CAMERA_DATA_KEY = 'cameras';
 
 /** How close authorised staff must be to a badge door to open it. */
 const STAFF_BADGE_DISTANCE = 75;
@@ -106,16 +102,37 @@ export class BuildingScene extends Phaser.Scene {
   private padInteractWasDown = false;
   /** Last frame's pad Start state, so pause fires on a fresh press not a hold. */
   private padStartWasDown = false;
+  /** The contract being played, pinned in init before any loading happens. */
+  private level!: LevelDef;
 
   constructor() {
     super('building');
   }
 
+  /** Runs before preload on every start and restart: pin the active contract. */
+  init(): void {
+    this.level = getActiveLevel();
+  }
+
+  // Cache keys are namespaced by level id so two contracts never collide.
+  private get mapKey(): string {
+    return `map:${this.level.id}`;
+  }
+  private get guardDataKey(): string {
+    return `guards:${this.level.id}`;
+  }
+  private get staffDataKey(): string {
+    return `staff:${this.level.id}`;
+  }
+  private get cameraDataKey(): string {
+    return `cameras:${this.level.id}`;
+  }
+
   preload(): void {
-    this.load.tilemapTiledJSON(MAP_KEY, 'maps/building-c.json');
-    this.load.json(GUARD_DATA_KEY, 'data/guards.json');
-    this.load.json(STAFF_DATA_KEY, 'data/staff.json');
-    this.load.json(CAMERA_DATA_KEY, 'data/cameras.json');
+    this.load.tilemapTiledJSON(this.mapKey, this.level.map);
+    this.load.json(this.guardDataKey, this.level.guards);
+    this.load.json(this.staffDataKey, this.level.staff);
+    this.load.json(this.cameraDataKey, this.level.cameras);
     for (const [key, path] of Object.entries(IMAGE_ASSETS)) {
       this.load.image(key, path);
     }
@@ -130,15 +147,17 @@ export class BuildingScene extends Phaser.Scene {
     this.staff = [];
     this.followOffset.set(0, 0);
 
-    const map = new BuildingMap(this, MAP_KEY);
+    const map = new BuildingMap(this, this.mapKey);
     this.mapZones = map.zones;
     this.mapWalls = map.walls;
     this.world = new WorldRenderer(this, map);
     this.lightModel = new LightModel(map.zones, map.lights);
 
     // A detain restarts here: resume from the last checkpoint if there is one.
-    // Checkpoints are always indoors, so a checkpoint start begins inside.
-    const checkpoint = getMission().checkpoint;
+    // Checkpoints are always indoors, so a checkpoint start begins inside. A
+    // checkpoint from a different contract never applies.
+    const mission = getMission();
+    const checkpoint = mission.levelId === this.level.id ? mission.checkpoint : null;
     this.playerWasOutside = !checkpoint;
     const startX = checkpoint?.x ?? map.spawn.x;
     const startY = checkpoint?.y ?? map.spawn.y;
@@ -152,7 +171,7 @@ export class BuildingScene extends Phaser.Scene {
     this.cameraSystem = new CameraSystem(
       this,
       map.walls,
-      this.cache.json.get(CAMERA_DATA_KEY) as CamerasData | undefined
+      this.cache.json.get(this.cameraDataKey) as CamerasData | undefined
     );
 
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
@@ -522,7 +541,7 @@ export class BuildingScene extends Phaser.Scene {
   }
 
   private spawnStaff(): void {
-    const data = this.cache.json.get(STAFF_DATA_KEY) as StaffData | undefined;
+    const data = this.cache.json.get(this.staffDataKey) as StaffData | undefined;
     for (const def of data?.staff ?? []) {
       this.staff.push(new Staff(this, def));
     }
@@ -605,7 +624,7 @@ export class BuildingScene extends Phaser.Scene {
   }
 
   private spawnGuard(map: BuildingMap): void {
-    const data = this.cache.json.get(GUARD_DATA_KEY) as GuardsData | undefined;
+    const data = this.cache.json.get(this.guardDataKey) as GuardsData | undefined;
     const first = data?.guards?.[0];
     if (!first || first.route.length === 0) {
       return;

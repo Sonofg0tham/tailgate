@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { FONTS, PALETTE, PALETTE_HEX } from '../config/palette';
-import { resetMission } from '../state/mission';
-import { resetRunStats } from '../state/runStats';
+import { initLevelRegistry } from '../state/levels';
 import { MenuController } from '../ui/MenuController';
 
 /** The kiosk card geometry, a lighter sheet on the near-black like the report. */
@@ -20,7 +19,15 @@ export class MenuScene extends Phaser.Scene {
     super('menu');
   }
 
+  preload(): void {
+    // The contract schedule. Loaded here so the registry is ready before any
+    // scene needs it; the loader skips it on later visits.
+    this.load.json('levels', 'data/levels.json');
+  }
+
   create(): void {
+    initLevelRegistry(this.cache.json.get('levels'));
+
     this.add.rectangle(480, 270, 960, 540, PALETTE_HEX.base);
 
     // Kicker, wordmark and strapline.
@@ -28,7 +35,7 @@ export class MenuScene extends Phaser.Scene {
     this.add
       .text(480, 82, 'TAILGATE', { fontFamily: FONTS.display, fontSize: '58px', color: PALETTE.amber })
       .setOrigin(0.5);
-    this.centreText(480, 120, 'PHYSICAL SECURITY ASSESSMENT, BUILDING C', FONTS.mono, 12, PALETTE.text);
+    this.centreText(480, 120, 'PHYSICAL SECURITY ASSESSMENT PROGRAMME', FONTS.mono, 12, PALETTE.text);
 
     // The sign-in card.
     this.add
@@ -40,7 +47,7 @@ export class MenuScene extends Phaser.Scene {
     const fields: [string, string][] = [
       ['VISITOR', 'C. MCCART'],
       ['COMPANY', 'SONOFG0THAM SECURITY'],
-      ['HOST', 'BUILDING C FACILITIES'],
+      ['HOST', 'MERIDIAN GROUP FACILITIES'],
       ['PURPOSE', 'AUTHORISED PENETRATION TEST'],
       ['BADGE', 'NONE ISSUED'],
     ];
@@ -62,7 +69,7 @@ export class MenuScene extends Phaser.Scene {
     this.menu = new MenuController(
       this,
       [
-        { kind: 'action', label: 'START ENGAGEMENT', onSelect: () => this.startEngagement() },
+        { kind: 'action', label: 'SELECT ENGAGEMENT', onSelect: () => this.openContracts() },
         { kind: 'action', label: 'SETTINGS', onSelect: () => this.openSettings() },
       ],
       { x: CARD.x, top: CARD.y + 58, rowHeight: 34, width: 300, labelSize: 20 }
@@ -76,11 +83,9 @@ export class MenuScene extends Phaser.Scene {
     this.menu.update(pad);
   }
 
-  /** Resets all run state and drops into the building for a fresh engagement. */
-  private startEngagement(): void {
-    resetMission();
-    resetRunStats();
-    this.scene.start('building');
+  /** Opens the contract schedule; picking a contract starts that engagement. */
+  private openContracts(): void {
+    this.scene.start('contracts');
   }
 
   /** Opens settings over the paused kiosk; it resumes us when it closes. */

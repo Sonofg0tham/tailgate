@@ -16,6 +16,9 @@ export interface Checkpoint {
 }
 
 interface MissionState {
+  /** The contract this engagement belongs to, so a checkpoint set in one
+   * building can never be resumed in another. Null before the first launch. */
+  levelId: string | null;
   /** Building alert level: 0 calm, 1 cautious, 2 lockdown. */
   alertLevel: number;
   /** Scene-clock timestamp when level 1 last had an incident (for decay). */
@@ -28,8 +31,9 @@ interface MissionState {
   photographed: string[];
 }
 
-function freshMission(): MissionState {
+function freshMission(levelId: string | null): MissionState {
   return {
+    levelId,
     alertLevel: 0,
     level1SetAt: 0,
     checkpoint: null,
@@ -38,7 +42,7 @@ function freshMission(): MissionState {
   };
 }
 
-let state: MissionState = freshMission();
+let state: MissionState = freshMission(null);
 
 export function getMission(): Readonly<MissionState> {
   return state;
@@ -79,6 +83,6 @@ export function decayAlert(nowMs: number, decayMs: number): void {
   }
 }
 
-export function resetMission(): void {
-  state = freshMission();
+export function resetMission(levelId: string | null = null): void {
+  state = freshMission(levelId);
 }

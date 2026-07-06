@@ -133,6 +133,31 @@ Done when: a stranger watching 30 seconds of play says it looks and sounds finis
 **Phase 6, ship.** Sign-in kiosk main menu, settings (volume, HUD scale, shake toggle, assist mode), balance pass on all timings, CI pipeline (typecheck, lint, gitleaks), README with GIFs, CREDITS.md audit.
 Done when: a public URL and a repo Craig would happily put on his CV.
 
-## v2 parking lot (do not build in v1)
+## v2 build phases
 
-Hi-vis disguise system, takedowns and body management, hijacking the security office camera feed, fire exit and window ingress if cut from v1, a second building, roof ingress, daily-seed leaderboard, mobile and touch support, report sharing as an image.
+v2 was confirmed by Craig in July 2026: a full art pass, two new buildings, and the camera hijack and hi-vis disguise mechanics, un-parked from the parking lot below. The campaign is three jobs with sequential unlocks: complete a contract at any rating and the next one is countersigned. Progress (unlocks and per-contract best ratings) joins settings in localStorage. Same rules as v1: one branch and one PR per phase, greybox before dressing, everything data-driven.
+
+**Phase 7, multi-level foundation.** Level registry in `public/data/levels.json`, per-level data folders, contract-select screen styled as the consultancy's engagement schedule, per-contract best ratings and unlocks persisted, BuildingScene parameterised by level id.
+Done when: Building C launches via contract select and plays identically to v1, the best rating survives a reload, and completing it countersigns the second contract slot.
+
+**Phase 8, camera hijack (greybox).** Console in the security office opens the CCTV multiplexer: view feeds, freeze one camera's detection for a window with cooldown and limited charges. Locks out at alert level 2. Hijack use appears in the Engagement Report.
+Done when: you can reach the security office, freeze a camera and slip past it during the window, and the report names it.
+
+**Phase 9, hi-vis disguise (greybox).** Wearable hi-vis slows guard suspicion at range; useless up close, in restricted zones, and once any guard reaches ALERT while disguised. Perception numbers in config, restricted zones flagged in Tiled.
+Done when: the disguise visibly changes guard behaviour in greybox and fails in all three blown cases.
+
+**Phase 10, art pass.** Animated characters (pack frames plus procedural motion), drop shadows, particles placed via Tiled (dust, steam, server haze), CCTV grain for the hijack feeds, dressed hijack console and hi-vis states. CC0/CC-BY only, CREDITS.md line per asset, and a written dressing checklist for the new levels to follow.
+Done when: a stranger watching 30 seconds says it looks like a finished indie game, and CREDITS.md audits clean.
+
+**Phase 11, the data centre.** Second contract: dark, server-lit, CCTV-heavy, multiple breaker circuits, camera hijack as the signature route. Greybox first, dressed with the Phase 10 checklist. Balanced against the brightness floor.
+Done when: completable by at least three routes, clearly harder than Building C, and the unlock chain works from a fresh localStorage.
+
+**Phase 12, the warehouse.** Third contract: open floor, racking as occlusion, heavy staff traffic, hi-vis country, restricted cage and office zones where the disguise fails. Escalated timings.
+Done when: completable with and without the disguise, and it tops the campaign difficulty curve.
+
+**Phase 13, campaign ship.** Cross-level balance pass, contract-select polish, per-level report flavour, README refresh with new GIFs, full CREDITS.md and npm audit, fresh-localStorage playtest of the whole campaign on pad and keyboard, assist mode on and off.
+Done when: a new player can go from the kiosk through three contracts to three reports without touching devtools.
+
+## v2 parking lot (still parked, do not build)
+
+Takedowns and body management, roof ingress, daily-seed leaderboard, mobile and touch support, report sharing as an image.
