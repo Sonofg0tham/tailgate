@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { CAMERAS } from '../config/cameras';
 import { CONE_RANGE_PX, DETECTION } from '../config/detection';
+import { HIJACK } from '../config/hijack';
 import { VisionCone, type ConeEdge } from '../systems/VisionCone';
 import type { WallRect } from '../world/BuildingMap';
 
@@ -68,6 +69,12 @@ export class Camera {
   private reArmAt = 0;
   private deadUntilMs = 0;
   private conesVisible = true;
+  /** Scene-clock ts a looped feed unfreezes, 0 when live. */
+  private frozenUntilMs = 0;
+  /** Scene-clock ts the camera can be looped again after a re-sync. */
+  private freezeCooldownUntilMs = 0;
+  /** The sweep angle at the instant the feed was looped: the picture holds. */
+  private frozenFacingRad = 0;
 
   /** Silent seam for a future audio pass; wired to no-op here, no audio yet. */
   private readonly onStateCue: (state: CameraState) => void;
@@ -123,6 +130,37 @@ export class Camera {
     return this.dwellMsValue;
   }
 
+  isFrozen(now: number): boolean {
+    return now < this.frozenUntilMs;
+  }
+
+  /** Milliseconds of loop remaining, 0 when live. */
+  frozenRemainingMs(now: number): number {
+    return Math.max(0, this.frozenUntilMs - now);
+  }
+
+  /** Milliseconds until this camera can be looped again, 0 when ready. */
+  freezeCooldownRemainingMs(now: number): number {
+    return Math.max(0, this.freezeCooldownUntilMs - now);
+  }
+
+  /**
+   * Loops this camera's feed: detection stops and the rendered sweep holds
+   * its current angle until the loop ends. The camera then re-syncs before it
+   * can be looped again. Never colour alone: frozen reads as a halted sweep,
+   * a dashed dim cone and a hollow ring pip, plus the console's audio cue.
+   */
+  freeze(now: number): void {
+    this.frozenUntilMs = now + HIJACK.freezeDurationMs;
+    this.freezeCooldownUntilMs = this.frozenUntilMs + HIJACK.cameraCooldownMs;
+    this.frozenFacingRad = this.currentFacing(now);
+    this.dwellMsValue = 0;
+    this.curiousArmed = true;
+    this.alertArmed = true;
+    this.reArmAt = 0;
+    this.setState('calm');
+  }
+
   /**
    * Advances the camera one frame: sweep the facing, perceive the player if
    * alive, and redraw the cone or the offline pip. Mirrors Guard.update's
@@ -145,6 +183,21 @@ export class Camera {
         this.drawOfflinePip();
         return result;
       }
+    }
+
+    // A looped feed: no perception, the cone holds its angle, dim and dashed.
+    if (this.isFrozen(now)) {
+      this.indicator.clear();
+      this.cone.render(
+        this.baseX,
+        this.baseY,
+        this.frozenFacingRad,
+        HIJACK.frozenConeColour,
+        'dashed',
+        now
+      );
+      this.drawFrozenRing();
+      return result;
     }
 
     const facing = this.currentFacing(now);
@@ -239,6 +292,12 @@ export class Camera {
   private drawOfflinePip(): void {
     this.indicator.fillStyle(CAMERAS.offlinePipColour, 1);
     this.indicator.fillCircle(this.baseX, this.baseY, INDICATOR_RADIUS);
+  }
+
+  /** A hollow ring instead of a filled dot: the looped-feed pip. */
+  private drawFrozenRing(): void {
+    this.indicator.lineStyle(2, HIJACK.frozenConeColour, 1);
+    this.indicator.strokeCircle(this.baseX, this.baseY, INDICATOR_RADIUS + 1);
   }
 }
 

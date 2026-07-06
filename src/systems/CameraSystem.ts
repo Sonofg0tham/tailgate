@@ -27,11 +27,35 @@ export interface BreakerDef {
   circuits: string[];
 }
 
+/** The security office console, as authored in public/data/cameras.json. */
+export interface ConsoleDef {
+  x: number;
+  y: number;
+}
+
 /** The full shape of public/data/cameras.json. */
 export interface CamerasData {
   cameras: CameraDef[];
   breaker: BreakerDef;
+  /** Optional: levels without a security office simply omit it. */
+  console?: ConsoleDef;
 }
+
+/** One feed line for the multiplexer UI. */
+export interface FeedInfo {
+  id: string;
+  x: number;
+  y: number;
+  /** False while the breaker has this camera dark. */
+  alive: boolean;
+  /** Milliseconds of loop remaining, 0 when live. */
+  frozenRemainingMs: number;
+  /** Milliseconds of re-sync remaining before another loop, 0 when ready. */
+  cooldownRemainingMs: number;
+}
+
+/** What freezeCamera did, for the console UI to phrase its status line. */
+export type FreezeResult = 'frozen' | 'cooldown' | 'offline' | 'unknown';
 
 /** What the scene needs to react to after stepping every camera this frame. */
 export interface CameraTick {
@@ -142,6 +166,34 @@ export class CameraSystem {
     for (const camera of this.cameras) {
       camera.setConeVisible(visible);
     }
+  }
+
+  /** One line per camera for the multiplexer, in authored order. */
+  feedInfos(now: number): FeedInfo[] {
+    return this.cameras.map((camera) => ({
+      id: camera.id,
+      x: camera.x,
+      y: camera.y,
+      alive: camera.alive,
+      frozenRemainingMs: camera.frozenRemainingMs(now),
+      cooldownRemainingMs: camera.freezeCooldownRemainingMs(now),
+    }));
+  }
+
+  /** Loops the named camera's feed, if it is live and re-synced. */
+  freezeCamera(id: string, now: number): FreezeResult {
+    const camera = this.cameras.find((c) => c.id === id);
+    if (!camera) {
+      return 'unknown';
+    }
+    if (!camera.alive) {
+      return 'offline';
+    }
+    if (camera.isFrozen(now) || camera.freezeCooldownRemainingMs(now) > 0) {
+      return 'cooldown';
+    }
+    camera.freeze(now);
+    return 'frozen';
   }
 
   private updateBreaker(
