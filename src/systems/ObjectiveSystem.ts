@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
+import { JUICE } from '../config/juice';
 import { OBJECTIVES } from '../config/objectives';
+import { PALETTE_HEX } from '../config/palette';
 import { addPhotographed, getMission, setPlanted } from '../state/mission';
 import { recordPlanted, recordSecondary } from '../state/runStats';
 import type { ObjectivePoint } from '../world/BuildingMap';
@@ -182,16 +184,40 @@ export class ObjectiveSystem {
     this.markers.strokePath();
   }
 
-  /** Amber progress bar just above the player during a hold. */
+  /**
+   * The hold feedback above the player: a rounded amber bar with a brighter
+   * leading edge, plus a ring that closes clockwise around the player. Two reads
+   * of the same progress so it is never a single thin bar to track.
+   */
   private drawProgress(px: number, py: number, pct: number): void {
-    const w = 44;
-    const h = 6;
-    const x = px - w / 2;
-    const y = py - 30;
+    const p = JUICE.progress;
+    const x = px - p.trackW / 2;
+    const y = py - p.yOffset;
     this.progress.clear();
-    this.progress.fillStyle(0x000000, 0.55);
-    this.progress.fillRect(x - 1, y - 1, w + 2, h + 2);
-    this.progress.fillStyle(0xffb000, 1);
-    this.progress.fillRect(x, y, w * pct, h);
+
+    // Track and fill.
+    this.progress.fillStyle(PALETTE_HEX.base, 0.6);
+    this.progress.fillRoundedRect(x - 2, y - 2, p.trackW + 4, p.trackH + 4, p.cornerR);
+    this.progress.fillStyle(PALETTE_HEX.amber, 0.95);
+    const fillW = Math.max(p.cornerR * 2, p.trackW * pct);
+    this.progress.fillRoundedRect(x, y, fillW, p.trackH, p.cornerR);
+    // Brighter leading edge.
+    if (pct > 0.02 && pct < 1) {
+      this.progress.fillStyle(0xffe08a, 1);
+      this.progress.fillRect(x + fillW - 2, y, 2, p.trackH);
+    }
+
+    // Redundant closing ring around the player.
+    this.progress.lineStyle(p.ringThickness, PALETTE_HEX.amber, 0.85);
+    this.progress.beginPath();
+    this.progress.arc(
+      px,
+      py,
+      p.ringRadius,
+      Phaser.Math.DegToRad(-90),
+      Phaser.Math.DegToRad(-90 + 360 * pct),
+      false
+    );
+    this.progress.strokePath();
   }
 }

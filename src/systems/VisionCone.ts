@@ -48,7 +48,9 @@ export class VisionCone {
 
   constructor(scene: Phaser.Scene, walls: WallRect[]) {
     this.walls = walls.map((w) => new Phaser.Geom.Rectangle(w.x, w.y, w.width, w.height));
-    this.gfx = scene.add.graphics().setDepth(22);
+    // Depth 26 keeps cones above the lighting veil (25) so guard and camera
+    // state stays fully readable in the dark, per the accessibility rule.
+    this.gfx = scene.add.graphics().setDepth(26);
   }
 
   /**

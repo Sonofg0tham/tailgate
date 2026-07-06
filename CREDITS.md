@@ -47,7 +47,12 @@ Pack: https://kenney.nl/assets/top-down-shooter | Kenney | CC0 1.0
 
 ## Audio
 
-_None yet._
+All game audio is synthesised at runtime with the Web Audio API. There are no audio
+files in the repo, so there is nothing third-party to license. The sound is generated
+from oscillators and filtered noise in code (see src/audio/), which makes it CC0 by
+construction: it is our own original output with no external source.
+
+- Footsteps, guard footsteps, radio chatter, zone ambience beds, alert sting | generated in src/audio/ (Web Audio synthesis) | CJM Labs | CC0 1.0
 
 ## Fonts
 

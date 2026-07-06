@@ -1,7 +1,10 @@
 import Phaser from 'phaser';
+import { AudioManager } from '../audio/AudioManager';
 import { DETECTION } from '../config/detection';
+import { JUICE } from '../config/juice';
+import { LIGHTING } from '../config/lighting';
 import { MOVEMENT } from '../config/movement';
-import { FONTS, PALETTE } from '../config/palette';
+import { FONTS, PALETTE, PALETTE_HEX } from '../config/palette';
 import { THROW } from '../config/throw';
 import { IMAGE_ASSETS } from '../config/tiles';
 import { Door } from '../entities/Door';
@@ -10,6 +13,11 @@ import { Player } from '../entities/Player';
 import { Staff, type StaffDef } from '../entities/Staff';
 import type { KeyboardKeys } from '../input/KeyboardInput';
 import { MovementController } from '../input/MovementController';
+import { getSettings } from '../state/settings';
+import { CameraSystem, type CamerasData } from '../systems/CameraSystem';
+import { LightModel } from '../systems/LightModel';
+import { LightingRenderer } from '../systems/LightingRenderer';
+import type { WallRect, ZoneRect } from '../world/BuildingMap';
 import {
   getMission,
   raiseAlert,
@@ -35,6 +43,7 @@ import { WorldRenderer } from '../world/WorldRenderer';
 const MAP_KEY = 'buildingC';
 const GUARD_DATA_KEY = 'guards';
 const STAFF_DATA_KEY = 'staff';
+const CAMERA_DATA_KEY = 'cameras';
 
 /** How close authorised staff must be to a badge door to open it. */
 const STAFF_BADGE_DISTANCE = 75;
@@ -70,9 +79,17 @@ export class BuildingScene extends Phaser.Scene {
   private staff: Staff[] = [];
   private throwController!: ThrowController;
   private objectives!: ObjectiveSystem;
+  private cameraSystem!: CameraSystem;
+  private lightModel!: LightModel;
+  private lightingRenderer!: LightingRenderer;
+  private audio!: AudioManager;
+  private mapZones: ZoneRect[] = [];
+  private mapWalls: WallRect[] = [];
+  private followOffset = new Phaser.Math.Vector2(0, 0);
   private promptText!: Phaser.GameObjects.Text;
   private guardDebug!: Phaser.GameObjects.Graphics;
   private guardDebugOn = false;
+  private lightingHidden = false;
   private detained = false;
   private missionOver = false;
   private radioedThisEpisode = false;
@@ -82,7 +99,10 @@ export class BuildingScene extends Phaser.Scene {
   private cautiousExtra: PatrolNode[] = [];
   private gridKey?: Phaser.Input.Keyboard.Key;
   private guardDebugKey?: Phaser.Input.Keyboard.Key;
+  private lightingKey?: Phaser.Input.Keyboard.Key;
   private interactKey?: Phaser.Input.Keyboard.Key;
+  /** Last frame's pad A state, so the breaker sees a fresh press not a hold. */
+  private padInteractWasDown = false;
 
   constructor() {
     super('building');
@@ -92,6 +112,7 @@ export class BuildingScene extends Phaser.Scene {
     this.load.tilemapTiledJSON(MAP_KEY, 'maps/building-c.json');
     this.load.json(GUARD_DATA_KEY, 'data/guards.json');
     this.load.json(STAFF_DATA_KEY, 'data/staff.json');
+    this.load.json(CAMERA_DATA_KEY, 'data/cameras.json');
     for (const [key, path] of Object.entries(IMAGE_ASSETS)) {
       this.load.image(key, path);
     }
@@ -104,9 +125,13 @@ export class BuildingScene extends Phaser.Scene {
     this.appliedAlertLevel = -1;
     this.doors = [];
     this.staff = [];
+    this.followOffset.set(0, 0);
 
     const map = new BuildingMap(this, MAP_KEY);
+    this.mapZones = map.zones;
+    this.mapWalls = map.walls;
     this.world = new WorldRenderer(this, map);
+    this.lightModel = new LightModel(map.zones, map.lights);
 
     // A detain restarts here: resume from the last checkpoint if there is one.
     // Checkpoints are always indoors, so a checkpoint start begins inside.
@@ -121,6 +146,11 @@ export class BuildingScene extends Phaser.Scene {
     this.spawnStaff();
     this.wireDoorColliders();
     this.objectives = new ObjectiveSystem(this, map.objectives, map.spawn.clone());
+    this.cameraSystem = new CameraSystem(
+      this,
+      map.walls,
+      this.cache.json.get(CAMERA_DATA_KEY) as CamerasData | undefined
+    );
 
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
@@ -130,6 +160,7 @@ export class BuildingScene extends Phaser.Scene {
       MOVEMENT.camera.lerp,
       MOVEMENT.camera.lerp
     );
+    this.cameras.main.setDeadzone(JUICE.camera.deadzoneW, JUICE.camera.deadzoneH);
 
     this.keys = this.buildKeyboard();
     this.controller = new MovementController(this.player);
@@ -152,10 +183,32 @@ export class BuildingScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(1000);
 
+    // Lighting and audio. The renderer draws last each frame; audio arms its
+    // autoplay unlock on the first input and makes no sound before that.
+    this.lightingRenderer = new LightingRenderer(this);
+    this.audio = new AudioManager();
+    this.audio.init(this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.audio.suspendForRestart());
+
     // Debug toggles. Edge-triggered keys so nothing stacks up on scene.restart.
     this.gridKey = this.input.keyboard?.addKey('G');
     this.guardDebugKey = this.input.keyboard?.addKey('H');
+    this.lightingKey = this.input.keyboard?.addKey('L');
     this.interactKey = this.input.keyboard?.addKey('E');
+
+    if (import.meta.env.DEV) {
+      const dev = this as unknown as {
+        __lightModel: LightModel;
+        __cameras: CameraSystem;
+        __audio: AudioManager;
+        __fillMultiplierAt: (x: number, y: number) => number;
+      };
+      dev.__lightModel = this.lightModel;
+      dev.__cameras = this.cameraSystem;
+      dev.__audio = this.audio;
+      dev.__fillMultiplierAt = (x, y) =>
+        Phaser.Math.Linear(LIGHTING.concealmentFloor, 1, this.lightModel.computeLightAt(x, y));
+    }
   }
 
   update(_time: number, delta: number): void {
@@ -167,6 +220,10 @@ export class BuildingScene extends Phaser.Scene {
       if (!this.guardDebugOn) {
         this.guardDebug.clear();
       }
+    }
+    if (this.lightingKey && Phaser.Input.Keyboard.JustDown(this.lightingKey)) {
+      this.lightingHidden = !this.lightingHidden;
+      this.lightingRenderer.setVisible(!this.lightingHidden);
     }
 
     if (this.detained || this.missionOver) {
@@ -180,21 +237,29 @@ export class BuildingScene extends Phaser.Scene {
 
     const intent = this.controller.update(pad, this.keys);
     this.player.applyMotion(intent, delta);
+    this.updateLookAhead(intent.direction);
 
     this.updateAlertLevel(now);
     this.updateDoorsAndStaff(now);
     this.trackIngressAndCheckpoint();
     this.hearFootsteps();
 
+    // Shared occluder set for the guard, cameras and audio this frame.
+    const closedDoors = this.doors.filter((d) => !d.isOpen).map((d) => d.rect);
+
     if (this.guard) {
-      const closedDoors = this.doors.filter((d) => !d.isOpen).map((d) => d.rect);
+      // The guard's own sightline lights where it looks; darkness elsewhere is
+      // cover, so sample the light at the player and feed it into perception.
+      this.lightModel.setGuardTorch(this.guard.x, this.guard.y, this.guard.facingAngle);
+      const lightAtPlayer = this.lightModel.computeLightAt(this.player.x, this.player.y);
       const tick = this.guard.update(
         now,
         delta,
         this.player.x,
         this.player.y,
         intent.speed,
-        closedDoors
+        closedDoors,
+        lightAtPlayer
       );
       if (tick.spottedNow) {
         recordSpotted();
@@ -205,6 +270,27 @@ export class BuildingScene extends Phaser.Scene {
       }
       this.witnessTailgate();
       this.updateRadio(now);
+    } else {
+      this.lightModel.clearGuardTorch();
+    }
+
+    // Cameras run after the guard so a curious ping targets its fresh state and
+    // a camera-driven alert lands in the same escalation slot as the radio.
+    const camTick = this.cameraSystem.update(
+      now,
+      delta,
+      this.player.x,
+      this.player.y,
+      closedDoors,
+      this.isInteractJustPressed(pad)
+    );
+    for (const p of camTick.investigatePoints) {
+      this.guard?.investigatePoint(p.x, p.y);
+    }
+    if (camTick.raisedAlert) {
+      const level = raiseAlert(now);
+      recordAlertLevel(level);
+      this.triggerAlarmShake();
     }
 
     const objTick = this.objectives.update({
@@ -231,17 +317,58 @@ export class BuildingScene extends Phaser.Scene {
       this.scene.start('report');
       return;
     }
-    this.promptText.setText(objTick.prompt ?? '');
+    // The objective prompt wins; the breaker prompt shows only when free.
+    this.promptText.setText(objTick.prompt ?? camTick.prompt ?? '');
 
     this.throwController.update(this, delta, this.player.x, this.player.y, pad);
+
+    this.audio.update({
+      nowMs: now,
+      player: { x: this.player.x, y: this.player.y },
+      guard: this.guard ? { x: this.guard.x, y: this.guard.y, state: this.guard.state } : null,
+      playerSpeed: intent.speed,
+      zones: this.mapZones,
+      walls: this.mapWalls,
+      closedDoorRects: closedDoors,
+      alertLevel: getMission().alertLevel,
+    });
 
     this.overlay.update(this.player, intent, {
       bolts: this.throwController.remaining,
       site: SITE_LABELS[getMission().alertLevel] ?? 'CALM',
+      light: this.guardDebugOn
+        ? Math.round(this.lightModel.computeLightAt(this.player.x, this.player.y) * 100)
+        : null,
       guard: this.guardInfo(),
       doors: this.doorDebugLines(),
+      cameras: this.guardDebugOn ? this.cameraSystem.debugLines() : null,
     });
     this.drawGuardDebug();
+
+    // Lighting draws last so it reflects this frame's final positions.
+    this.lightingRenderer.update(
+      this.cameras.main,
+      this.player,
+      this.guard,
+      this.lightModel.sources
+    );
+  }
+
+  /** Eases the camera to lead the player's travel a touch, for comfort. */
+  private updateLookAhead(dir: Phaser.Math.Vector2): void {
+    const targetX = dir.x * JUICE.camera.lookAheadPx;
+    const targetY = dir.y * JUICE.camera.lookAheadPx;
+    this.followOffset.x = Phaser.Math.Linear(this.followOffset.x, targetX, JUICE.camera.lookAheadLerp);
+    this.followOffset.y = Phaser.Math.Linear(this.followOffset.y, targetY, JUICE.camera.lookAheadLerp);
+    this.cameras.main.setFollowOffset(-this.followOffset.x, -this.followOffset.y);
+  }
+
+  /** Fires the alarm screen shake, unless the player has turned shake off. */
+  private triggerAlarmShake(): void {
+    if (!getSettings().screenShake) {
+      return;
+    }
+    this.cameras.main.shake(JUICE.shake.durationMs, JUICE.shake.intensity);
   }
 
   /** True while the interact control is held: E on keyboard, A on the pad. */
@@ -250,6 +377,20 @@ export class BuildingScene extends Phaser.Scene {
       return true;
     }
     return pad ? pad.A : false;
+  }
+
+  /**
+   * True only on the frame the interact control goes down: a fresh press of E
+   * or pad A, never a hold. Used for one-shot actions like the breaker so
+   * holding the key cannot refire them. Must be called exactly once per frame
+   * because it latches the keyboard edge and tracks the pad button's last state.
+   */
+  private isInteractJustPressed(pad: Phaser.Input.Gamepad.Gamepad | undefined): boolean {
+    const keyEdge = this.interactKey ? Phaser.Input.Keyboard.JustDown(this.interactKey) : false;
+    const aDown = pad ? pad.A : false;
+    const padEdge = aDown && !this.padInteractWasDown;
+    this.padInteractWasDown = aDown;
+    return keyEdge || padEdge;
   }
 
   /** True if a staff member or the guard is pressed up against the player. */
@@ -293,6 +434,7 @@ export class BuildingScene extends Phaser.Scene {
       this.radioedThisEpisode = true;
       const level = raiseAlert(now);
       recordAlertLevel(level);
+      this.triggerAlarmShake();
     }
   }
 
@@ -442,32 +584,64 @@ export class BuildingScene extends Phaser.Scene {
     this.physics.add.collider(this.guard.sprite, this.walls);
   }
 
-  /** Caught: flash DETAINED, then reset the whole scene back to the start. */
+  /** Caught: a sharp DETAINED beat, then reset the run to the last checkpoint. */
   private detain(): void {
     recordDetain();
     this.detained = true;
     this.physics.pause();
 
-    this.add
-      .rectangle(this.scale.width / 2, this.scale.height / 2, this.scale.width, this.scale.height, 0xff3b30, 0.25)
+    const cx = this.scale.width / 2;
+    const cy = this.scale.height / 2;
+
+    // Sudden-motion effects (flash + shake) obey the screen-shake setting.
+    if (getSettings().screenShake) {
+      this.cameras.main.flash(JUICE.detained.flashMs, 255, 59, 48);
+    }
+    this.triggerAlarmShake();
+
+    const vignette = this.add
+      .rectangle(cx, cy, this.scale.width, this.scale.height, PALETTE_HEX.alarm, 0)
       .setScrollFactor(0)
       .setDepth(1999);
+    this.tweens.add({
+      targets: vignette,
+      alpha: JUICE.detained.vignetteAlpha,
+      duration: JUICE.detained.vignetteFadeMs,
+      ease: 'Quad.easeOut',
+    });
+
     this.add
-      .text(this.scale.width / 2, this.scale.height / 2, 'DETAINED', {
+      .rectangle(cx, cy, 360, 96, PALETTE_HEX.base, 0.82)
+      .setScrollFactor(0)
+      .setDepth(2000);
+    this.add
+      .text(cx, cy - 8, 'DETAINED', {
         fontFamily: FONTS.display,
         fontSize: '64px',
         color: PALETTE.alarm,
       })
       .setOrigin(0.5)
       .setScrollFactor(0)
-      .setDepth(2000);
+      .setDepth(2001);
+    this.add
+      .text(cx, cy + 34, 'ESCORTED FROM SITE', {
+        fontFamily: FONTS.mono,
+        fontSize: '13px',
+        color: PALETTE.text,
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(2001);
 
     this.time.delayedCall(DETECTION.timing.detainedFlashMs, () => this.scene.restart());
   }
 
-  /** Placeholder for the Phase 5 audio pass: alert sting and curious cue fire here. */
-  private onGuardStateCue(_state: GuardState): void {
-    // Intentionally silent until Phase 5 wires up audio.
+  /** The guard changed state: fire the alert sting and shake exactly on ALERT. */
+  private onGuardStateCue(state: GuardState): void {
+    if (state === 'alert') {
+      this.audio.playAlertSting();
+      this.triggerAlarmShake();
+    }
   }
 
   private guardInfo(): GuardHudInfo | null {
@@ -507,10 +681,14 @@ export class BuildingScene extends Phaser.Scene {
     const barH = 5;
     const bx = g.x - barW / 2;
     const by = g.y - 34;
-    this.guardDebug.fillStyle(0x000000, 0.5);
+    this.guardDebug.fillStyle(PALETTE_HEX.base, 0.5);
     this.guardDebug.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
     const colour =
-      g.state === 'alert' ? 0xff3b30 : g.state === 'curious' ? 0xffb000 : 0xc7cdd4;
+      g.state === 'alert'
+        ? PALETTE_HEX.alarm
+        : g.state === 'curious'
+          ? PALETTE_HEX.amber
+          : PALETTE_HEX.text;
     this.guardDebug.fillStyle(colour, 1);
     this.guardDebug.fillRect(bx, by, barW * (g.suspicion / 100), barH);
   }
@@ -537,7 +715,7 @@ export class BuildingScene extends Phaser.Scene {
     }
 
     // Stop these keys scrolling the page or triggering browser shortcuts.
-    kb.addCapture('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,C,G,H,E');
+    kb.addCapture('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,C,G,H,E,L');
 
     const cursors = kb.createCursorKeys();
     const codes = Phaser.Input.Keyboard.KeyCodes;

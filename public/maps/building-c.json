@@ -10,8 +10,8 @@
   "tileheight": 32,
   "width": 75,
   "height": 50,
-  "nextlayerid": 7,
-  "nextobjectid": 500,
+  "nextlayerid": 8,
+  "nextobjectid": 600,
   "tilesets": [],
   "layers": [
     {
@@ -158,6 +158,29 @@
         { "id": 450, "name": "rack4", "type": "plant", "x": 2175, "y": 560, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
         { "id": 451, "name": "workstation", "type": "photo", "x": 1040, "y": 636, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
         { "id": 452, "name": "stickynote", "type": "photo", "x": 1440, "y": 636, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "lights",
+      "type": "objectgroup",
+      "draworder": "topdown",
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0,
+      "objects": [
+        { "id": 500, "name": "deskPool1", "type": "pool", "x": 860, "y": 600, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 501, "name": "deskPool2", "type": "pool", "x": 1220, "y": 600, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 502, "name": "deskPool3", "type": "pool", "x": 860, "y": 790, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 503, "name": "deskPool4", "type": "pool", "x": 1220, "y": 790, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 504, "name": "officeCentre", "type": "pool", "x": 1500, "y": 700, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 510, "name": "dockFlood", "type": "flood", "x": 1712, "y": 852, "width": 624, "height": 396, "rotation": 0, "visible": true },
+        { "id": 520, "name": "rackLed1", "type": "rack", "x": 2140, "y": 470, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 521, "name": "rackLed2", "type": "rack", "x": 2280, "y": 470, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 522, "name": "rackLed3", "type": "rack", "x": 2140, "y": 590, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 523, "name": "rackLed4", "type": "rack", "x": 2280, "y": 590, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 524, "name": "rackLed5", "type": "rack", "x": 2210, "y": 680, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true }
       ]
     }
   ]

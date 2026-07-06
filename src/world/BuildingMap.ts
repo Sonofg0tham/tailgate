@@ -25,6 +25,17 @@ export interface PropPoint {
   y: number;
 }
 
+/** A light source read from the Tiled `lights` layer. */
+export interface LightRect {
+  id: string;
+  /** "pool" | "flood" | "rack". */
+  kind: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 /** An objective marker read from the Tiled `objectives` layer. */
 export interface ObjectivePoint {
   /** Objective id, e.g. "rack4", "workstation", "stickynote". */
@@ -62,6 +73,7 @@ export class BuildingMap {
   readonly props: PropPoint[];
   readonly doors: DoorRect[];
   readonly objectives: ObjectivePoint[];
+  readonly lights: LightRect[];
   readonly spawn: Phaser.Math.Vector2;
   readonly widthInPixels: number;
   readonly heightInPixels: number;
@@ -76,7 +88,23 @@ export class BuildingMap {
     this.props = BuildingMap.readProps(map);
     this.doors = BuildingMap.readDoors(map);
     this.objectives = BuildingMap.readObjectives(map);
+    this.lights = BuildingMap.readLights(map);
     this.spawn = BuildingMap.readSpawn(map);
+  }
+
+  private static readLights(map: Phaser.Tilemaps.Tilemap): LightRect[] {
+    const layer = map.getObjectLayer('lights');
+    if (!layer) {
+      return [];
+    }
+    return layer.objects.map((obj) => ({
+      id: obj.name ?? '',
+      kind: obj.type ?? 'pool',
+      x: obj.x ?? 0,
+      y: obj.y ?? 0,
+      width: obj.width ?? 0,
+      height: obj.height ?? 0,
+    }));
   }
 
   private static readObjectives(map: Phaser.Tilemaps.Tilemap): ObjectivePoint[] {

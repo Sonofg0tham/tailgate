@@ -1,0 +1,45 @@
+{
+  "cameras": [
+    {
+      "id": "server-approach",
+      "x": 2080,
+      "y": 470,
+      "baseFacingDeg": 180,
+      "sweepHalfAngleDeg": 35,
+      "sweepPeriodMs": 4500,
+      "circuitId": "server"
+    },
+    {
+      "id": "server-rack",
+      "x": 2300,
+      "y": 560,
+      "baseFacingDeg": 180,
+      "sweepHalfAngleDeg": 25,
+      "sweepPeriodMs": 3800,
+      "circuitId": "server"
+    },
+    {
+      "id": "office",
+      "x": 1000,
+      "y": 560,
+      "baseFacingDeg": 90,
+      "sweepHalfAngleDeg": 45,
+      "sweepPeriodMs": 6000,
+      "circuitId": "office"
+    },
+    {
+      "id": "dock",
+      "x": 1900,
+      "y": 900,
+      "baseFacingDeg": 0,
+      "sweepHalfAngleDeg": 40,
+      "sweepPeriodMs": 5000,
+      "circuitId": "dock"
+    }
+  ],
+  "breaker": {
+    "x": 300,
+    "y": 1040,
+    "circuits": ["server"]
+  }
+}
