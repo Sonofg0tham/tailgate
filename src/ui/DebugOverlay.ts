@@ -17,6 +17,8 @@ export interface GuardHudInfo {
 export interface HudExtra {
   /** Bolts remaining this run. Always shown. */
   bolts: number;
+  /** Building alert status line, e.g. "CALM". Always shown. */
+  site: string;
   /** Guard readouts, shown only when the guard debug view is on. */
   guard: GuardHudInfo | null;
   /** Door state lines, shown only when the guard debug view is on. */
@@ -61,6 +63,7 @@ export class DebugOverlay {
       `SPEED   ${intent.speed.toUpperCase()}`,
       `NOISE   ${player.noiseRadius} px`,
       `BOLTS   ${extra.bolts}`,
+      `SITE    ${extra.site}`,
       `DEVICE  ${intent.device.toUpperCase()}`,
       `[G] grid   [H] guard`,
     ];

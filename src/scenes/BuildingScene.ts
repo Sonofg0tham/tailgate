@@ -10,7 +10,23 @@ import { Player } from '../entities/Player';
 import { Staff, type StaffDef } from '../entities/Staff';
 import type { KeyboardKeys } from '../input/KeyboardInput';
 import { MovementController } from '../input/MovementController';
-import { getRunStats, recordDetain, recordSpotted } from '../state/runStats';
+import {
+  getMission,
+  raiseAlert,
+  decayAlert,
+  touchAlert,
+  setCheckpoint,
+} from '../state/mission';
+import {
+  getRunStats,
+  recordAlertLevel,
+  recordDetain,
+  recordExfil,
+  recordIngress,
+  recordSpotted,
+  type IngressRoute,
+} from '../state/runStats';
+import { ObjectiveSystem } from '../systems/ObjectiveSystem';
 import { ThrowController } from '../systems/ThrowController';
 import { DebugOverlay, type GuardHudInfo } from '../ui/DebugOverlay';
 import { BuildingMap } from '../world/BuildingMap';
@@ -23,8 +39,14 @@ const STAFF_DATA_KEY = 'staff';
 /** How close authorised staff must be to a badge door to open it. */
 const STAFF_BADGE_DISTANCE = 75;
 
+/** How close a staff member counts as bumping the player (cancels a hold). */
+const STAFF_BUMP_DISTANCE = 26;
+
+/** The building alert level names, indexed by level. */
+const SITE_LABELS = ['CALM', 'CAUTIOUS', 'LOCKDOWN'] as const;
+
 interface GuardsData {
-  guards: { id: string; route: PatrolNode[] }[];
+  guards: { id: string; route: PatrolNode[]; cautiousExtra?: PatrolNode[] }[];
 }
 interface StaffData {
   staff: StaffDef[];
@@ -47,11 +69,20 @@ export class BuildingScene extends Phaser.Scene {
   private doors: Door[] = [];
   private staff: Staff[] = [];
   private throwController!: ThrowController;
+  private objectives!: ObjectiveSystem;
+  private promptText!: Phaser.GameObjects.Text;
   private guardDebug!: Phaser.GameObjects.Graphics;
   private guardDebugOn = false;
   private detained = false;
+  private missionOver = false;
+  private radioedThisEpisode = false;
+  private appliedAlertLevel = -1;
+  private playerWasOutside = true;
+  private baseRoute: PatrolNode[] = [];
+  private cautiousExtra: PatrolNode[] = [];
   private gridKey?: Phaser.Input.Keyboard.Key;
   private guardDebugKey?: Phaser.Input.Keyboard.Key;
+  private interactKey?: Phaser.Input.Keyboard.Key;
 
   constructor() {
     super('building');
@@ -68,18 +99,28 @@ export class BuildingScene extends Phaser.Scene {
 
   create(): void {
     this.detained = false;
+    this.missionOver = false;
+    this.radioedThisEpisode = false;
+    this.appliedAlertLevel = -1;
     this.doors = [];
     this.staff = [];
 
     const map = new BuildingMap(this, MAP_KEY);
     this.world = new WorldRenderer(this, map);
 
-    this.player = new Player(this, map.spawn.x, map.spawn.y);
+    // A detain restarts here: resume from the last checkpoint if there is one.
+    // Checkpoints are always indoors, so a checkpoint start begins inside.
+    const checkpoint = getMission().checkpoint;
+    this.playerWasOutside = !checkpoint;
+    const startX = checkpoint?.x ?? map.spawn.x;
+    const startY = checkpoint?.y ?? map.spawn.y;
+    this.player = new Player(this, startX, startY);
     this.buildWalls(map);
     this.spawnGuard(map);
     this.spawnDoors(map);
     this.spawnStaff();
     this.wireDoorColliders();
+    this.objectives = new ObjectiveSystem(this, map.objectives, map.spawn.clone());
 
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
@@ -94,11 +135,27 @@ export class BuildingScene extends Phaser.Scene {
     this.controller = new MovementController(this.player);
     this.overlay = new DebugOverlay(this);
     this.guardDebug = this.add.graphics().setDepth(50);
-    this.throwController = new ThrowController(this, (x, y) => this.onNoise(x, y));
+    this.throwController = new ThrowController(
+      this,
+      (x, y) => this.onNoise(x, y),
+      checkpoint?.bolts
+    );
+
+    // The mission prompt, bottom centre, screen fixed.
+    this.promptText = this.add
+      .text(this.scale.width / 2, this.scale.height - 28, '', {
+        fontFamily: FONTS.mono,
+        fontSize: '15px',
+        color: PALETTE.amber,
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(1000);
 
     // Debug toggles. Edge-triggered keys so nothing stacks up on scene.restart.
     this.gridKey = this.input.keyboard?.addKey('G');
     this.guardDebugKey = this.input.keyboard?.addKey('H');
+    this.interactKey = this.input.keyboard?.addKey('E');
   }
 
   update(_time: number, delta: number): void {
@@ -112,8 +169,8 @@ export class BuildingScene extends Phaser.Scene {
       }
     }
 
-    if (this.detained) {
-      return; // frozen during the DETAINED flash
+    if (this.detained || this.missionOver) {
+      return; // frozen during the DETAINED flash or the handover to the report
     }
 
     const now = this.time.now;
@@ -124,7 +181,9 @@ export class BuildingScene extends Phaser.Scene {
     const intent = this.controller.update(pad, this.keys);
     this.player.applyMotion(intent, delta);
 
+    this.updateAlertLevel(now);
     this.updateDoorsAndStaff(now);
+    this.trackIngressAndCheckpoint();
     this.hearFootsteps();
 
     if (this.guard) {
@@ -145,16 +204,143 @@ export class BuildingScene extends Phaser.Scene {
         return;
       }
       this.witnessTailgate();
+      this.updateRadio(now);
     }
+
+    const objTick = this.objectives.update({
+      now,
+      dtMs: delta,
+      playerX: this.player.x,
+      playerY: this.player.y,
+      interactHeld: this.isInteractHeld(pad),
+      playerMoving: intent.speed !== 'idle',
+      seenByGuard: this.guard?.canSeePlayer ?? false,
+      bumped: this.isBumped(),
+    });
+    if (objTick.plantedNow) {
+      // Second checkpoint: immediately after planting the device.
+      setCheckpoint({
+        x: this.player.x,
+        y: this.player.y,
+        bolts: this.throwController.remaining,
+      });
+    }
+    if (objTick.exfilNow) {
+      this.missionOver = true;
+      recordExfil();
+      this.scene.start('report');
+      return;
+    }
+    this.promptText.setText(objTick.prompt ?? '');
 
     this.throwController.update(this, delta, this.player.x, this.player.y, pad);
 
     this.overlay.update(this.player, intent, {
       bolts: this.throwController.remaining,
+      site: SITE_LABELS[getMission().alertLevel] ?? 'CALM',
       guard: this.guardInfo(),
       doors: this.doorDebugLines(),
     });
     this.drawGuardDebug();
+  }
+
+  /** True while the interact control is held: E on keyboard, A on the pad. */
+  private isInteractHeld(pad: Phaser.Input.Gamepad.Gamepad | undefined): boolean {
+    if (this.interactKey?.isDown) {
+      return true;
+    }
+    return pad ? pad.A : false;
+  }
+
+  /** True if a staff member or the guard is pressed up against the player. */
+  private isBumped(): boolean {
+    if (
+      this.guard &&
+      Phaser.Math.Distance.Between(this.guard.x, this.guard.y, this.player.x, this.player.y) <=
+        STAFF_BUMP_DISTANCE
+    ) {
+      return true;
+    }
+    for (const member of this.staff) {
+      if (
+        Phaser.Math.Distance.Between(member.x, member.y, this.player.x, this.player.y) <=
+        STAFF_BUMP_DISTANCE
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * The guard radio rule: an ALERT guard raises the building alert level once
+   * its alert has lasted radioAfterMs, unless the player broke line of sight
+   * first. Each radio raises one level; level 2 (lockdown) never decays.
+   */
+  private updateRadio(now: number): void {
+    const guard = this.guard;
+    if (!guard || guard.state !== 'alert') {
+      this.radioedThisEpisode = false;
+      return;
+    }
+    touchAlert(now);
+    if (
+      !this.radioedThisEpisode &&
+      guard.alertSince > 0 &&
+      now - guard.alertSince >= DETECTION.alert.radioAfterMs &&
+      guard.canSeePlayer
+    ) {
+      this.radioedThisEpisode = true;
+      const level = raiseAlert(now);
+      recordAlertLevel(level);
+    }
+  }
+
+  /** Applies level decay and (re)applies guard effects when the level changes. */
+  private updateAlertLevel(now: number): void {
+    decayAlert(now, DETECTION.alert.level1DecayMs);
+    const level = getMission().alertLevel;
+    if (level === this.appliedAlertLevel || !this.guard) {
+      return;
+    }
+    this.appliedAlertLevel = level;
+    this.guard.speedMultiplier =
+      level >= 2
+        ? DETECTION.alert.level2SpeedMult
+        : level >= 1
+          ? DETECTION.alert.level1SpeedMult
+          : 1;
+    // Cautious and lockdown add the extra sweep nodes to the patrol.
+    this.guard.setRoute(level >= 1 ? [...this.baseRoute, ...this.cautiousExtra] : this.baseRoute);
+  }
+
+  /** Records which entrance the player uses and sets the first checkpoint. */
+  private trackIngressAndCheckpoint(): void {
+    // Ingress only counts INWARD: the player must have been outside (in the car
+    // park) when they reach the doorway, so walking out again is not a finding.
+    if (this.playerWasOutside) {
+      for (const door of this.doors) {
+        if (door.isOpen && door.contains(this.player.x, this.player.y)) {
+          recordIngress(door.id as IngressRoute);
+        }
+      }
+    }
+    // Track which side of the entrance wall the player is on. The door band
+    // spans y1216-1256; clear of it on either side updates the flag.
+    if (this.player.y > 1260) {
+      this.playerWasOutside = true;
+    } else if (this.player.y < 1212) {
+      this.playerWasOutside = false;
+    }
+    // First checkpoint: on first entering the building. The building interior
+    // is everything above the entrance wall line.
+    if (!getMission().checkpoint && this.player.y < 1190) {
+      setCheckpoint({
+        x: this.player.x,
+        y: this.player.y,
+        bolts: this.throwController.remaining,
+      });
+    }
   }
 
   private spawnDoors(map: BuildingMap): void {
@@ -182,24 +368,26 @@ export class BuildingScene extends Phaser.Scene {
 
   /** Advances doors and staff, and lets authorised staff badge open badge doors. */
   private updateDoorsAndStaff(now: number): void {
+    const lockdown = getMission().alertLevel >= 2;
     for (const member of this.staff) {
       member.update(now);
     }
     for (const door of this.doors) {
       if (door.kind === 'badge') {
         // Any authorised staff standing near a badge door opens it (the tailgate
-        // window keeps it open for a moment after they walk on).
+        // window keeps it open for a moment after they walk on). In lockdown the
+        // badge readers deny everyone, staff included.
         for (const member of this.staff) {
           if (
             member.isAuthorisedFor(door.id) &&
             Phaser.Math.Distance.Between(member.x, member.y, door.centreX, door.centreY) <
               STAFF_BADGE_DISTANCE
           ) {
-            door.badge(now);
+            door.badge(now, lockdown);
           }
         }
       }
-      door.update(now);
+      door.update(now, lockdown);
     }
   }
 
@@ -248,6 +436,8 @@ export class BuildingScene extends Phaser.Scene {
     if (!first || first.route.length === 0) {
       return;
     }
+    this.baseRoute = first.route;
+    this.cautiousExtra = first.cautiousExtra ?? [];
     this.guard = new Guard(this, first.route, map.walls, (state) => this.onGuardStateCue(state));
     this.physics.add.collider(this.guard.sprite, this.walls);
   }
@@ -347,7 +537,7 @@ export class BuildingScene extends Phaser.Scene {
     }
 
     // Stop these keys scrolling the page or triggering browser shortcuts.
-    kb.addCapture('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,C,G,H');
+    kb.addCapture('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,C,G,H,E');
 
     const cursors = kb.createCursorKeys();
     const codes = Phaser.Input.Keyboard.KeyCodes;

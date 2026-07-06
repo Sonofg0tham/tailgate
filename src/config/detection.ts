@@ -80,6 +80,22 @@ export const DETECTION = {
 
   /** How close (pixels, centre to centre) counts as the guard catching the player. */
   detainRadius: 22,
+
+  /** Building alert levels 0-2 (calm, cautious, lockdown). */
+  alert: {
+    /**
+     * An ALERT guard radios the building this long after spotting the player,
+     * unless line of sight is broken first. Each radio raises the alert level
+     * by one: first radio = cautious, a second = lockdown.
+     */
+    radioAfterMs: 3000,
+    /** Cautious (level 1) decays back to calm after this long without incident. */
+    level1DecayMs: 60000,
+    /** Guard speed multiplier while the building is cautious. */
+    level1SpeedMult: 1.3,
+    /** Guard speed multiplier during lockdown (the sweep). Never decays. */
+    level2SpeedMult: 1.6,
+  },
 } as const;
 
 /** Cone range in pixels, derived from the tile range. */
