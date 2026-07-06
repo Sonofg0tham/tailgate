@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { FONTS, PALETTE } from '../config/palette';
 import { generateReport, type Finding, type ReportModel } from '../report/generateReport';
+import { getActiveLevel, nextLevelAfter } from '../state/levels';
 import { getMission, resetMission } from '../state/mission';
+import { recordCompletion, unlockLevel } from '../state/progress';
 import { getRunStats, resetRunStats } from '../state/runStats';
 import { MenuController } from '../ui/MenuController';
 
@@ -35,10 +37,23 @@ export class ReportScene extends Phaser.Scene {
   create(): void {
     const stats = getRunStats();
     const mission = getMission();
-    const model = generateReport(stats as Parameters<typeof generateReport>[0], {
-      planted: mission.planted,
-      photographed: [...mission.photographed],
-    });
+    const level = getActiveLevel();
+    const model = generateReport(
+      stats as Parameters<typeof generateReport>[0],
+      {
+        planted: mission.planted,
+        photographed: [...mission.photographed],
+      },
+      { client: level.client, site: level.site, ref: level.ref }
+    );
+
+    // Reaching the report is a completion at any rating: log the personal
+    // best and countersign the next contract on the schedule.
+    recordCompletion(level.id, model.rating, Math.floor((stats.exfilAtMs ?? 0) / 1000));
+    const next = nextLevelAfter(level.id);
+    if (next) {
+      unlockLevel(next.id);
+    }
 
     const centreX = this.scale.width / 2;
     const centreY = this.scale.height / 2;
@@ -182,22 +197,30 @@ export class ReportScene extends Phaser.Scene {
 
   /** The end-of-run actions, navigable on pad, keyboard and mouse alike. */
   private buildMenu(centreX: number): void {
-    const top = this.scale.height / 2 + PAGE.height / 2 - 64;
+    const top = this.scale.height / 2 + PAGE.height / 2 - 76;
     this.menu = new MenuController(
       this,
       [
-        { kind: 'action', label: '[ NEW ENGAGEMENT ]', onSelect: () => this.newEngagement() },
+        { kind: 'action', label: '[ RE-RUN ENGAGEMENT ]', onSelect: () => this.newEngagement() },
+        { kind: 'action', label: '[ CONTRACTS ]', onSelect: () => this.contracts() },
         { kind: 'action', label: '[ MAIN MENU ]', onSelect: () => this.mainMenu() },
       ],
       { x: centreX, top, rowHeight: 30, width: 340, labelSize: 15 }
     );
   }
 
-  /** Starts a completely fresh engagement and returns to the building. */
+  /** Re-runs the same contract from the van, chasing a better rating. */
   private newEngagement(): void {
     resetRunStats();
-    resetMission();
+    resetMission(getActiveLevel().id);
     this.scene.start('building');
+  }
+
+  /** Clears the run and returns to the contract schedule. */
+  private contracts(): void {
+    resetRunStats();
+    resetMission();
+    this.scene.start('contracts');
   }
 
   /** Clears the run and returns to the sign-in kiosk. */

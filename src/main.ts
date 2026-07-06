@@ -5,6 +5,7 @@ import './style.css';
 import Phaser from 'phaser';
 import { PALETTE } from './config/palette';
 import { BuildingScene } from './scenes/BuildingScene';
+import { ContractSelectScene } from './scenes/ContractSelectScene';
 import { MenuScene } from './scenes/MenuScene';
 import { PauseScene } from './scenes/PauseScene';
 import { ReportScene } from './scenes/ReportScene';
@@ -49,9 +50,9 @@ async function boot(): Promise<void> {
     input: {
       gamepad: true,
     },
-    // The kiosk boots first; it starts the building. Pause and settings are
-    // overlays launched on top of whatever is running.
-    scene: [MenuScene, BuildingScene, ReportScene, PauseScene, SettingsScene],
+    // The kiosk boots first; it opens the contract schedule, which starts the
+    // building. Pause and settings are overlays launched on top.
+    scene: [MenuScene, ContractSelectScene, BuildingScene, ReportScene, PauseScene, SettingsScene],
   });
 
   // Dev-only handles for manual inspection. Stripped from production builds.
