@@ -1,0 +1,28 @@
+{
+  "staff": [
+    {
+      "id": "receptionist",
+      "sprite": "staff_a",
+      "badges": ["reception"],
+      "route": [
+        { "x": 1250, "y": 700, "pauseMs": 1500 },
+        { "x": 1250, "y": 950, "pauseMs": 200 },
+        { "x": 1250, "y": 1180, "pauseMs": 200 },
+        { "x": 1250, "y": 1380, "pauseMs": 3000 },
+        { "x": 1250, "y": 1180, "pauseMs": 200 },
+        { "x": 1250, "y": 950, "pauseMs": 200 }
+      ]
+    },
+    {
+      "id": "clerk",
+      "sprite": "staff_b",
+      "badges": [],
+      "route": [
+        { "x": 920, "y": 600, "pauseMs": 900 },
+        { "x": 1500, "y": 620, "pauseMs": 900 },
+        { "x": 1460, "y": 840, "pauseMs": 900 },
+        { "x": 940, "y": 820, "pauseMs": 900 }
+      ]
+    }
+  ]
+}

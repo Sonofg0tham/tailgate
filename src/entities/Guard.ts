@@ -54,6 +54,7 @@ export class Guard {
   private giveUpAt = 0; // timestamp an ALERT guard gives up after losing sight
   private investigateUntil = 0; // timestamp a CURIOUS guard finishes looking around
   private investigateBaseFacing = 0; // facing the scan sweeps around
+  private curiousDeadline = 0; // hard timeout on a CURIOUS episode
   private sawPlayer = false;
 
   private readonly onStateCue: (state: GuardState) => void;
@@ -108,10 +109,13 @@ export class Guard {
     dtMs: number,
     playerX: number,
     playerY: number,
-    playerSpeed: SpeedState
+    playerSpeed: SpeedState,
+    closedDoors: WallRect[] = []
   ): GuardTick {
     const dtSec = dtMs / 1000;
 
+    // Closed doors block sight this frame just like walls do.
+    this.cone.setDynamicOccluders(closedDoors);
     this.perceive(playerX, playerY, playerSpeed, dtSec);
     const spottedNow = this.updateState(now);
     this.act(now, playerX, playerY);
@@ -129,6 +133,27 @@ export class Guard {
       Math.hypot(playerX - this.x, playerY - this.y) <= DETECTION.detainRadius;
 
     return { spottedNow, caughtPlayer };
+  }
+
+  /**
+   * Pulls the guard to investigate a point: a heard noise (thrown bolt or the
+   * player's footsteps) or a witnessed tailgate. Spikes suspicion to CURIOUS and
+   * retargets, unless the guard is already chasing (a distant noise should not
+   * distract a guard that already has the player).
+   */
+  investigatePoint(x: number, y: number): void {
+    if (this.guardState === 'alert') {
+      return;
+    }
+    this.lastSeen.set(x, y);
+    // Nudge suspicion up to CURIOUS so updateState takes it there (and arms the
+    // episode timeout on entry). Retarget to the fresh noise; the deadline in
+    // updateState remains the backstop so continuous noise still times out.
+    this.suspicionValue = Math.max(
+      this.suspicionValue,
+      DETECTION.suspicion.curiousThreshold + 5
+    );
+    this.investigateUntil = 0;
   }
 
   private perceive(px: number, py: number, playerSpeed: SpeedState, dtSec: number): void {
@@ -169,24 +194,39 @@ export class Guard {
       if (this.sawPlayer) {
         this.giveUpAt = now + DETECTION.timing.alertGiveUpMs;
       } else if (now >= this.giveUpAt) {
-        this.guardState = this.suspicionValue > 0 ? 'curious' : 'patrol';
-        this.investigateUntil = 0;
+        if (this.suspicionValue > 0) {
+          this.enterCurious(now);
+        } else {
+          this.guardState = 'patrol';
+          this.investigateUntil = 0;
+        }
       }
-    } else if (this.suspicionValue >= DETECTION.suspicion.curiousThreshold) {
-      this.guardState = 'curious';
     } else if (this.guardState === 'curious') {
-      // Return to patrol once the look-around is done, or suspicion has drained.
+      // Already curious: end the episode when the look-around finishes or the
+      // hard cap passes. Checked BEFORE the suspicion threshold below, so a
+      // continuous noise flooring suspicion cannot keep the guard curious forever.
       const lookAroundDone = this.investigateUntil > 0 && now >= this.investigateUntil;
-      if (lookAroundDone || this.suspicionValue <= 0) {
+      if (lookAroundDone || now >= this.curiousDeadline) {
         this.guardState = 'patrol';
         this.investigateUntil = 0;
       }
+    } else if (this.suspicionValue >= DETECTION.suspicion.curiousThreshold) {
+      this.enterCurious(now);
     }
 
     if (this.guardState !== previous) {
       this.onStateCue(this.guardState);
     }
     return this.guardState === 'alert' && previous !== 'alert';
+  }
+
+  /** Begins a fresh CURIOUS episode, arming its hard timeout once on entry. */
+  private enterCurious(now: number): void {
+    if (this.guardState !== 'curious') {
+      this.curiousDeadline = now + DETECTION.timing.maxCuriousMs;
+      this.investigateUntil = 0;
+    }
+    this.guardState = 'curious';
   }
 
   private act(now: number, playerX: number, playerY: number): void {

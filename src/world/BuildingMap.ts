@@ -25,6 +25,19 @@ export interface PropPoint {
   y: number;
 }
 
+/** How a door opens. Matches the `type` on each object in the Tiled `doors` layer. */
+export type DoorKind = 'badge' | 'smokers' | 'shutter';
+
+/** A door read from the Tiled `doors` object layer. */
+export interface DoorRect {
+  id: string;
+  kind: DoorKind;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 /**
  * Loads the hand-authored Building C map and reads its object layers into plain
  * data. Nothing is rendered here; the renderer and the scene decide what to draw
@@ -37,6 +50,7 @@ export class BuildingMap {
   readonly zones: ZoneRect[];
   readonly walls: WallRect[];
   readonly props: PropPoint[];
+  readonly doors: DoorRect[];
   readonly spawn: Phaser.Math.Vector2;
   readonly widthInPixels: number;
   readonly heightInPixels: number;
@@ -49,6 +63,7 @@ export class BuildingMap {
     this.zones = BuildingMap.readZones(map);
     this.walls = BuildingMap.readWalls(map);
     this.props = BuildingMap.readProps(map);
+    this.doors = BuildingMap.readDoors(map);
     this.spawn = BuildingMap.readSpawn(map);
   }
 
@@ -88,6 +103,21 @@ export class BuildingMap {
       key: obj.name ?? '',
       x: obj.x ?? 0,
       y: obj.y ?? 0,
+    }));
+  }
+
+  private static readDoors(map: Phaser.Tilemaps.Tilemap): DoorRect[] {
+    const layer = map.getObjectLayer('doors');
+    if (!layer) {
+      return [];
+    }
+    return layer.objects.map((obj) => ({
+      id: obj.name ?? '',
+      kind: (obj.type ?? 'badge') as DoorKind,
+      x: obj.x ?? 0,
+      y: obj.y ?? 0,
+      width: obj.width ?? 0,
+      height: obj.height ?? 0,
     }));
   }
 

@@ -41,12 +41,22 @@ function rayToSegment(
 export class VisionCone {
   private readonly gfx: Phaser.GameObjects.Graphics;
   private readonly walls: Phaser.Geom.Rectangle[];
+  /** Extra occluders that change frame to frame, e.g. currently-closed doors. */
+  private dynamicOccluders: Phaser.Geom.Rectangle[] = [];
   private readonly range = CONE_RANGE_PX;
   private readonly halfFov = Phaser.Math.DegToRad(DETECTION.cone.fovDegrees) / 2;
 
   constructor(scene: Phaser.Scene, walls: WallRect[]) {
     this.walls = walls.map((w) => new Phaser.Geom.Rectangle(w.x, w.y, w.width, w.height));
     this.gfx = scene.add.graphics().setDepth(22);
+  }
+
+  /**
+   * Sets the dynamic occluders (closed doors) for this frame. Vision is blocked
+   * by walls and closed doors alike; open doors let sight through.
+   */
+  setDynamicOccluders(rects: WallRect[]): void {
+    this.dynamicOccluders = rects.map((r) => new Phaser.Geom.Rectangle(r.x, r.y, r.width, r.height));
   }
 
   /** True if (tx,ty) is inside the cone and not hidden behind a wall. */
@@ -61,10 +71,15 @@ export class VisionCone {
     if (Math.abs(diff) > this.halfFov) {
       return false;
     }
-    // Occlusion: any wall crossing the guard-to-target segment blocks the view.
+    // Occlusion: any wall or closed door crossing the segment blocks the view.
     const line = new Phaser.Geom.Line(gx, gy, tx, ty);
     for (const wall of this.walls) {
       if (Phaser.Geom.Intersects.LineToRectangle(line, wall)) {
+        return false;
+      }
+    }
+    for (const door of this.dynamicOccluders) {
+      if (Phaser.Geom.Intersects.LineToRectangle(line, door)) {
         return false;
       }
     }
@@ -74,7 +89,7 @@ export class VisionCone {
   /** Distance from (ox,oy) along unit (dx,dy) to the nearest wall, capped at range. */
   private rayDistance(ox: number, oy: number, dx: number, dy: number): number {
     let nearest = this.range;
-    for (const w of this.walls) {
+    for (const w of [...this.walls, ...this.dynamicOccluders]) {
       const right = w.x + w.width;
       const bottom = w.y + w.height;
       const edges: [number, number, number, number][] = [

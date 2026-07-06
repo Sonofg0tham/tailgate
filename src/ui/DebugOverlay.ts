@@ -13,6 +13,16 @@ export interface GuardHudInfo {
   detains: number;
 }
 
+/** Extra HUD data beyond the player's own movement readouts. */
+export interface HudExtra {
+  /** Bolts remaining this run. Always shown. */
+  bolts: number;
+  /** Guard readouts, shown only when the guard debug view is on. */
+  guard: GuardHudInfo | null;
+  /** Door state lines, shown only when the guard debug view is on. */
+  doors: string[] | null;
+}
+
 /**
  * The debug view. Two jobs:
  *  - draw the player's noise radius as a ring that grows with speed (this is the
@@ -40,7 +50,7 @@ export class DebugOverlay {
       .setDepth(1000);
   }
 
-  update(player: Player, intent: MovementIntent, guard: GuardHudInfo | null = null): void {
+  update(player: Player, intent: MovementIntent, extra: HudExtra): void {
     this.ring.clear();
     if (player.noiseRadius > 0) {
       this.ring.lineStyle(2, NOISE_RING_TINT, 0.8);
@@ -50,18 +60,22 @@ export class DebugOverlay {
     const lines = [
       `SPEED   ${intent.speed.toUpperCase()}`,
       `NOISE   ${player.noiseRadius} px`,
+      `BOLTS   ${extra.bolts}`,
       `DEVICE  ${intent.device.toUpperCase()}`,
       `[G] grid   [H] guard`,
     ];
-    if (guard) {
+    if (extra.guard) {
       lines.push(
         '',
-        `GUARD   ${guard.state.toUpperCase()}`,
-        `SUSP    ${Math.round(guard.suspicion)}%`,
-        `SEES    ${guard.sees ? 'YES' : 'no'}`,
-        `SPOTS   ${guard.spotted}`,
-        `CATCH   ${guard.detains}`
+        `GUARD   ${extra.guard.state.toUpperCase()}`,
+        `SUSP    ${Math.round(extra.guard.suspicion)}%`,
+        `SEES    ${extra.guard.sees ? 'YES' : 'no'}`,
+        `SPOTS   ${extra.guard.spotted}`,
+        `CATCH   ${extra.guard.detains}`
       );
+    }
+    if (extra.doors) {
+      lines.push('', ...extra.doors);
     }
     this.text.setText(lines);
   }
