@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { ART } from '../config/art';
 import { HIJACK } from '../config/hijack';
 import { FONTS, PALETTE, PALETTE_HEX } from '../config/palette';
 import type { FeedInfo } from '../systems/CameraSystem';
@@ -7,6 +8,10 @@ import type { BuildingScene } from './BuildingScene';
 
 /** The feed viewport, shared with BuildingScene's secondary camera. */
 const FEED = HIJACK.feed;
+
+/** Texture key for the generated CCTV grain, built once at first use. */
+const NOISE_KEY = 'cctvNoise';
+const NOISE_SIZE = 64;
 
 /**
  * The CCTV multiplexer, launched over a still-running BuildingScene when the
@@ -25,6 +30,9 @@ export class HijackScene extends Phaser.Scene {
   private feedStatus!: Phaser.GameObjects.Text;
   private chargesText!: Phaser.GameObjects.Text;
   private statusLine!: Phaser.GameObjects.Text;
+  private grain!: Phaser.GameObjects.TileSprite;
+  /** Scene-clock ts of the next grain pattern jump. */
+  private nextGrainStepAt = 0;
 
   constructor() {
     super('hijack');
@@ -36,6 +44,7 @@ export class HijackScene extends Phaser.Scene {
     this.feedIndex = 0;
 
     this.drawChrome();
+    this.drawCctvTreatment();
 
     this.feedLabel = this.add.text(FEED.x, FEED.y + FEED.height + 10, '', {
       fontFamily: FONTS.mono,
@@ -81,10 +90,17 @@ export class HijackScene extends Phaser.Scene {
     this.tweens.add({ targets: rec, alpha: 0.15, duration: 650, yoyo: true, repeat: -1 });
   }
 
-  update(): void {
+  update(time: number): void {
     const plugin = this.input.gamepad;
     const pad = plugin && plugin.total > 0 ? plugin.getPad(0) : undefined;
     this.menu.update(pad);
+
+    // The grain pattern jumps a few times a second, deliberately not every
+    // frame: analogue shimmer without a strobing flicker.
+    if (time >= this.nextGrainStepAt) {
+      this.nextGrainStepAt = time + ART.cctv.grainStepMs;
+      this.grain.setTilePosition(Math.random() * NOISE_SIZE, Math.random() * NOISE_SIZE);
+    }
 
     // Live readouts: loop and re-sync timers tick down while the world runs.
     const info = this.building.hijackFeeds();
@@ -167,6 +183,79 @@ export class HijackScene extends Phaser.Scene {
         color: PALETTE.text,
       })
       .setOrigin(0.5);
+  }
+
+  /**
+   * The closed-circuit look over the live picture: grain, scanlines, an amber
+   * monitor cast, darkened edges and a slow CRT roll bar. All generated, all
+   * inside the bezel, and every motion in it is small and slow on purpose.
+   */
+  private drawCctvTreatment(): void {
+    const cctv = ART.cctv;
+    const cx = FEED.x + FEED.width / 2;
+    const cy = FEED.y + FEED.height / 2;
+
+    // The amber monitor cast: the feed reads as a tube, not a window.
+    this.add.rectangle(cx, cy, FEED.width, FEED.height, PALETTE_HEX.amber, cctv.amberCastAlpha);
+
+    // Static grain from the generated noise texture.
+    HijackScene.ensureNoise(this);
+    this.grain = this.add
+      .tileSprite(cx, cy, FEED.width, FEED.height, NOISE_KEY)
+      .setAlpha(cctv.grainAlpha);
+
+    // Scanlines: one thin dark line every few pixels.
+    const lines = this.add.graphics();
+    lines.fillStyle(PALETTE_HEX.base, cctv.scanlineAlpha);
+    for (let y = FEED.y; y < FEED.y + FEED.height; y += cctv.scanlineGapPx) {
+      lines.fillRect(FEED.x, y, FEED.width, 1);
+    }
+
+    // Darkened edges, like a worn tube.
+    const v = cctv.vignetteAlpha;
+    const edge = cctv.vignettePx;
+    this.add.rectangle(cx, FEED.y + edge / 2, FEED.width, edge, PALETTE_HEX.base, v);
+    this.add.rectangle(cx, FEED.y + FEED.height - edge / 2, FEED.width, edge, PALETTE_HEX.base, v);
+    this.add.rectangle(FEED.x + edge / 2, cy, edge, FEED.height, PALETTE_HEX.base, v);
+    this.add.rectangle(FEED.x + FEED.width - edge / 2, cy, edge, FEED.height, PALETTE_HEX.base, v);
+
+    // The roll bar: one soft band crawling down the tube on a loop.
+    const bar = this.add.rectangle(
+      cx,
+      FEED.y + cctv.rollBarPx / 2,
+      FEED.width,
+      cctv.rollBarPx,
+      PALETTE_HEX.text,
+      cctv.rollBarAlpha
+    );
+    this.tweens.add({
+      targets: bar,
+      y: FEED.y + FEED.height - cctv.rollBarPx / 2,
+      duration: cctv.rollDurationMs,
+      repeat: -1,
+    });
+  }
+
+  /** Builds the grain texture once: random grey static, tiled over the feed. */
+  private static ensureNoise(scene: Phaser.Scene): void {
+    if (scene.textures.exists(NOISE_KEY)) {
+      return;
+    }
+    const tex = scene.textures.createCanvas(NOISE_KEY, NOISE_SIZE, NOISE_SIZE);
+    if (!tex) {
+      return;
+    }
+    const ctx = tex.getContext();
+    const image = ctx.createImageData(NOISE_SIZE, NOISE_SIZE);
+    for (let i = 0; i < image.data.length; i += 4) {
+      const shade = Math.floor(Math.random() * 255);
+      image.data[i] = shade;
+      image.data[i + 1] = shade;
+      image.data[i + 2] = shade;
+      image.data[i + 3] = 255;
+    }
+    ctx.putImageData(image, 0, 0);
+    tex.refresh();
   }
 }
 
