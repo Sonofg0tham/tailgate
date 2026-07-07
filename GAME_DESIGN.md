@@ -158,6 +158,21 @@ Done when: completable with and without the disguise, and it tops the campaign d
 **Phase 13, campaign ship.** Cross-level balance pass, contract-select polish, per-level report flavour, README refresh with new GIFs, full CREDITS.md and npm audit, fresh-localStorage playtest of the whole campaign on pad and keyboard, assist mode on and off.
 Done when: a new player can go from the kiosk through three contracts to three reports without touching devtools.
 
+## Dressing checklist (Phases 11 and 12 follow this, once per level)
+
+The Phase 10 pipeline. A new level is greyboxed first; when the layout and routines feel right, it is dressed exactly once by walking this list top to bottom. Anything code-generated (particles, shadows, CCTV grain) comes free; anything file-based needs a CREDITS.md line in the same commit.
+
+1. Floors: assign a floor texture per zone in `config/tiles.ts` FLOOR_TEXTURES, plus a zone wash tint in `config/zones.ts`. Match the zone's surface to its footstep sound in `config/audio.ts`.
+2. Props: dress from the existing Kenney set via the map's props layer. A new sprite means a CREDITS.md line (CC0/CC-BY only) in the same commit.
+3. Lights: author pool, flood and rack lights in the map's lights layer. Every pool light grows dust motes automatically.
+4. Effects: place steam and haze points in the map's effects layer where heat or moisture lives.
+5. Characters: every moving actor gets the shared CharacterAnimator (walk, breathing, drop shadow). Nobody glides, nobody freezes.
+6. Interactables: consoles, breakers and pickups use prop sprites plus amber accents, with a gentle blink at most. No strobing anywhere.
+7. Feeds: any CCTV view gets the multiplexer treatment (grain, scanlines, amber cast, vignette, slow roll bar).
+8. Identity: near-black `#0E1116`, clearance amber `#FFB000`, cool grey `#C7CDD4`. Red `#FF3B30` appears only for detection and alarm states. Saira Condensed for display, IBM Plex Mono for readouts.
+9. Accessibility: cones stay above the lighting veil, state changes are never colour alone, the brightness floor is respected, and every new motion is small and slow.
+10. Audit: `npm run typecheck`, `npm run lint`, CREDITS.md covers every file added, and a playtest on pad first, keyboard second.
+
 ## v2 parking lot (still parked, do not build)
 
 Takedowns and body management, roof ingress, daily-seed leaderboard, mobile and touch support, report sharing as an image.
