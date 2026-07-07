@@ -59,6 +59,13 @@ export const AUDIO = {
     hallA: 'tile',
     hallB: 'tile',
     cage: 'tile',
+    // Warehouse (carPark shared)
+    whBreak: 'tile',
+    whLobby: 'tile',
+    whDock: 'concrete',
+    whFloor: 'concrete',
+    whOffice: 'carpet',
+    whCage: 'tile',
   } as Record<string, Surface>,
 
   /** Which ambience bed plays in each zone, by ZoneRect name. */
@@ -81,6 +88,13 @@ export const AUDIO = {
     hallA: 'server',
     hallB: 'server',
     cage: 'server',
+    // Warehouse (carPark shared)
+    whBreak: 'kitchen',
+    whLobby: 'office',
+    whDock: 'dock',
+    whFloor: 'hvac',
+    whOffice: 'office',
+    whCage: 'server',
   } as Record<string, AmbienceBed>,
 
   /** Player footstep synthesis per surface: a short filtered noise burst. */

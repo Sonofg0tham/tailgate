@@ -27,6 +27,13 @@ export const ZONE_TINTS: Record<string, number> = {
   hallA: 0x1f3a5c, // deep blue, the server family
   hallB: 0x2c3f6e, // a bluer violet so the halls read apart
   cage: 0x152a44, // darkest blue: the prize
+  // Warehouse (carPark shared)
+  whBreak: 0x6b5335, // warm brown, the kitchen family
+  whLobby: 0x3d5a45, // muted green, the public face
+  whDock: 0x5a3d4a, // dusty plum, the dock family
+  whFloor: 0x4a4436, // warm industrial umber: the big open floor
+  whOffice: 0x4a4a5e, // dusky indigo, the office family
+  whCage: 0x152a44, // darkest blue: the prize family
 };
 
 /** Shown if the map names a zone with no tint above, so mistakes are obvious. */

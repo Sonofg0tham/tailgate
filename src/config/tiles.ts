@@ -72,6 +72,13 @@ export const FLOOR_TEXTURES: Record<string, string> = {
   hallA: 'floor_tile_cool',
   hallB: 'floor_tile_cool',
   cage: 'floor_tile_cool',
+  // Warehouse (carPark shared)
+  whBreak: 'floor_tile',
+  whLobby: 'floor_tile',
+  whDock: 'floor_concrete',
+  whFloor: 'floor_concrete',
+  whOffice: 'floor_carpet',
+  whCage: 'floor_tile_cool',
 };
 
 /** Used if a zone has no explicit floor mapping, so a typo is still walkable. */
