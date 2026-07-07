@@ -30,6 +30,13 @@ export const AMBIENT_LIGHT: Record<string, number> = {
   hallA: 0.13,
   hallB: 0.13,
   cage: 0.11,
+  // Warehouse (carPark shared). Industrial bright-ish; people are the threat.
+  whBreak: 0.38,
+  whLobby: 0.4,
+  whDock: 0.32,
+  whFloor: 0.25,
+  whOffice: 0.3,
+  whCage: 0.18,
 };
 
 /** Light level outside every zone rectangle. */

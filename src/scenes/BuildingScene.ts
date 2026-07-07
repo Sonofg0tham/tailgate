@@ -674,9 +674,8 @@ export class BuildingScene extends Phaser.Scene {
   }
 
   /**
-   * Places hi-vis pickups from the map's pickups layer. Building C ships
-   * without one (the warehouse is the disguise's home level), so dev builds
-   * inject a test vest by the van; Vite strips this from production.
+   * Places hi-vis pickups from the map's pickups layer. Vests exist only
+   * where a level authors them; the warehouse is the disguise's home.
    */
   private spawnHivisPickups(map: BuildingMap): void {
     this.hivisPickups = [];
@@ -684,9 +683,6 @@ export class BuildingScene extends Phaser.Scene {
       return; // already wearing it; a checkpoint restart must not respawn one
     }
     const pickups: PickupPoint[] = map.pickups.filter((p) => p.kind === 'hivis');
-    if (import.meta.env.DEV && pickups.length === 0) {
-      pickups.push({ kind: 'hivis', x: map.spawn.x + 60, y: map.spawn.y - 10 });
-    }
     for (const p of pickups) {
       this.hivisPickups.push(this.drawHivisMarker(p.x, p.y));
     }
@@ -712,10 +708,14 @@ export class BuildingScene extends Phaser.Scene {
         continue;
       }
       if (interactPressed) {
-        for (const obj of pickup.objects) {
-          obj.destroy();
+        // One vest is all anyone needs: taking it clears every other pickup,
+        // so a blown disguise can never dangle the false hope of a fresh one.
+        for (const remaining of this.hivisPickups) {
+          for (const obj of remaining.objects) {
+            obj.destroy();
+          }
         }
-        this.hivisPickups.splice(i, 1);
+        this.hivisPickups = [];
         wearDisguise();
         recordDisguiseWorn();
         this.refreshDisguiseTag();
@@ -859,7 +859,11 @@ export class BuildingScene extends Phaser.Scene {
   private spawnStaff(): void {
     const data = this.cache.json.get(this.staffDataKey) as StaffData | undefined;
     for (const def of data?.staff ?? []) {
-      this.staff.push(new Staff(this, def));
+      const member = new Staff(this, def);
+      this.staff.push(member);
+      // Staff collide with walls like everyone else, so a route authored
+      // through a wall strands visibly in playtesting instead of ghosting.
+      this.physics.add.collider(member.sprite, this.walls);
     }
   }
 

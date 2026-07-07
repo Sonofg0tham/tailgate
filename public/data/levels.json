@@ -28,16 +28,16 @@
     },
     {
       "id": "warehouse",
-      "playable": false,
+      "playable": true,
       "name": "DISTRIBUTION WAREHOUSE",
       "client": "TRENT VALLEY DISTRIBUTION",
       "site": "UNIT 9, TRENT VALLEY PARK",
-      "scope": "SITE SURVEY PENDING.",
+      "scope": "PLANT ROGUE DEVICE ON THE COMMS RACK. PHOTOGRAPH OPPORTUNISTIC FINDINGS.",
       "ref": "ENG-2026-0640/W",
-      "map": "",
-      "guards": "",
-      "staff": "",
-      "cameras": ""
+      "map": "maps/warehouse.json",
+      "guards": "data/warehouse/guards.json",
+      "staff": "data/warehouse/staff.json",
+      "cameras": "data/warehouse/cameras.json"
     }
   ]
 }
