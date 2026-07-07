@@ -24,7 +24,7 @@
       "x": 0,
       "y": 0,
       "objects": [
-        { "id": 1, "name": "carPark", "type": "", "x": 0, "y": 1248, "width": 2400, "height": 352, "rotation": 0, "visible": true },
+        { "id": 1, "name": "carPark", "type": "", "x": 0, "y": 1248, "width": 2400, "height": 352, "rotation": 0, "visible": true, "properties": [{ "name": "exterior", "type": "bool", "value": true }] },
         { "id": 2, "name": "reception", "type": "", "x": 1000, "y": 1000, "width": 560, "height": 248, "rotation": 0, "visible": true },
         { "id": 3, "name": "office", "type": "", "x": 760, "y": 520, "width": 880, "height": 384, "rotation": 0, "visible": true },
         { "id": 4, "name": "kitchen", "type": "", "x": 320, "y": 520, "width": 360, "height": 288, "rotation": 0, "visible": true },

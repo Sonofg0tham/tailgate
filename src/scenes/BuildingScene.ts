@@ -124,6 +124,8 @@ export class BuildingScene extends Phaser.Scene {
   private consoleDef?: ConsoleDef;
   /** Names of zones flagged restricted in Tiled: no hi-vis excuse inside. */
   private restrictedZoneNames = new Set<string>();
+  /** Names of zones flagged exterior in Tiled: the outdoors, for ingress. */
+  private exteriorZoneNames = new Set<string>();
   /** Hi-vis pickups still on the floor, with their greybox marker objects. */
   private hivisPickups: { x: number; y: number; objects: Phaser.GameObjects.GameObject[] }[] = [];
   /** The screen-fixed HI-VIS: WORN / BLOWN tag, top right. */
@@ -206,6 +208,9 @@ export class BuildingScene extends Phaser.Scene {
     }
     this.restrictedZoneNames = new Set(
       map.zones.filter((zone) => zone.restricted).map((zone) => zone.name)
+    );
+    this.exteriorZoneNames = new Set(
+      map.zones.filter((zone) => zone.exterior).map((zone) => zone.name)
     );
     this.spawnHivisPickups(map);
     // Atmosphere: dust in the pool lights, steam and haze from the map data.
@@ -803,7 +808,11 @@ export class BuildingScene extends Phaser.Scene {
     this.guard.setRoute(level >= 1 ? [...this.baseRoute, ...this.cautiousExtra] : this.baseRoute);
   }
 
-  /** Records which entrance the player uses and sets the first checkpoint. */
+  /**
+   * Records which entrance the player uses and sets the first checkpoint.
+   * Driven entirely by zones flagged exterior in the map data, so every level
+   * defines its own outdoors; nothing about the geometry lives in code.
+   */
   private trackIngressAndCheckpoint(): void {
     // Ingress only counts INWARD: the player must have been outside (in the car
     // park) when they reach the doorway, so walking out again is not a finding.
@@ -814,22 +823,22 @@ export class BuildingScene extends Phaser.Scene {
         }
       }
     }
-    // Track which side of the entrance wall the player is on. The door band
-    // spans y1216-1256; clear of it on either side updates the flag.
-    if (this.player.y > 1260) {
-      this.playerWasOutside = true;
-    } else if (this.player.y < 1212) {
-      this.playerWasOutside = false;
+    // Doorways and wall bands sit outside every zone rectangle, so a null
+    // zone keeps the last known side of the threshold.
+    const zone = zoneAt(this.mapZones, this.player.x, this.player.y);
+    if (!zone) {
+      return;
     }
-    // First checkpoint: on first entering the building. The building interior
-    // is everything above the entrance wall line.
-    if (!getMission().checkpoint && this.player.y < 1190) {
+    const outside = this.exteriorZoneNames.has(zone);
+    // First checkpoint: the moment the player first stands in an interior zone.
+    if (this.playerWasOutside && !outside && !getMission().checkpoint) {
       setCheckpoint({
         x: this.player.x,
         y: this.player.y,
         bolts: this.throwController.remaining,
       });
     }
+    this.playerWasOutside = outside;
   }
 
   private spawnDoors(map: BuildingMap): void {

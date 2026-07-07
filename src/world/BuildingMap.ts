@@ -9,6 +9,8 @@ export interface ZoneRect {
   height: number;
   /** True when the zone is flagged restricted in Tiled: no hi-vis excuse here. */
   restricted: boolean;
+  /** True when the zone is outdoors (the car park): drives ingress tracking. */
+  exterior: boolean;
 }
 
 /** A pickup read from the Tiled `pickups` object layer (e.g. a hi-vis vest). */
@@ -166,6 +168,7 @@ export class BuildingMap {
       width: obj.width ?? 0,
       height: obj.height ?? 0,
       restricted: BuildingMap.boolProperty(obj, 'restricted'),
+      exterior: BuildingMap.boolProperty(obj, 'exterior'),
     }));
   }
 
