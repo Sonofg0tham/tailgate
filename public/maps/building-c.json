@@ -10,8 +10,8 @@
   "tileheight": 32,
   "width": 75,
   "height": 50,
-  "nextlayerid": 8,
-  "nextobjectid": 600,
+  "nextlayerid": 9,
+  "nextobjectid": 601,
   "tilesets": [],
   "layers": [
     {
@@ -181,6 +181,19 @@
         { "id": 522, "name": "rackLed3", "type": "rack", "x": 2140, "y": 590, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
         { "id": 523, "name": "rackLed4", "type": "rack", "x": 2280, "y": 590, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
         { "id": 524, "name": "rackLed5", "type": "rack", "x": 2210, "y": 680, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "pickups",
+      "type": "objectgroup",
+      "draworder": "topdown",
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0,
+      "objects": [
+        { "id": 600, "name": "testVest", "type": "hivis", "x": 540, "y": 1400, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true }
       ]
     }
   ]
