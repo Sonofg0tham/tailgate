@@ -708,10 +708,14 @@ export class BuildingScene extends Phaser.Scene {
         continue;
       }
       if (interactPressed) {
-        for (const obj of pickup.objects) {
-          obj.destroy();
+        // One vest is all anyone needs: taking it clears every other pickup,
+        // so a blown disguise can never dangle the false hope of a fresh one.
+        for (const remaining of this.hivisPickups) {
+          for (const obj of remaining.objects) {
+            obj.destroy();
+          }
         }
-        this.hivisPickups.splice(i, 1);
+        this.hivisPickups = [];
         wearDisguise();
         recordDisguiseWorn();
         this.refreshDisguiseTag();
@@ -855,7 +859,11 @@ export class BuildingScene extends Phaser.Scene {
   private spawnStaff(): void {
     const data = this.cache.json.get(this.staffDataKey) as StaffData | undefined;
     for (const def of data?.staff ?? []) {
-      this.staff.push(new Staff(this, def));
+      const member = new Staff(this, def);
+      this.staff.push(member);
+      // Staff collide with walls like everyone else, so a route authored
+      // through a wall strands visibly in playtesting instead of ghosting.
+      this.physics.add.collider(member.sprite, this.walls);
     }
   }
 
