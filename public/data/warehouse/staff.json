@@ -1,0 +1,72 @@
+{
+  "staff": [
+    {
+      "id": "clocker",
+      "sprite": "staff_a",
+      "badges": ["reception"],
+      "route": [
+        { "x": 1200, "y": 1050, "pauseMs": 2500 },
+        { "x": 1200, "y": 1310, "pauseMs": 3000 }
+      ]
+    },
+    {
+      "id": "picker1",
+      "sprite": "staff_b",
+      "badges": ["reception"],
+      "route": [
+        { "x": 1300, "y": 900, "pauseMs": 400 },
+        { "x": 1300, "y": 660, "pauseMs": 150 },
+        { "x": 620, "y": 660, "pauseMs": 250 },
+        { "x": 620, "y": 480, "pauseMs": 500 },
+        { "x": 620, "y": 660, "pauseMs": 100 },
+        { "x": 950, "y": 660, "pauseMs": 150 },
+        { "x": 950, "y": 900, "pauseMs": 150 }
+      ]
+    },
+    {
+      "id": "picker2",
+      "sprite": "staff_a",
+      "badges": ["reception", "cage-door"],
+      "route": [
+        { "x": 900, "y": 900, "pauseMs": 500 },
+        { "x": 350, "y": 900, "pauseMs": 300 },
+        { "x": 350, "y": 700, "pauseMs": 200 },
+        { "x": 620, "y": 700, "pauseMs": 150 },
+        { "x": 620, "y": 520, "pauseMs": 150 },
+        { "x": 620, "y": 432, "pauseMs": 100 },
+        { "x": 510, "y": 432, "pauseMs": 150 },
+        { "x": 340, "y": 432, "pauseMs": 3000 },
+        { "x": 510, "y": 432, "pauseMs": 100 },
+        { "x": 620, "y": 432, "pauseMs": 100 },
+        { "x": 620, "y": 700, "pauseMs": 150 },
+        { "x": 350, "y": 700, "pauseMs": 100 },
+        { "x": 350, "y": 900, "pauseMs": 200 }
+      ]
+    },
+    {
+      "id": "supervisor",
+      "sprite": "staff_b",
+      "badges": ["reception", "office-door"],
+      "route": [
+        { "x": 1300, "y": 1050, "pauseMs": 3000 },
+        { "x": 1200, "y": 1090, "pauseMs": 150 },
+        { "x": 1200, "y": 900, "pauseMs": 150 },
+        { "x": 1000, "y": 900, "pauseMs": 100 },
+        { "x": 1000, "y": 660, "pauseMs": 150 },
+        { "x": 1300, "y": 660, "pauseMs": 100 },
+        { "x": 1300, "y": 472, "pauseMs": 150 },
+        { "x": 1780, "y": 472, "pauseMs": 150 },
+        { "x": 1950, "y": 472, "pauseMs": 150 },
+        { "x": 2100, "y": 390, "pauseMs": 4000 },
+        { "x": 1950, "y": 472, "pauseMs": 100 },
+        { "x": 1780, "y": 472, "pauseMs": 100 },
+        { "x": 1300, "y": 472, "pauseMs": 100 },
+        { "x": 1300, "y": 660, "pauseMs": 100 },
+        { "x": 1000, "y": 660, "pauseMs": 100 },
+        { "x": 1000, "y": 900, "pauseMs": 100 },
+        { "x": 1200, "y": 900, "pauseMs": 100 },
+        { "x": 1200, "y": 1090, "pauseMs": 100 }
+      ]
+    }
+  ]
+}

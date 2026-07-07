@@ -1,0 +1,36 @@
+{
+  "cameras": [
+    {
+      "id": "gatehouse",
+      "x": 1300,
+      "y": 1000,
+      "baseFacingDeg": 125,
+      "sweepHalfAngleDeg": 35,
+      "sweepPeriodMs": 4400,
+      "circuitId": "front"
+    },
+    {
+      "id": "cage-watch",
+      "x": 680,
+      "y": 520,
+      "baseFacingDeg": 213,
+      "sweepHalfAngleDeg": 28,
+      "sweepPeriodMs": 5200,
+      "circuitId": "floor"
+    },
+    {
+      "id": "office-watch",
+      "x": 1750,
+      "y": 520,
+      "baseFacingDeg": 341,
+      "sweepHalfAngleDeg": 26,
+      "sweepPeriodMs": 4800,
+      "circuitId": "floor"
+    }
+  ],
+  "breaker": {
+    "x": 140,
+    "y": 700,
+    "circuits": ["floor"]
+  }
+}
