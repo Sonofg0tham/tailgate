@@ -54,6 +54,7 @@ export const IMAGE_ASSETS: Record<string, string> = {
 
 /** Which floor texture each zone uses. Zone tint (zones.ts) is layered on top. */
 export const FLOOR_TEXTURES: Record<string, string> = {
+  // Building C
   carPark: 'floor_concrete',
   reception: 'floor_carpet',
   office: 'floor_carpet',
@@ -62,6 +63,15 @@ export const FLOOR_TEXTURES: Record<string, string> = {
   loadingDock: 'floor_concrete',
   securityOffice: 'floor_carpet',
   serverRoom: 'floor_tile_cool',
+  // Data centre (carPark shared)
+  lobby: 'floor_tile',
+  noc: 'floor_carpet',
+  plantRoom: 'floor_tile',
+  loadingBay: 'floor_concrete',
+  corridor: 'floor_tile_cool',
+  hallA: 'floor_tile_cool',
+  hallB: 'floor_tile_cool',
+  cage: 'floor_tile_cool',
 };
 
 /** Used if a zone has no explicit floor mapping, so a typo is still walkable. */

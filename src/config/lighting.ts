@@ -12,6 +12,7 @@
 
 /** Per-zone base analytic light level, 0 (pitch black) to 1 (fully lit). */
 export const AMBIENT_LIGHT: Record<string, number> = {
+  // Building C
   carPark: 0.55, // exterior, moonlit-ish, fairly readable
   reception: 0.45,
   office: 0.3, // dim; real light comes from the desk pools
@@ -20,6 +21,15 @@ export const AMBIENT_LIGHT: Record<string, number> = {
   loadingDock: 0.35, // base low; the flood pool makes it harsh-bright
   securityOffice: 0.45,
   serverRoom: 0.12, // near-dark; only the rack LED pools light it
+  // Data centre (carPark shared). Darker overall: this site trusts its CCTV.
+  lobby: 0.4,
+  noc: 0.35,
+  plantRoom: 0.22,
+  loadingBay: 0.32,
+  corridor: 0.2,
+  hallA: 0.13,
+  hallB: 0.13,
+  cage: 0.11,
 };
 
 /** Light level outside every zone rectangle. */

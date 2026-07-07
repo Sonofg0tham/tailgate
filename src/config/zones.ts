@@ -9,6 +9,7 @@
  * whole room re-washes, no map edit needed.
  */
 export const ZONE_TINTS: Record<string, number> = {
+  // Building C
   carPark: 0x2b3a4a, // slate blue-grey
   reception: 0x3d5a45, // muted green
   office: 0x4a4a5e, // dusky indigo
@@ -17,6 +18,15 @@ export const ZONE_TINTS: Record<string, number> = {
   loadingDock: 0x5a3d4a, // dusty plum
   securityOffice: 0x2e5a5a, // teal
   serverRoom: 0x1f3a5c, // deep blue
+  // Data centre (carPark shared)
+  lobby: 0x3d5a45, // muted green, reads as the public face
+  noc: 0x2e5a5a, // teal, the security room family
+  plantRoom: 0x555a2e, // olive, the maintenance family
+  loadingBay: 0x5a3d4a, // dusty plum, the dock family
+  corridor: 0x4a4a5e, // dusky indigo
+  hallA: 0x1f3a5c, // deep blue, the server family
+  hallB: 0x2c3f6e, // a bluer violet so the halls read apart
+  cage: 0x152a44, // darkest blue: the prize
 };
 
 /** Shown if the map names a zone with no tint above, so mistakes are obvious. */
