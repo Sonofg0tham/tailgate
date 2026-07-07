@@ -823,14 +823,25 @@ export class BuildingScene extends Phaser.Scene {
         }
       }
     }
-    // Doorways and wall bands sit outside every zone rectangle, so a null
-    // zone keeps the last known side of the threshold.
+    // Doorways are hysteresis: while the player stands in any door rect, the
+    // outside flag and the checkpoint hold their state. This stops an EXIT
+    // from reading as a fresh ingress (some maps' zones touch the door band),
+    // and keeps the checkpoint from ever being saved inside a door, where a
+    // detain restart would respawn the player embedded in a closed barrier.
+    for (const door of this.doors) {
+      if (door.contains(this.player.x, this.player.y)) {
+        return;
+      }
+    }
+    // Wall bands sit outside every zone rectangle, so a null zone also keeps
+    // the last known side of the threshold.
     const zone = zoneAt(this.mapZones, this.player.x, this.player.y);
     if (!zone) {
       return;
     }
     const outside = this.exteriorZoneNames.has(zone);
-    // First checkpoint: the moment the player first stands in an interior zone.
+    // First checkpoint: the first time the player stands in an interior zone,
+    // guaranteed clear of every doorway by the hold above.
     if (this.playerWasOutside && !outside && !getMission().checkpoint) {
       setCheckpoint({
         x: this.player.x,
