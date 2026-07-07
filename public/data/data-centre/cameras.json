@@ -1,0 +1,76 @@
+{
+  "cameras": [
+    {
+      "id": "lobby-gate",
+      "x": 1300,
+      "y": 1000,
+      "baseFacingDeg": 125,
+      "sweepHalfAngleDeg": 35,
+      "sweepPeriodMs": 4200,
+      "circuitId": "lobby"
+    },
+    {
+      "id": "corridor-west",
+      "x": 400,
+      "y": 830,
+      "baseFacingDeg": 0,
+      "sweepHalfAngleDeg": 25,
+      "sweepPeriodMs": 5200,
+      "circuitId": "hall-a"
+    },
+    {
+      "id": "corridor-east",
+      "x": 2000,
+      "y": 875,
+      "baseFacingDeg": 180,
+      "sweepHalfAngleDeg": 22,
+      "sweepPeriodMs": 5000,
+      "circuitId": "hall-b"
+    },
+    {
+      "id": "hall-a-north",
+      "x": 300,
+      "y": 300,
+      "baseFacingDeg": 0,
+      "sweepHalfAngleDeg": 32,
+      "sweepPeriodMs": 4800,
+      "circuitId": "hall-a"
+    },
+    {
+      "id": "hall-a-south",
+      "x": 1000,
+      "y": 690,
+      "baseFacingDeg": 180,
+      "sweepHalfAngleDeg": 32,
+      "sweepPeriodMs": 5600,
+      "circuitId": "hall-a"
+    },
+    {
+      "id": "hall-b-north",
+      "x": 1350,
+      "y": 300,
+      "baseFacingDeg": 0,
+      "sweepHalfAngleDeg": 32,
+      "sweepPeriodMs": 4600,
+      "circuitId": "hall-b"
+    },
+    {
+      "id": "cage-approach",
+      "x": 2010,
+      "y": 420,
+      "baseFacingDeg": 25,
+      "sweepHalfAngleDeg": 26,
+      "sweepPeriodMs": 4400,
+      "circuitId": "hall-b"
+    }
+  ],
+  "breaker": {
+    "x": 240,
+    "y": 1100,
+    "circuits": ["hall-a"]
+  },
+  "console": {
+    "x": 780,
+    "y": 1150
+  }
+}

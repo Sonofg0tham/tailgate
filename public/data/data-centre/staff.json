@@ -1,0 +1,42 @@
+{
+  "staff": [
+    {
+      "id": "secops",
+      "sprite": "staff_a",
+      "badges": ["reception", "noc"],
+      "route": [
+        { "x": 1300, "y": 1050, "pauseMs": 2600 },
+        { "x": 1216, "y": 1092, "pauseMs": 200 },
+        { "x": 1200, "y": 1330, "pauseMs": 2400 },
+        { "x": 1216, "y": 1092, "pauseMs": 200 },
+        { "x": 1300, "y": 1050, "pauseMs": 1800 },
+        { "x": 1050, "y": 1092, "pauseMs": 150 },
+        { "x": 940, "y": 1092, "pauseMs": 150 },
+        { "x": 800, "y": 1100, "pauseMs": 2800 },
+        { "x": 940, "y": 1092, "pauseMs": 150 },
+        { "x": 1050, "y": 1092, "pauseMs": 150 }
+      ]
+    },
+    {
+      "id": "engineer",
+      "sprite": "staff_b",
+      "badges": ["reception", "cage"],
+      "route": [
+        { "x": 1250, "y": 1010, "pauseMs": 1200 },
+        { "x": 1200, "y": 890, "pauseMs": 200 },
+        { "x": 1600, "y": 890, "pauseMs": 200 },
+        { "x": 1600, "y": 730, "pauseMs": 200 },
+        { "x": 2050, "y": 730, "pauseMs": 200 },
+        { "x": 2050, "y": 472, "pauseMs": 300 },
+        { "x": 2160, "y": 472, "pauseMs": 200 },
+        { "x": 2230, "y": 420, "pauseMs": 3200 },
+        { "x": 2160, "y": 472, "pauseMs": 100 },
+        { "x": 2050, "y": 472, "pauseMs": 100 },
+        { "x": 2050, "y": 730, "pauseMs": 150 },
+        { "x": 1600, "y": 730, "pauseMs": 150 },
+        { "x": 1600, "y": 890, "pauseMs": 150 },
+        { "x": 1200, "y": 890, "pauseMs": 150 }
+      ]
+    }
+  ]
+}

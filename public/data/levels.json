@@ -15,16 +15,16 @@
     },
     {
       "id": "data-centre",
-      "playable": false,
+      "playable": true,
       "name": "DATA CENTRE",
       "client": "HALVORSEN DATA SERVICES",
       "site": "MERIDIAN DC-2",
-      "scope": "SITE SURVEY PENDING.",
+      "scope": "PLANT ROGUE DEVICE IN THE HOSTING CAGE. PHOTOGRAPH OPPORTUNISTIC FINDINGS.",
       "ref": "ENG-2026-0522/D",
-      "map": "",
-      "guards": "",
-      "staff": "",
-      "cameras": ""
+      "map": "maps/data-centre.json",
+      "guards": "data/data-centre/guards.json",
+      "staff": "data/data-centre/staff.json",
+      "cameras": "data/data-centre/cameras.json"
     },
     {
       "id": "warehouse",
