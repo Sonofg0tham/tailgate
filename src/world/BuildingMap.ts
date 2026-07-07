@@ -46,6 +46,14 @@ export interface LightRect {
   height: number;
 }
 
+/** An ambient effect read from the Tiled `effects` layer. */
+export interface EffectPoint {
+  /** "steam" | "haze", from the object's type. */
+  kind: string;
+  x: number;
+  y: number;
+}
+
 /** An objective marker read from the Tiled `objectives` layer. */
 export interface ObjectivePoint {
   /** Objective id, e.g. "rack4", "workstation", "stickynote". */
@@ -85,6 +93,7 @@ export class BuildingMap {
   readonly objectives: ObjectivePoint[];
   readonly lights: LightRect[];
   readonly pickups: PickupPoint[];
+  readonly effects: EffectPoint[];
   readonly spawn: Phaser.Math.Vector2;
   readonly widthInPixels: number;
   readonly heightInPixels: number;
@@ -101,7 +110,20 @@ export class BuildingMap {
     this.objectives = BuildingMap.readObjectives(map);
     this.lights = BuildingMap.readLights(map);
     this.pickups = BuildingMap.readPickups(map);
+    this.effects = BuildingMap.readEffects(map);
     this.spawn = BuildingMap.readSpawn(map);
+  }
+
+  private static readEffects(map: Phaser.Tilemaps.Tilemap): EffectPoint[] {
+    const layer = map.getObjectLayer('effects');
+    if (!layer) {
+      return [];
+    }
+    return layer.objects.map((obj) => ({
+      kind: obj.type ?? obj.name ?? '',
+      x: obj.x ?? 0,
+      y: obj.y ?? 0,
+    }));
   }
 
   private static readLights(map: Phaser.Tilemaps.Tilemap): LightRect[] {

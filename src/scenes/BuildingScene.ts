@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { AudioManager, setAudioMasterVolume, setAudioMuted } from '../audio/AudioManager';
 import { zoneAt } from '../audio/zoneAt';
+import { ART } from '../config/art';
 import { DETECTION } from '../config/detection';
 import { HIJACK } from '../config/hijack';
 import { JUICE } from '../config/juice';
@@ -8,7 +9,7 @@ import { LIGHTING } from '../config/lighting';
 import { MOVEMENT } from '../config/movement';
 import { FONTS, PALETTE, PALETTE_HEX } from '../config/palette';
 import { THROW } from '../config/throw';
-import { IMAGE_ASSETS } from '../config/tiles';
+import { IMAGE_ASSETS, RENDER } from '../config/tiles';
 import { Door } from '../entities/Door';
 import { Guard, type GuardState, type PatrolNode } from '../entities/Guard';
 import { Player } from '../entities/Player';
@@ -24,6 +25,7 @@ import {
   type FeedInfo,
   type FreezeResult,
 } from '../systems/CameraSystem';
+import { AmbientParticles } from '../systems/AmbientParticles';
 import { LightModel } from '../systems/LightModel';
 import { LightingRenderer } from '../systems/LightingRenderer';
 import type { PickupPoint, WallRect, ZoneRect } from '../world/BuildingMap';
@@ -206,6 +208,9 @@ export class BuildingScene extends Phaser.Scene {
       map.zones.filter((zone) => zone.restricted).map((zone) => zone.name)
     );
     this.spawnHivisPickups(map);
+    // Atmosphere: dust in the pool lights, steam and haze from the map data.
+    // The scene owns the emitters; nothing needs a reference back.
+    new AmbientParticles(this, map.lights, map.effects);
 
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
@@ -331,7 +336,7 @@ export class BuildingScene extends Phaser.Scene {
     if (this.consoleOpen && getMission().alertLevel >= HIJACK.lockoutAlertLevel) {
       this.closeConsole('denied');
     }
-    this.updateDoorsAndStaff(now);
+    this.updateDoorsAndStaff(now, delta);
     this.trackIngressAndCheckpoint();
     this.hearFootsteps();
 
@@ -627,13 +632,26 @@ export class BuildingScene extends Phaser.Scene {
     }
   }
 
-  /** The greybox console marker: a small desk unit with an amber screen. */
+  /** The dressed console: a desk unit, an amber monitor and a patient pip. */
   private drawConsoleMarker(def: ConsoleDef): void {
+    // A real desk under the monitor, from the existing Kenney prop set.
+    this.add.image(def.x, def.y + 4, 'prop_desk_small').setScale(RENDER.propScale).setDepth(15);
+    // The monitor: dark slab, amber screen and a soft standby glow.
     this.add
-      .rectangle(def.x, def.y, 26, 18, 0x2a2f38)
+      .rectangle(def.x, def.y - 6, 22, 14, 0x2a2f38)
       .setStrokeStyle(1.5, PALETTE_HEX.amber, 0.9)
-      .setDepth(15);
-    this.add.rectangle(def.x, def.y - 2, 16, 7, PALETTE_HEX.amber, 0.45).setDepth(16);
+      .setDepth(16);
+    this.add.circle(def.x, def.y - 6, 15, PALETTE_HEX.amber, ART.console.screenGlowAlpha).setDepth(16);
+    this.add.rectangle(def.x, def.y - 7, 16, 8, PALETTE_HEX.amber, 0.45).setDepth(17);
+    // A slow blinking status pip: gentle, nothing like a strobe.
+    const pip = this.add.circle(def.x + 8, def.y - 11, 1.5, PALETTE_HEX.amber, 1).setDepth(18);
+    this.tweens.add({
+      targets: pip,
+      alpha: 0.15,
+      duration: ART.console.pipBlinkMs,
+      yoyo: true,
+      repeat: -1,
+    });
   }
 
   /**
@@ -703,9 +721,16 @@ export class BuildingScene extends Phaser.Scene {
     return null;
   }
 
-  /** Repaints the top-right tag from mission state. */
+  /** Repaints the top-right tag and the on-sprite vest cast from mission state. */
   private refreshDisguiseTag(): void {
     const disguise = getMission().disguise;
+    // The vest reads on the sprite too: an amber cast while it is worn. The
+    // text tag stays the authoritative signal, per the never-colour-alone rule.
+    if (disguise.worn) {
+      this.player.sprite.setTint(ART.hivis.tint);
+    } else {
+      this.player.sprite.clearTint();
+    }
     if (!disguise.worn) {
       this.disguiseTag.setText('');
     } else if (disguise.blown) {
@@ -831,10 +856,10 @@ export class BuildingScene extends Phaser.Scene {
   }
 
   /** Advances doors and staff, and lets authorised staff badge open badge doors. */
-  private updateDoorsAndStaff(now: number): void {
+  private updateDoorsAndStaff(now: number, dtMs: number): void {
     const lockdown = getMission().alertLevel >= 2;
     for (const member of this.staff) {
-      member.update(now);
+      member.update(now, dtMs);
     }
     for (const door of this.doors) {
       if (door.kind === 'badge') {

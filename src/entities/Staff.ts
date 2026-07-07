@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { RENDER } from '../config/tiles';
+import { CharacterAnimator } from '../systems/CharacterAnimator';
 
 /** Staff walking pace, pixels per second. Unhurried, they are just working. */
 const STAFF_SPEED = 85;
@@ -38,6 +39,7 @@ export class Staff {
   private routeIndex = 0;
   private resumeAt = 0;
   private facing = 0;
+  private readonly animator: CharacterAnimator;
 
   constructor(scene: Phaser.Scene, def: StaffDef) {
     this.id = def.id;
@@ -53,6 +55,8 @@ export class Staff {
     const fh = this.sprite.height;
     const radius = Math.min(fw, fh) * 0.34;
     this.sprite.setCircle(radius, fw / 2 - radius, fh / 2 - radius);
+
+    this.animator = new CharacterAnimator(scene, this.sprite, RENDER.playerScale);
   }
 
   get x(): number {
@@ -66,9 +70,16 @@ export class Staff {
     return this.badges.includes(doorId);
   }
 
-  update(now: number): void {
+  update(now: number, dtMs: number): void {
     this.patrol(now);
-    this.sprite.setRotation(this.facing);
+    // Same shared walk and shadow as the player and guard, so nobody glides.
+    const velocity = this.body.velocity.length();
+    this.animator.update(
+      dtMs,
+      velocity > 1,
+      CharacterAnimator.stepRateForSpeed(velocity),
+      this.facing
+    );
   }
 
   private patrol(now: number): void {

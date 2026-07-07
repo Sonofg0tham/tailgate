@@ -1,16 +1,19 @@
 import Phaser from 'phaser';
+import { ART } from '../config/art';
 import { RENDER } from '../config/tiles';
 import type { MovementIntent } from '../input/InputState';
+import { CharacterAnimator } from '../systems/CharacterAnimator';
 
 /** Texture key for the player, a Kenney top-down operator holding the device. */
 const PLAYER_TEXTURE = 'player_hold';
 
 /**
- * The player: a top-down Kenney sprite that rotates to face the way it is moving
- * and adds a subtle walking sway and bob while in motion. The sprite art faces
- * east by default, which matches Phaser's zero angle, so facing needs no offset.
- * Collision uses a circle body, which is unaffected by the sprite's rotation, so
- * bumping walls stays stable whichever way the player faces.
+ * The player: a top-down Kenney sprite that rotates to face the way it is moving.
+ * The walking sway, bob, idle breathing and drop shadow all come from the
+ * shared CharacterAnimator. The sprite art faces east by default, which matches
+ * Phaser's zero angle, so facing needs no offset. Collision uses a circle body,
+ * which is unaffected by the sprite's rotation, so bumping walls stays stable
+ * whichever way the player faces.
  */
 export class Player {
   readonly sprite: Phaser.Physics.Arcade.Sprite;
@@ -18,12 +21,12 @@ export class Player {
   /** How far the player's noise currently carries, in pixels. 0 means silent. */
   noiseRadius = 0;
 
-  private readonly baseScale = RENDER.playerScale;
-  private walkPhase = 0;
+  private readonly animator: CharacterAnimator;
+  private face = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.sprite = scene.physics.add.sprite(x, y, PLAYER_TEXTURE);
-    this.sprite.setScale(this.baseScale);
+    this.sprite.setScale(RENDER.playerScale);
     this.sprite.setDepth(40);
     this.sprite.setCollideWorldBounds(true);
 
@@ -32,6 +35,8 @@ export class Player {
     const frameH = this.sprite.height;
     const radius = Math.min(frameW, frameH) * 0.34;
     this.sprite.setCircle(radius, frameW / 2 - radius, frameH / 2 - radius);
+
+    this.animator = new CharacterAnimator(scene, this.sprite, RENDER.playerScale);
   }
 
   get body(): Phaser.Physics.Arcade.Body {
@@ -51,31 +56,17 @@ export class Player {
   }
 
   /**
-   * Rotates the sprite to face the movement direction and animates a simple walk
-   * (a gentle sway plus a small bounce) whose speed scales with the pace. When
-   * idle the last facing is kept and the sprite settles back to rest.
+   * Faces the movement direction and hands the walk (sway, bob, breathing and
+   * the drop shadow) to the shared animator. When idle the last facing holds.
    */
   applyMotion(intent: MovementIntent, deltaMs: number): void {
     const moving =
       intent.speed !== 'idle' && (intent.direction.x !== 0 || intent.direction.y !== 0);
 
-    if (!moving) {
-      this.walkPhase = 0;
-      this.sprite.setScale(this.baseScale);
-      return;
+    if (moving) {
+      this.face = Math.atan2(intent.direction.y, intent.direction.x);
     }
-
-    const face = Math.atan2(intent.direction.y, intent.direction.x);
-    const stepRate = intent.speed === 'run' ? 20 : intent.speed === 'walk' ? 13 : 8;
-    this.walkPhase += (deltaMs / 1000) * stepRate;
-
-    // Sway wobbles the facing a few degrees; the circle body ignores rotation.
-    const sway = Math.sin(this.walkPhase) * 0.1;
-    this.sprite.setRotation(face + sway);
-
-    // A small double-time bounce reads as footsteps. The tiny body change is
-    // negligible for collision.
-    const bob = 1 + Math.sin(this.walkPhase * 2) * 0.04;
-    this.sprite.setScale(this.baseScale * bob);
+    const stepRate = intent.speed === 'idle' ? 0 : ART.walk.stepRate[intent.speed];
+    this.animator.update(deltaMs, moving, stepRate, this.face);
   }
 }
