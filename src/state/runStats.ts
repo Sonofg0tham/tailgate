@@ -35,6 +35,10 @@ export interface RunStats {
   feedsFrozen: string[];
   /** Elapsed ms when the console was first used to loop a feed, or null. */
   firstHijackAtMs: number | null;
+  /** Elapsed ms when the hi-vis was put on, or null if never worn. */
+  disguiseWornAtMs: number | null;
+  /** Elapsed ms when a guard blew the disguise, or null if it held. */
+  disguiseBlownAtMs: number | null;
   /** Elapsed ms at exfil (mission end), or null while still on site. */
   exfilAtMs: number | null;
 }
@@ -53,6 +57,8 @@ function freshStats(): RunStats {
     secondaries: {},
     feedsFrozen: [],
     firstHijackAtMs: null,
+    disguiseWornAtMs: null,
+    disguiseBlownAtMs: null,
     exfilAtMs: null,
   };
 }
@@ -112,6 +118,20 @@ export function recordFeedFrozen(cameraId: string): void {
   stats.feedsFrozen.push(cameraId);
   if (stats.firstHijackAtMs === null) {
     stats.firstHijackAtMs = elapsedMs();
+  }
+}
+
+/** Records the hi-vis going on, once. */
+export function recordDisguiseWorn(): void {
+  if (stats.disguiseWornAtMs === null) {
+    stats.disguiseWornAtMs = elapsedMs();
+  }
+}
+
+/** Records the disguise being blown by a guard, once. */
+export function recordDisguiseBlown(): void {
+  if (stats.disguiseBlownAtMs === null) {
+    stats.disguiseBlownAtMs = elapsedMs();
   }
 }
 

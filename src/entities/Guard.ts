@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CONE_RANGE_PX, DETECTION } from '../config/detection';
+import { DISGUISE } from '../config/disguise';
 import { LIGHTING } from '../config/lighting';
 import { RENDER } from '../config/tiles';
 import { getSettings } from '../state/settings';
@@ -22,6 +23,24 @@ export interface GuardTick {
   spottedNow: boolean;
   /** The guard is touching the player this frame (a catch). */
   caughtPlayer: boolean;
+}
+
+/**
+ * Everything a guard perceives about the player this frame, assembled by the
+ * scene. The guard itself stays free of mission and settings state: the scene
+ * decides whether the disguise is currently plausible (worn, not blown, site
+ * calm, player not in a restricted zone) and the guard only applies the
+ * close-range override, because distance is the guard's own knowledge.
+ */
+export interface GuardPerception {
+  playerX: number;
+  playerY: number;
+  playerSpeed: SpeedState;
+  closedDoors: WallRect[];
+  /** Light level at the player, 0 dark to 1 lit. Darkness is cover. */
+  lightLevel: number;
+  /** True when a worn hi-vis should dampen the suspicion fill at range. */
+  disguised: boolean;
 }
 
 /** Cone colour per state. Alarm red is used only for ALERT, per the palette rules. */
@@ -120,20 +139,13 @@ export class Guard {
    * Advances the guard one frame: perceive the player, update state, move, and
    * redraw the cone. Returns what the scene must react to (spotted / caught).
    */
-  update(
-    now: number,
-    dtMs: number,
-    playerX: number,
-    playerY: number,
-    playerSpeed: SpeedState,
-    closedDoors: WallRect[] = [],
-    lightLevel = 1
-  ): GuardTick {
+  update(now: number, dtMs: number, perception: GuardPerception): GuardTick {
     const dtSec = dtMs / 1000;
+    const { playerX, playerY } = perception;
 
     // Closed doors block sight this frame just like walls do.
-    this.cone.setDynamicOccluders(closedDoors);
-    this.perceive(playerX, playerY, playerSpeed, dtSec, lightLevel);
+    this.cone.setDynamicOccluders(perception.closedDoors);
+    this.perceive(perception, dtSec);
     const spottedNow = this.updateState(now);
     this.act(now, playerX, playerY);
     this.sprite.setRotation(this.facing);
@@ -173,27 +185,27 @@ export class Guard {
     this.investigateUntil = 0;
   }
 
-  private perceive(
-    px: number,
-    py: number,
-    playerSpeed: SpeedState,
-    dtSec: number,
-    lightLevel: number
-  ): void {
+  private perceive(perception: GuardPerception, dtSec: number): void {
+    const { playerX: px, playerY: py } = perception;
     this.sawPlayer = this.cone.canSee(this.x, this.y, this.facing, px, py);
     if (this.sawPlayer) {
       this.lastSeen.set(px, py);
       this.investigateUntil = 0; // re-seen: go to the fresh position, do not keep scanning old spot
-      const proximity = this.proximityFactor(px, py);
-      const speed = DETECTION.suspicion.speedFactor[playerSpeed];
+      const dist = Math.hypot(px - this.x, py - this.y);
+      const proximity = this.proximityFactor(dist);
+      const speed = DETECTION.suspicion.speedFactor[perception.playerSpeed];
       // Darkness is cover: in the dark the fill slows toward the concealment floor.
       const darkness = Phaser.Math.Linear(
         LIGHTING.concealmentFloor,
         1,
-        Phaser.Math.Clamp(lightLevel, 0, 1)
+        Phaser.Math.Clamp(perception.lightLevel, 0, 1)
       );
+      // A plausible hi-vis slows the fill right down, but faces beat vests:
+      // inside close range the disguise does nothing at all.
+      const disguise =
+        perception.disguised && dist > DISGUISE.closeRangePx ? DISGUISE.fillMultiplier : 1;
       this.suspicionValue +=
-        DETECTION.suspicion.baseFillPerSecond * proximity * speed * darkness * dtSec;
+        DETECTION.suspicion.baseFillPerSecond * proximity * speed * darkness * disguise * dtSec;
     } else {
       this.suspicionValue -= DETECTION.suspicion.decayPerSecond * dtSec;
     }
@@ -201,8 +213,7 @@ export class Guard {
   }
 
   /** Fill multiplier from close (strong) to far (weak). */
-  private proximityFactor(px: number, py: number): number {
-    const dist = Math.hypot(px - this.x, py - this.y);
+  private proximityFactor(dist: number): number {
     const t = Phaser.Math.Clamp(dist / CONE_RANGE_PX, 0, 1);
     return Phaser.Math.Linear(
       DETECTION.suspicion.proximityAtPointBlank,

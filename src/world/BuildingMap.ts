@@ -7,6 +7,16 @@ export interface ZoneRect {
   y: number;
   width: number;
   height: number;
+  /** True when the zone is flagged restricted in Tiled: no hi-vis excuse here. */
+  restricted: boolean;
+}
+
+/** A pickup read from the Tiled `pickups` object layer (e.g. a hi-vis vest). */
+export interface PickupPoint {
+  /** What the pickup is, from the object's type: currently only "hivis". */
+  kind: string;
+  x: number;
+  y: number;
 }
 
 /** A collision rectangle read from the Tiled `walls` object layer. */
@@ -74,6 +84,7 @@ export class BuildingMap {
   readonly doors: DoorRect[];
   readonly objectives: ObjectivePoint[];
   readonly lights: LightRect[];
+  readonly pickups: PickupPoint[];
   readonly spawn: Phaser.Math.Vector2;
   readonly widthInPixels: number;
   readonly heightInPixels: number;
@@ -89,6 +100,7 @@ export class BuildingMap {
     this.doors = BuildingMap.readDoors(map);
     this.objectives = BuildingMap.readObjectives(map);
     this.lights = BuildingMap.readLights(map);
+    this.pickups = BuildingMap.readPickups(map);
     this.spawn = BuildingMap.readSpawn(map);
   }
 
@@ -131,6 +143,26 @@ export class BuildingMap {
       y: obj.y ?? 0,
       width: obj.width ?? 0,
       height: obj.height ?? 0,
+      restricted: BuildingMap.boolProperty(obj, 'restricted'),
+    }));
+  }
+
+  /** Reads a boolean custom property off a Tiled object, defaulting false. */
+  private static boolProperty(obj: Phaser.Types.Tilemaps.TiledObject, name: string): boolean {
+    const props = obj.properties as { name: string; value: unknown }[] | undefined;
+    const found = props?.find((p) => p.name === name);
+    return found?.value === true;
+  }
+
+  private static readPickups(map: Phaser.Tilemaps.Tilemap): PickupPoint[] {
+    const layer = map.getObjectLayer('pickups');
+    if (!layer) {
+      return [];
+    }
+    return layer.objects.map((obj) => ({
+      kind: obj.type ?? obj.name ?? '',
+      x: obj.x ?? 0,
+      y: obj.y ?? 0,
     }));
   }
 
