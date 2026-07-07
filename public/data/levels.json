@@ -11,7 +11,14 @@
       "map": "maps/building-c.json",
       "guards": "data/building-c/guards.json",
       "staff": "data/building-c/staff.json",
-      "cameras": "data/building-c/cameras.json"
+      "cameras": "data/building-c/cameras.json",
+      "venue": {
+        "plantTarget": "rack 4 in the server room",
+        "smokersDoor": "Fire door on the south elevation",
+        "badgeGate": "the reception badge gate",
+        "shutter": "Loading dock shutter",
+        "console": "Security office console"
+      }
     },
     {
       "id": "data-centre",
@@ -24,7 +31,14 @@
       "map": "maps/data-centre.json",
       "guards": "data/data-centre/guards.json",
       "staff": "data/data-centre/staff.json",
-      "cameras": "data/data-centre/cameras.json"
+      "cameras": "data/data-centre/cameras.json",
+      "venue": {
+        "plantTarget": "the customer rack in the hosting cage",
+        "smokersDoor": "Plant room fire door",
+        "badgeGate": "the lobby speed gate",
+        "shutter": "Loading bay roller shutter",
+        "console": "NOC multiplexer console"
+      }
     },
     {
       "id": "warehouse",
@@ -37,7 +51,14 @@
       "map": "maps/warehouse.json",
       "guards": "data/warehouse/guards.json",
       "staff": "data/warehouse/staff.json",
-      "cameras": "data/warehouse/cameras.json"
+      "cameras": "data/warehouse/cameras.json",
+      "venue": {
+        "plantTarget": "the comms rack in the secure cage",
+        "smokersDoor": "Break room fire door",
+        "badgeGate": "the clock-in gate",
+        "shutter": "Dispatch roller shutter",
+        "console": "Gatehouse console"
+      }
     }
   ]
 }

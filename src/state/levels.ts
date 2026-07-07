@@ -1,3 +1,5 @@
+import type { ReportVenue } from '../report/generateReport';
+
 /**
  * The level registry and the active level, module-level singletons like
  * settings and mission. The registry is read from public/data/levels.json
@@ -21,6 +23,8 @@ export interface LevelDef {
   guards: string;
   staff: string;
   cameras: string;
+  /** Venue nouns for the report's finding copy; Building C wording if absent. */
+  venue?: ReportVenue;
 }
 
 let levels: LevelDef[] = [];
