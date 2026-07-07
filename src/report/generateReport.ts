@@ -124,18 +124,47 @@ function used(routes: readonly IngressRoute[], route: IngressRoute): boolean {
   return routes.includes(route);
 }
 
+/**
+ * Venue nouns the finding copy is built from, so each contract's report reads
+ * like it happened at that site. Authored per level in levels.json; anything
+ * missing falls back to the Building C wording. Capitalised entries start
+ * sentences; lower-case entries sit mid-sentence.
+ */
+export interface ReportVenue {
+  /** Mid-sentence: where the device goes, e.g. "rack 4 in the server room". */
+  plantTarget?: string;
+  /** Sentence start: the propped fire door, e.g. "Fire door on the south elevation". */
+  smokersDoor?: string;
+  /** Mid-sentence: the badge gate, e.g. "the reception badge gate". */
+  badgeGate?: string;
+  /** Sentence start: the roller shutter, e.g. "Loading dock shutter". */
+  shutter?: string;
+  /** Sentence start: the CCTV console, e.g. "Security office console". */
+  console?: string;
+}
+
+/** The Building C wording, standing in wherever a level authors nothing. */
+const DEFAULT_VENUE: Required<ReportVenue> = {
+  plantTarget: 'rack 4 in the server room',
+  smokersDoor: 'Fire door on the south elevation',
+  badgeGate: 'the reception badge gate',
+  shutter: 'Loading dock shutter',
+  console: 'Security office console',
+};
+
 /** The contract copy printed in the report header, from the level registry. */
 export interface ReportLevelMeta {
   client: string;
   site: string;
   ref: string;
+  venue?: ReportVenue;
 }
 
 /**
  * Builds the full report from a finished run. Only things that actually
  * happened produce findings, so a quiet run reads as a short report and a
- * messy one as a long one. The header names whichever contract was played;
- * the Building C copy stands as the fallback.
+ * messy one as a long one. The header and the finding copy name whichever
+ * contract was played; the Building C copy stands as the fallback.
  */
 export function generateReport(
   stats: RunStats,
@@ -143,24 +172,25 @@ export function generateReport(
   level?: ReportLevelMeta,
 ): ReportModel {
   const findings: Omit<Finding, 'ref'>[] = [];
+  const venue: Required<ReportVenue> = { ...DEFAULT_VENUE, ...level?.venue };
 
   // Ingress findings, stamped with when each entrance was actually used.
   if (used(stats.ingressRoutes, 'smokers')) {
     findings.push({
       severity: 'HIGH',
-      text: `Fire door on the south elevation propped open during staff smoking breaks. Consultant entered at ${stampClock(stats.ingressAtMs.smokers ?? 0)} without challenge.`,
+      text: `${venue.smokersDoor} propped open during staff smoking breaks. Consultant entered at ${stampClock(stats.ingressAtMs.smokers ?? 0)} without challenge.`,
     });
   }
   if (used(stats.ingressRoutes, 'reception') || stats.tailgated) {
     findings.push({
       severity: 'HIGH',
-      text: `Consultant tailgated a staff member through the reception badge gate at ${stampClock(stats.ingressAtMs.reception ?? 0)}. Door dwell time (1.6s) permits unauthorised entry.`,
+      text: `Consultant tailgated a staff member through ${venue.badgeGate} at ${stampClock(stats.ingressAtMs.reception ?? 0)}. Door dwell time (1.6s) permits unauthorised entry.`,
     });
   }
   if (used(stats.ingressRoutes, 'shutter')) {
     findings.push({
       severity: 'HIGH',
-      text: `Loading dock shutter left unattended during delivery windows. Consultant entered at ${stampClock(stats.ingressAtMs.shutter ?? 0)}.`,
+      text: `${venue.shutter} left unattended during delivery windows. Consultant entered at ${stampClock(stats.ingressAtMs.shutter ?? 0)}.`,
     });
   }
 
@@ -169,7 +199,7 @@ export function generateReport(
     const at = stats.plantedAtMs ?? 0;
     findings.push({
       severity: 'CRITICAL',
-      text: `Rogue device planted on rack 4 in the server room at ${stampClock(at)}. Device remained undetected at time of exfil.`,
+      text: `Rogue device planted on ${venue.plantTarget} at ${stampClock(at)}. Device remained undetected at time of exfil.`,
     });
   }
 
@@ -191,7 +221,7 @@ export function generateReport(
     const feedCount = stats.feedsFrozen.length;
     findings.push({
       severity: 'HIGH',
-      text: `Security office console left signed in and unattended. Consultant looped ${feedCount} CCTV feed(s) starting at ${stampClock(stats.firstHijackAtMs ?? 0)}; monitoring staff did not notice the repeated footage.`,
+      text: `${venue.console} left signed in and unattended. Consultant looped ${feedCount} CCTV feed(s) starting at ${stampClock(stats.firstHijackAtMs ?? 0)}; monitoring staff did not notice the repeated footage.`,
     });
   }
 

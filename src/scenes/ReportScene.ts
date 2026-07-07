@@ -44,7 +44,7 @@ export class ReportScene extends Phaser.Scene {
         planted: mission.planted,
         photographed: [...mission.photographed],
       },
-      { client: level.client, site: level.site, ref: level.ref }
+      { client: level.client, site: level.site, ref: level.ref, venue: level.venue }
     );
 
     // Reaching the report is a completion at any rating: log the personal

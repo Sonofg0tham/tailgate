@@ -67,6 +67,17 @@ export class ContractSelectScene extends Phaser.Scene {
     this.status = this.add
       .text(480, 512, '', { fontFamily: FONTS.mono, fontSize: '11px', color: PALETTE.text })
       .setOrigin(0.5);
+
+    // A quiet flourish once every contract on the schedule has a completion.
+    const playable = levels.filter((level) => level.playable);
+    const allDone =
+      playable.length > 0 &&
+      playable.every((level) => getLevelProgress(level.id).completions > 0);
+    if (allDone) {
+      this.status
+        .setText('ALL CONTRACTS COMPLETE. ENGAGEMENT PROGRAMME CLOSED OUT.')
+        .setColor(PALETTE.amber);
+    }
   }
 
   update(): void {
