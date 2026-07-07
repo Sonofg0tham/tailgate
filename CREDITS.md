@@ -54,6 +54,14 @@ construction: it is our own original output with no external source.
 
 - Footsteps, guard footsteps, radio chatter, zone ambience beds, alert sting | generated in src/audio/ (Web Audio synthesis) | CJM Labs | CC0 1.0
 
+## Generated textures
+
+Like the audio, the Phase 10 atmosphere textures are generated at runtime and
+never shipped as files: the soft particle dot (dust, steam, haze), the CCTV
+grain, and the lighting mask are all drawn onto canvases in code at boot.
+
+- Soft particle dot, CCTV noise, light mask | generated in src/systems/ and src/scenes/HijackScene.ts (canvas drawing) | CJM Labs | CC0 1.0
+
 ## Fonts
 
 Fonts are bundled as npm packages via Fontsource, both licensed under the SIL Open Font License 1.1:

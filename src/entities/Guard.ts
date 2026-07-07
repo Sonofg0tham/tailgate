@@ -5,6 +5,7 @@ import { LIGHTING } from '../config/lighting';
 import { RENDER } from '../config/tiles';
 import { getSettings } from '../state/settings';
 import type { SpeedState } from '../input/InputState';
+import { CharacterAnimator } from '../systems/CharacterAnimator';
 import { VisionCone, type ConeEdge } from '../systems/VisionCone';
 import type { WallRect } from '../world/BuildingMap';
 
@@ -83,6 +84,7 @@ export class Guard {
   private sawPlayer = false;
 
   private readonly onStateCue: (state: GuardState) => void;
+  private readonly animator: CharacterAnimator;
 
   constructor(
     scene: Phaser.Scene,
@@ -104,6 +106,7 @@ export class Guard {
 
     this.cone = new VisionCone(scene, walls);
     this.onStateCue = onStateCue;
+    this.animator = new CharacterAnimator(scene, this.sprite, RENDER.playerScale);
   }
 
   get state(): GuardState {
@@ -148,7 +151,15 @@ export class Guard {
     this.perceive(perception, dtSec);
     const spottedNow = this.updateState(now);
     this.act(now, playerX, playerY);
-    this.sprite.setRotation(this.facing);
+    // Walk animation and shadow: the step rate follows however fast the guard
+    // is actually moving, so an alert chase visibly hurries.
+    const velocity = this.body.velocity.length();
+    this.animator.update(
+      dtMs,
+      velocity > 1,
+      CharacterAnimator.stepRateForSpeed(velocity),
+      this.facing
+    );
     this.cone.render(
       this.x,
       this.y,

@@ -10,8 +10,8 @@
   "tileheight": 32,
   "width": 75,
   "height": 50,
-  "nextlayerid": 9,
-  "nextobjectid": 601,
+  "nextlayerid": 10,
+  "nextobjectid": 604,
   "tilesets": [],
   "layers": [
     {
@@ -194,6 +194,21 @@
       "y": 0,
       "objects": [
         { "id": 600, "name": "testVest", "type": "hivis", "x": 540, "y": 1400, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "effects",
+      "type": "objectgroup",
+      "draworder": "topdown",
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0,
+      "objects": [
+        { "id": 601, "name": "kettleSteam", "type": "steam", "x": 430, "y": 566, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 602, "name": "rackHazeNorth", "type": "haze", "x": 2210, "y": 480, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 603, "name": "rackHazeSouth", "type": "haze", "x": 2210, "y": 620, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true }
       ]
     }
   ]
