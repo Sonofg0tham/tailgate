@@ -20,7 +20,10 @@ export class AmbientParticles {
 
     for (const light of lights) {
       if (light.kind === 'pool') {
-        this.addDust(scene, light.x, light.y);
+        // Tiled rect origins are top-left; centre the cloud in the lit pool,
+        // exactly like LightModel centres the light itself. Point lights
+        // (width and height 0) pass through unchanged.
+        this.addDust(scene, light.x + light.width / 2, light.y + light.height / 2);
       }
     }
     for (const effect of effects) {
@@ -41,8 +44,8 @@ export class AmbientParticles {
         y: { min: -cfg.spreadY, max: cfg.spreadY },
         frequency: cfg.frequencyMs,
         lifespan: cfg.lifespanMs,
-        speedX: { min: -3, max: 3 },
-        speedY: { min: -4, max: -1 },
+        speedX: { min: -cfg.driftX, max: cfg.driftX },
+        speedY: { min: -cfg.riseMax, max: -cfg.riseMin },
         alpha: { start: cfg.alphaStart, end: 0 },
         scale: { start: cfg.scaleStart, end: cfg.scaleEnd },
         tint: ART.particles.tint,
@@ -55,10 +58,10 @@ export class AmbientParticles {
     const cfg = ART.particles.steam;
     scene.add
       .particles(x, y, DOT_KEY, {
-        x: { min: -4, max: 4 },
+        x: { min: -cfg.spawnSpreadX, max: cfg.spawnSpreadX },
         frequency: cfg.frequencyMs,
         lifespan: cfg.lifespanMs,
-        speedX: { min: -3, max: 3 },
+        speedX: { min: -cfg.driftX, max: cfg.driftX },
         speedY: { min: -cfg.riseMax, max: -cfg.riseMin },
         alpha: { start: cfg.alphaStart, end: 0 },
         scale: { start: cfg.scaleStart, end: cfg.scaleEnd },
@@ -72,12 +75,12 @@ export class AmbientParticles {
     const cfg = ART.particles.haze;
     scene.add
       .particles(x, y, DOT_KEY, {
-        x: { min: -40, max: 40 },
-        y: { min: -30, max: 30 },
+        x: { min: -cfg.spawnSpreadX, max: cfg.spawnSpreadX },
+        y: { min: -cfg.spawnSpreadY, max: cfg.spawnSpreadY },
         frequency: cfg.frequencyMs,
         lifespan: cfg.lifespanMs,
         speedX: { min: -cfg.driftPx, max: cfg.driftPx },
-        speedY: { min: -2, max: 2 },
+        speedY: { min: -cfg.driftY, max: cfg.driftY },
         alpha: { start: cfg.alphaStart, end: 0 },
         scale: { start: cfg.scaleStart, end: cfg.scaleEnd },
         tint: ART.particles.tint,

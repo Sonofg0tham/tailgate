@@ -49,6 +49,10 @@ export const ART = {
       lifespanMs: 6000,
       spreadX: 60,
       spreadY: 40,
+      /** Sideways wander and upward drift, px/s. */
+      driftX: 3,
+      riseMin: 1,
+      riseMax: 4,
       alphaStart: 0.16,
       scaleStart: 0.05,
       scaleEnd: 0.11,
@@ -57,6 +61,10 @@ export const ART = {
     steam: {
       frequencyMs: 260,
       lifespanMs: 2600,
+      /** How wide the plume starts at the spout, px. */
+      spawnSpreadX: 4,
+      /** Sideways waft, px/s. */
+      driftX: 3,
       riseMin: 14,
       riseMax: 22,
       alphaStart: 0.18,
@@ -67,7 +75,12 @@ export const ART = {
     haze: {
       frequencyMs: 600,
       lifespanMs: 5200,
+      /** How wide the haze pocket sits over the racks, px. */
+      spawnSpreadX: 40,
+      spawnSpreadY: 30,
+      /** Sideways and vertical drift, px/s. */
       driftPx: 8,
+      driftY: 2,
       alphaStart: 0.1,
       scaleStart: 0.18,
       scaleEnd: 0.34,

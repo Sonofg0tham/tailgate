@@ -60,7 +60,7 @@ Like the audio, the Phase 10 atmosphere textures are generated at runtime and
 never shipped as files: the soft particle dot (dust, steam, haze), the CCTV
 grain, and the lighting mask are all drawn onto canvases in code at boot.
 
-- Soft particle dot, CCTV noise, light mask | generated in src/systems/ (canvas drawing) | CJM Labs | CC0 1.0
+- Soft particle dot, CCTV noise, light mask | generated in src/systems/ and src/scenes/HijackScene.ts (canvas drawing) | CJM Labs | CC0 1.0
 
 ## Fonts
 
