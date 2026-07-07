@@ -31,6 +31,9 @@ interface MissionState {
   photographed: string[];
   /** Console loop charges spent this engagement. Survives a detain restart. */
   hijackChargesUsed: number;
+  /** The hi-vis disguise: worn once picked up, blown once a guard reaches
+   * ALERT while it is worn. Both survive a detain restart. */
+  disguise: { worn: boolean; blown: boolean };
 }
 
 function freshMission(levelId: string | null): MissionState {
@@ -42,6 +45,7 @@ function freshMission(levelId: string | null): MissionState {
     planted: false,
     photographed: [],
     hijackChargesUsed: 0,
+    disguise: { worn: false, blown: false },
   };
 }
 
@@ -62,6 +66,16 @@ export function setPlanted(): void {
 /** Spends one console loop charge. The caller checks availability first. */
 export function useHijackCharge(): void {
   state.hijackChargesUsed += 1;
+}
+
+/** Puts the hi-vis on. There is no taking it off in v2. */
+export function wearDisguise(): void {
+  state.disguise.worn = true;
+}
+
+/** Burns the disguise for the rest of the run (a guard went ALERT on it). */
+export function blowDisguise(): void {
+  state.disguise.blown = true;
 }
 
 export function addPhotographed(id: string): void {

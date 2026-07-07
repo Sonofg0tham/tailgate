@@ -30,8 +30,8 @@
         { "id": 4, "name": "kitchen", "type": "", "x": 320, "y": 520, "width": 360, "height": 288, "rotation": 0, "visible": true },
         { "id": 5, "name": "maintenance", "type": "", "x": 120, "y": 904, "width": 360, "height": 344, "rotation": 0, "visible": true },
         { "id": 6, "name": "loadingDock", "type": "", "x": 1712, "y": 852, "width": 624, "height": 396, "rotation": 0, "visible": true },
-        { "id": 7, "name": "securityOffice", "type": "", "x": 1712, "y": 384, "width": 336, "height": 384, "rotation": 0, "visible": true },
-        { "id": 8, "name": "serverRoom", "type": "", "x": 2080, "y": 384, "width": 256, "height": 384, "rotation": 0, "visible": true }
+        { "id": 7, "name": "securityOffice", "type": "", "x": 1712, "y": 384, "width": 336, "height": 384, "rotation": 0, "visible": true, "properties": [{ "name": "restricted", "type": "bool", "value": true }] },
+        { "id": 8, "name": "serverRoom", "type": "", "x": 2080, "y": 384, "width": 256, "height": 384, "rotation": 0, "visible": true, "properties": [{ "name": "restricted", "type": "bool", "value": true }] }
       ]
     },
     {
