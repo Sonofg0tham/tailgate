@@ -173,6 +173,18 @@ export function generateReport(
     });
   }
 
+  // The hi-vis disguise: authority theatre working as intended, unless a
+  // guard eventually saw through it.
+  if (stats.disguiseWornAtMs !== null) {
+    const blown = stats.disguiseBlownAtMs !== null;
+    findings.push({
+      severity: 'MEDIUM',
+      text: blown
+        ? `Contractor hi-vis acquired on site at ${stampClock(stats.disguiseWornAtMs)} and accepted at distance, until security challenged it at ${stampClock(stats.disguiseBlownAtMs ?? 0)}.`
+        : `Contractor hi-vis acquired on site at ${stampClock(stats.disguiseWornAtMs)}. Staff and security accepted the disguise at distance without challenge.`,
+    });
+  }
+
   // The security console: looped feeds are a control-room failure, not a
   // camera failure, so they get their own finding.
   if (stats.feedsFrozen.length > 0) {
@@ -223,6 +235,9 @@ export function generateReport(
     clientDetections.push(
       `Consultant detained by client staff on ${stats.detains} occasion(s). Letter of authorisation presented.`,
     );
+  }
+  if (stats.disguiseBlownAtMs !== null) {
+    clientDetections.push('Hi-vis disguise challenged by security and considered burned.');
   }
   if (stats.maxAlertLevel >= 1) {
     clientDetections.push('Site alert level raised to CAUTIOUS.');

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { AudioManager, setAudioMasterVolume, setAudioMuted } from '../audio/AudioManager';
+import { zoneAt } from '../audio/zoneAt';
 import { DETECTION } from '../config/detection';
 import { HIJACK } from '../config/hijack';
 import { JUICE } from '../config/juice';
@@ -25,7 +26,7 @@ import {
 } from '../systems/CameraSystem';
 import { LightModel } from '../systems/LightModel';
 import { LightingRenderer } from '../systems/LightingRenderer';
-import type { WallRect, ZoneRect } from '../world/BuildingMap';
+import type { PickupPoint, WallRect, ZoneRect } from '../world/BuildingMap';
 import {
   getMission,
   raiseAlert,
@@ -33,11 +34,15 @@ import {
   touchAlert,
   setCheckpoint,
   useHijackCharge,
+  wearDisguise,
+  blowDisguise,
 } from '../state/mission';
 import {
   getRunStats,
   recordAlertLevel,
   recordDetain,
+  recordDisguiseBlown,
+  recordDisguiseWorn,
   recordExfil,
   recordFeedFrozen,
   recordIngress,
@@ -115,6 +120,12 @@ export class BuildingScene extends Phaser.Scene {
   private level!: LevelDef;
   /** The security office console, if this level has one. */
   private consoleDef?: ConsoleDef;
+  /** Names of zones flagged restricted in Tiled: no hi-vis excuse inside. */
+  private restrictedZoneNames = new Set<string>();
+  /** Hi-vis pickups still on the floor, with their greybox marker objects. */
+  private hivisPickups: { x: number; y: number; objects: Phaser.GameObjects.GameObject[] }[] = [];
+  /** The screen-fixed HI-VIS: WORN / BLOWN tag, top right. */
+  private disguiseTag!: Phaser.GameObjects.Text;
   /** True while the CCTV multiplexer overlay is open. */
   private consoleOpen = false;
   /** The secondary camera rendering the live feed inside the multiplexer. */
@@ -191,6 +202,10 @@ export class BuildingScene extends Phaser.Scene {
     if (this.consoleDef) {
       this.drawConsoleMarker(this.consoleDef);
     }
+    this.restrictedZoneNames = new Set(
+      map.zones.filter((zone) => zone.restricted).map((zone) => zone.name)
+    );
+    this.spawnHivisPickups(map);
 
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
@@ -222,6 +237,18 @@ export class BuildingScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(1000);
+
+    // The disguise tag, top right, screen fixed. Text states, never colour alone.
+    this.disguiseTag = this.add
+      .text(this.scale.width - 12, 12, '', {
+        fontFamily: FONTS.mono,
+        fontSize: '12px',
+        color: PALETTE.amber,
+      })
+      .setOrigin(1, 0)
+      .setScrollFactor(0)
+      .setDepth(1000);
+    this.refreshDisguiseTag();
 
     // Lighting and audio. The renderer draws last each frame; audio arms its
     // autoplay unlock on the first input and makes no sound before that.
@@ -316,15 +343,14 @@ export class BuildingScene extends Phaser.Scene {
       // cover, so sample the light at the player and feed it into perception.
       this.lightModel.setGuardTorch(this.guard.x, this.guard.y, this.guard.facingAngle);
       const lightAtPlayer = this.lightModel.computeLightAt(this.player.x, this.player.y);
-      const tick = this.guard.update(
-        now,
-        delta,
-        this.player.x,
-        this.player.y,
-        intent.speed,
+      const tick = this.guard.update(now, delta, {
+        playerX: this.player.x,
+        playerY: this.player.y,
+        playerSpeed: intent.speed,
         closedDoors,
-        lightAtPlayer
-      );
+        lightLevel: lightAtPlayer,
+        disguised: this.isDisguisePlausible(),
+      });
       if (tick.spottedNow) {
         recordSpotted();
       }
@@ -381,13 +407,15 @@ export class BuildingScene extends Phaser.Scene {
       this.scene.start('report');
       return;
     }
-    // The objective prompt wins, then the console, then the breaker. The
-    // multiplexer overlay owns the screen while it is open.
+    // The objective prompt wins, then the console, then a pickup, then the
+    // breaker. The multiplexer overlay owns the screen while it is open.
     const consoleLine = this.updateConsole(interactPressed);
+    const pickupLine = this.consoleOpen ? null : this.updateHivisPickups(interactPressed);
     this.promptText.setText(
-      this.consoleOpen ? '' : (objTick.prompt ?? consoleLine ?? camTick.prompt ?? '')
+      this.consoleOpen ? '' : (objTick.prompt ?? consoleLine ?? pickupLine ?? camTick.prompt ?? '')
     );
     this.promptText.setScale(getSettings().hudScale);
+    this.disguiseTag.setScale(getSettings().hudScale);
 
     if (!this.consoleOpen) {
       this.throwController.update(this, delta, this.player.x, this.player.y, pad);
@@ -586,6 +614,7 @@ export class BuildingScene extends Phaser.Scene {
     this.feedCam.ignore([
       this.lightingRenderer.veil,
       this.promptText,
+      this.disguiseTag,
       this.overlay.hudText,
       this.guardDebug,
     ]);
@@ -605,6 +634,85 @@ export class BuildingScene extends Phaser.Scene {
       .setStrokeStyle(1.5, PALETTE_HEX.amber, 0.9)
       .setDepth(15);
     this.add.rectangle(def.x, def.y - 2, 16, 7, PALETTE_HEX.amber, 0.45).setDepth(16);
+  }
+
+  /**
+   * True while the hi-vis actually fools anyone: worn, not blown, the site
+   * calm, and the player somewhere a contractor plausibly belongs. The guard
+   * adds the close-range override on top.
+   */
+  private isDisguisePlausible(): boolean {
+    const disguise = getMission().disguise;
+    if (!disguise.worn || disguise.blown || getMission().alertLevel > 0) {
+      return false;
+    }
+    const zone = zoneAt(this.mapZones, this.player.x, this.player.y);
+    return !(zone && this.restrictedZoneNames.has(zone));
+  }
+
+  /**
+   * Places hi-vis pickups from the map's pickups layer. Building C ships
+   * without one (the warehouse is the disguise's home level), so dev builds
+   * inject a test vest by the van; Vite strips this from production.
+   */
+  private spawnHivisPickups(map: BuildingMap): void {
+    this.hivisPickups = [];
+    if (getMission().disguise.worn) {
+      return; // already wearing it; a checkpoint restart must not respawn one
+    }
+    const pickups: PickupPoint[] = map.pickups.filter((p) => p.kind === 'hivis');
+    if (import.meta.env.DEV && pickups.length === 0) {
+      pickups.push({ kind: 'hivis', x: map.spawn.x + 60, y: map.spawn.y - 10 });
+    }
+    for (const p of pickups) {
+      this.hivisPickups.push(this.drawHivisMarker(p.x, p.y));
+    }
+  }
+
+  /** The greybox vest: an amber tabard with a grey reflective band. */
+  private drawHivisMarker(
+    x: number,
+    y: number
+  ): { x: number; y: number; objects: Phaser.GameObjects.GameObject[] } {
+    const body = this.add.rectangle(x, y, 14, 16, PALETTE_HEX.amber, 0.9).setDepth(15);
+    const band = this.add.rectangle(x, y, 14, 3, 0xc7cdd4, 1).setDepth(16);
+    return { x, y, objects: [body, band] };
+  }
+
+  /** Pickup prompt and interact: taking the vest puts it on for the run. */
+  private updateHivisPickups(interactPressed: boolean): string | null {
+    for (let i = 0; i < this.hivisPickups.length; i += 1) {
+      const pickup = this.hivisPickups[i];
+      const inRange =
+        Phaser.Math.Distance.Between(this.player.x, this.player.y, pickup.x, pickup.y) <= 48;
+      if (!inRange) {
+        continue;
+      }
+      if (interactPressed) {
+        for (const obj of pickup.objects) {
+          obj.destroy();
+        }
+        this.hivisPickups.splice(i, 1);
+        wearDisguise();
+        recordDisguiseWorn();
+        this.refreshDisguiseTag();
+        return null;
+      }
+      return '[E] TAKE HI-VIS VEST';
+    }
+    return null;
+  }
+
+  /** Repaints the top-right tag from mission state. */
+  private refreshDisguiseTag(): void {
+    const disguise = getMission().disguise;
+    if (!disguise.worn) {
+      this.disguiseTag.setText('');
+    } else if (disguise.blown) {
+      this.disguiseTag.setText('HI-VIS: BLOWN').setColor(PALETTE.text);
+    } else {
+      this.disguiseTag.setText('HI-VIS: WORN').setColor(PALETTE.amber);
+    }
   }
 
   /** True if a staff member or the guard is pressed up against the player. */
@@ -854,6 +962,14 @@ export class BuildingScene extends Phaser.Scene {
   /** The guard changed state: fire the alert sting and shake exactly on ALERT. */
   private onGuardStateCue(state: GuardState): void {
     if (state === 'alert') {
+      // A guard going full ALERT on a disguised player burns the disguise for
+      // the rest of the run: security now knows the vest.
+      const disguise = getMission().disguise;
+      if (disguise.worn && !disguise.blown) {
+        blowDisguise();
+        recordDisguiseBlown();
+        this.refreshDisguiseTag();
+      }
       this.audio.playAlertSting();
       this.triggerAlarmShake();
     }
