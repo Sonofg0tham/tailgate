@@ -674,9 +674,8 @@ export class BuildingScene extends Phaser.Scene {
   }
 
   /**
-   * Places hi-vis pickups from the map's pickups layer. Building C ships
-   * without one (the warehouse is the disguise's home level), so dev builds
-   * inject a test vest by the van; Vite strips this from production.
+   * Places hi-vis pickups from the map's pickups layer. Vests exist only
+   * where a level authors them; the warehouse is the disguise's home.
    */
   private spawnHivisPickups(map: BuildingMap): void {
     this.hivisPickups = [];
@@ -684,9 +683,6 @@ export class BuildingScene extends Phaser.Scene {
       return; // already wearing it; a checkpoint restart must not respawn one
     }
     const pickups: PickupPoint[] = map.pickups.filter((p) => p.kind === 'hivis');
-    if (import.meta.env.DEV && pickups.length === 0) {
-      pickups.push({ kind: 'hivis', x: map.spawn.x + 60, y: map.spawn.y - 10 });
-    }
     for (const p of pickups) {
       this.hivisPickups.push(this.drawHivisMarker(p.x, p.y));
     }

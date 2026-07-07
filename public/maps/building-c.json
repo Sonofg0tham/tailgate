@@ -192,9 +192,7 @@
       "visible": true,
       "x": 0,
       "y": 0,
-      "objects": [
-        { "id": 600, "name": "testVest", "type": "hivis", "x": 540, "y": 1400, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true }
-      ]
+      "objects": []
     },
     {
       "id": 9,
