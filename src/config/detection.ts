@@ -79,12 +79,6 @@ export const DETECTION = {
     maxCuriousMs: 9000,
     /** How long an ALERT guard keeps chasing after losing sight before giving up. */
     alertGiveUpMs: 4000,
-    /**
-     * How long the DETAINED banner shows before the run resets. Phase 15
-     * added the cause and resume lines to the banner; 1200ms was too short
-     * to read them, which defeated the point of writing them.
-     */
-    detainedFlashMs: 2600,
   },
 
   /** How close (pixels, centre to centre) counts as the guard catching the player. */

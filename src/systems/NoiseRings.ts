@@ -40,13 +40,14 @@ export class NoiseRings {
 
   /** Advances and redraws every live ring; expired rings are dropped. */
   update(now: number): void {
-    const { ringLifeMs, startRadiusPx, endRadiusPx } = READABILITY.noiseRings;
+    const { ringLifeMs, startRadiusPx, endRadiusPx, strokeWidth, peakAlpha } =
+      READABILITY.noiseRings;
     this.gfx.clear();
     this.rings = this.rings.filter((ring) => now - ring.bornAt < ringLifeMs);
     for (const ring of this.rings) {
       const t = (now - ring.bornAt) / ringLifeMs;
       const radius = Phaser.Math.Linear(startRadiusPx, endRadiusPx, t);
-      this.gfx.lineStyle(1.5, NOISE_RING_TINT, (1 - t) * 0.45);
+      this.gfx.lineStyle(strokeWidth, NOISE_RING_TINT, (1 - t) * peakAlpha);
       this.gfx.strokeCircle(ring.x, ring.y, radius);
     }
   }

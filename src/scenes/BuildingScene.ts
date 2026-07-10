@@ -196,6 +196,14 @@ export class BuildingScene extends Phaser.Scene {
     this.doors = [];
     this.staff = [];
     this.followOffset.set(0, 0);
+    // The scene instance persists across restart(), so every per-life field
+    // must reset here. A camera cue from the previous life must not be blamed
+    // on the next banner, and a stale guard position must not ring a phantom
+    // footstep on the first frame.
+    this.lastCameraCue = null;
+    this.lastDoorId = null;
+    this.prevGuardPos = null;
+    this.guardStepAt = 0;
 
     const map = new BuildingMap(this, this.mapKey);
     this.mapZones = map.zones;
@@ -1069,7 +1077,7 @@ export class BuildingScene extends Phaser.Scene {
         .setDepth(2001);
     });
 
-    this.time.delayedCall(DETECTION.timing.detainedFlashMs, () => this.scene.restart());
+    this.time.delayedCall(READABILITY.detain.bannerMs, () => this.scene.restart());
   }
 
   /**
@@ -1097,9 +1105,11 @@ export class BuildingScene extends Phaser.Scene {
 
   /**
    * Points a screen-edge chevron at the guard when they are worked up but out
-   * of view: amber while curious, red only once they are fully ALERT (chasing,
-   * which is trouble, so red is honest). A calm patrol draws nothing, scouting
-   * still means walking over and looking.
+   * of view: a hollow amber outline while curious, a doubled solid red chevron
+   * once they are fully ALERT (chasing, which is trouble, so red is honest).
+   * Shape and colour change together, per the never-colour-alone rule, the
+   * same reason the vision cones pair colour with an edge style. A calm
+   * patrol draws nothing, scouting still means walking over and looking.
    */
   private drawGuardChevron(): void {
     this.chevrons.clear();
@@ -1132,19 +1142,27 @@ export class BuildingScene extends Phaser.Scene {
     const px = w / 2 + dx * scale;
     const py = h / 2 + dy * scale;
     const angle = Math.atan2(dy, dx);
-    const point = (a: number) => ({
-      x: px + Math.cos(a) * sizePx,
-      y: py + Math.sin(a) * sizePx,
-    });
-    const tip = point(angle);
-    const left = point(angle + 2.5);
-    const right = point(angle - 2.5);
+    const triangle = (cx2: number, cy2: number) => {
+      const point = (a: number) => ({
+        x: cx2 + Math.cos(a) * sizePx,
+        y: cy2 + Math.sin(a) * sizePx,
+      });
+      return [point(angle), point(angle + 2.5), point(angle - 2.5)] as const;
+    };
 
-    this.chevrons.fillStyle(
-      guard.state === 'alert' ? PALETTE_HEX.alarm : PALETTE_HEX.amber,
-      0.95
-    );
-    this.chevrons.fillTriangle(tip.x, tip.y, left.x, left.y, right.x, right.y);
+    if (guard.state === 'alert') {
+      // Chasing: two solid red arrowheads stacked along the direction.
+      this.chevrons.fillStyle(PALETTE_HEX.alarm, 0.95);
+      const back = triangle(px - Math.cos(angle) * sizePx * 1.4, py - Math.sin(angle) * sizePx * 1.4);
+      const front = triangle(px, py);
+      this.chevrons.fillTriangle(front[0].x, front[0].y, front[1].x, front[1].y, front[2].x, front[2].y);
+      this.chevrons.fillTriangle(back[0].x, back[0].y, back[1].x, back[1].y, back[2].x, back[2].y);
+    } else {
+      // Curious: a single hollow amber outline.
+      const [tip, left, right] = triangle(px, py);
+      this.chevrons.lineStyle(2, PALETTE_HEX.amber, 0.95);
+      this.chevrons.strokeTriangle(tip.x, tip.y, left.x, left.y, right.x, right.y);
+    }
   }
 
   /** The guard changed state: fire the alert sting and shake exactly on ALERT. */

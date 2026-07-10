@@ -12,6 +12,15 @@ export const READABILITY = {
     glowRadiusPx: 16,
     /** The solid shape at the lamp's centre: circle open, square shut. */
     coreRadiusPx: 5,
+    /** Glow strength: the wide outer wash and the tighter inner pool. */
+    glowAlphaOuter: 0.16,
+    glowAlphaInner: 0.3,
+    /** The inner pool's radius as a fraction of the outer glow. */
+    innerGlowScale: 0.6,
+    /** How far above the doorway the lamp sits. */
+    lampRisePx: 10,
+    /** How far above the doorway the door's name sits. */
+    labelRisePx: 26,
     /** Nearer than this, the door label stays hidden (the door speaks for itself). */
     labelFadeStartPx: 240,
     /** This far away the label is at full strength. */
@@ -20,8 +29,14 @@ export const READABILITY = {
     labelMaxAlpha: 0.85,
   },
 
-  /** The DETAINED banner's cause line. */
+  /** The DETAINED banner. */
   detain: {
+    /**
+     * How long the banner (and its cause and resume lines) stays up before
+     * the run resets. Phase 15 added the explanation lines; the old 1200ms
+     * flash was too short to read them, which defeated the point.
+     */
+    bannerMs: 2600,
     /** A camera ping this recent gets named as the tip-off on the banner. */
     cameraTipWindowMs: 12000,
   },
@@ -47,5 +62,8 @@ export const READABILITY = {
     /** Ring radius at birth and at death. */
     startRadiusPx: 6,
     endRadiusPx: 26,
+    /** Line weight and the alpha a newborn ring starts from. A whisper. */
+    strokeWidth: 1.5,
+    peakAlpha: 0.45,
   },
 } as const;

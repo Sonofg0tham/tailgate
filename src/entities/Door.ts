@@ -54,7 +54,7 @@ export class Door {
     // fixture is visible in the dark, that is its whole job.
     this.lamp = scene.add.graphics().setDepth(26);
     this.label = scene.add
-      .text(cx, rect.y - 26, rect.id.toUpperCase(), {
+      .text(cx, rect.y - READABILITY.doorLamp.labelRisePx, rect.id.toUpperCase(), {
         fontFamily: FONTS.mono,
         fontSize: '11px',
         color: PALETTE.text,
@@ -159,15 +159,16 @@ export class Door {
 
     // The state lamp: green circle when open, amber square when shut, each
     // inside a soft glow of the same colour so it reads across the map.
-    const { glowRadiusPx, coreRadiusPx } = READABILITY.doorLamp;
+    const { glowRadiusPx, coreRadiusPx, glowAlphaOuter, glowAlphaInner, innerGlowScale, lampRisePx } =
+      READABILITY.doorLamp;
     const cx = this.rect.x + this.rect.width / 2;
-    const py = this.rect.y - 10;
+    const py = this.rect.y - lampRisePx;
     const tint = open ? 0x36f06a : 0xffb000;
     this.lamp.clear();
-    this.lamp.fillStyle(tint, 0.16);
+    this.lamp.fillStyle(tint, glowAlphaOuter);
     this.lamp.fillCircle(cx, py, glowRadiusPx);
-    this.lamp.fillStyle(tint, 0.3);
-    this.lamp.fillCircle(cx, py, glowRadiusPx * 0.6);
+    this.lamp.fillStyle(tint, glowAlphaInner);
+    this.lamp.fillCircle(cx, py, glowRadiusPx * innerGlowScale);
     this.lamp.fillStyle(tint, 1);
     if (open) {
       this.lamp.fillCircle(cx, py, coreRadiusPx);
