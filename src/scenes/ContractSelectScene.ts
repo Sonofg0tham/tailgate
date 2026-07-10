@@ -1,10 +1,13 @@
 import Phaser from 'phaser';
 import { FONTS, PALETTE, PALETTE_HEX } from '../config/palette';
 import { getLevels, setActiveLevel, type LevelDef } from '../state/levels';
-import { getLevelProgress, unlockLevel } from '../state/progress';
+import { getLevelProgress, hasSeenBriefing, unlockLevel } from '../state/progress';
 import { resetMission } from '../state/mission';
 import { resetRunStats } from '../state/runStats';
 import { MenuController, type MenuItem } from '../ui/MenuController';
+
+/** The gamepad X button (standard mapping), the "view briefing" control. */
+const PAD_X = 2;
 
 /** Contract card geometry: three cards stacked, then the BACK row below. */
 const CARD = { x: 480, w: 760, h: 86, firstY: 190, gap: 98 } as const;
@@ -23,6 +26,9 @@ const STAMP_RIGHT = CARD.x + CARD.w / 2 - 30;
 export class ContractSelectScene extends Phaser.Scene {
   private menu!: MenuController;
   private status!: Phaser.GameObjects.Text;
+  private briefingKey?: Phaser.Input.Keyboard.Key;
+  private prevPadX = false;
+  private levels: readonly LevelDef[] = [];
 
   constructor() {
     super('contracts');
@@ -47,10 +53,14 @@ export class ContractSelectScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     const levels = getLevels();
+    this.levels = levels;
     // The first contract on the schedule is always signed.
     if (levels[0]) {
       unlockLevel(levels[0].id);
     }
+    this.briefingKey = this.input.keyboard?.addKey('TAB');
+    this.input.keyboard?.addCapture('TAB');
+    this.prevPadX = false;
 
     const items: MenuItem[] = levels.map((level, i) => this.buildCard(level, i));
     items.push({ kind: 'action', label: 'BACK', onSelect: () => this.scene.start('menu') });
@@ -65,8 +75,13 @@ export class ContractSelectScene extends Phaser.Scene {
     });
 
     this.status = this.add
-      .text(480, 512, '', { fontFamily: FONTS.mono, fontSize: '11px', color: PALETTE.text })
-      .setOrigin(0.5);
+      .text(480, 512, 'TAB OR PAD X: VIEW ENGAGEMENT BRIEFING', {
+        fontFamily: FONTS.mono,
+        fontSize: '11px',
+        color: PALETTE.text,
+      })
+      .setOrigin(0.5)
+      .setAlpha(0.7);
 
     // A quiet flourish once every contract on the schedule has a completion.
     const playable = levels.filter((level) => level.playable);
@@ -76,7 +91,8 @@ export class ContractSelectScene extends Phaser.Scene {
     if (allDone) {
       this.status
         .setText('ALL CONTRACTS COMPLETE. ENGAGEMENT PROGRAMME CLOSED OUT.')
-        .setColor(PALETTE.amber);
+        .setColor(PALETTE.amber)
+        .setAlpha(1);
     }
   }
 
@@ -84,6 +100,28 @@ export class ContractSelectScene extends Phaser.Scene {
     const plugin = this.input.gamepad;
     const pad = plugin && plugin.total > 0 ? plugin.getPad(0) : undefined;
     this.menu.update(pad);
+
+    // TAB or pad X opens the selected contract's briefing sheet on demand.
+    const keyEdge = this.briefingKey ? Phaser.Input.Keyboard.JustDown(this.briefingKey) : false;
+    const padX = pad?.buttons?.[PAD_X]?.pressed ?? false;
+    const padEdge = padX && !this.prevPadX;
+    this.prevPadX = padX;
+    if (keyEdge || padEdge) {
+      this.openBriefing();
+    }
+  }
+
+  /** Opens the briefing for the selected row, if it is a live contract. */
+  private openBriefing(): void {
+    const level = this.levels[this.menu.selectedIndex];
+    if (!level) {
+      return; // the BACK row
+    }
+    if (!getLevelProgress(level.id).unlocked || !level.playable) {
+      this.status.setText('NO BRIEFING ON FILE FOR THIS CONTRACT.').setAlpha(1);
+      return;
+    }
+    this.scene.start('briefing', { levelId: level.id });
   }
 
   /** Draws one contract card and returns its menu row. */
@@ -157,11 +195,17 @@ export class ContractSelectScene extends Phaser.Scene {
 
   private selectContract(level: LevelDef, unlocked: boolean): void {
     if (!unlocked) {
-      this.status.setText('CONTRACT NOT YET COUNTERSIGNED. COMPLETE THE PREVIOUS ENGAGEMENT.');
+      this.status.setText('CONTRACT NOT YET COUNTERSIGNED. COMPLETE THE PREVIOUS ENGAGEMENT.').setAlpha(1);
       return;
     }
     if (!level.playable) {
-      this.status.setText('SITE SURVEY PENDING. THIS CONTRACT OPENS IN A FUTURE UPDATE.');
+      this.status.setText('SITE SURVEY PENDING. THIS CONTRACT OPENS IN A FUTURE UPDATE.').setAlpha(1);
+      return;
+    }
+    // A contract's first run goes via its briefing sheet; afterwards the
+    // schedule starts the site directly and the sheet stays on TAB / pad X.
+    if (!hasSeenBriefing(level.id)) {
+      this.scene.start('briefing', { levelId: level.id });
       return;
     }
     setActiveLevel(level.id);

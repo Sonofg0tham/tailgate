@@ -18,7 +18,26 @@
         "badgeGate": "the reception badge gate",
         "shutter": "Loading dock shutter",
         "console": "Security office console"
-      }
+      },
+      "briefing": {
+        "roe": [
+          "No forced entry. Doors open by schedule, badge or neglect.",
+          "If challenged, present the letter of authorisation and withdraw.",
+          "Detentions are reported to the client. Keep them off the invoice."
+        ],
+        "intel": [
+          "Staff prop the south fire door open on smoking breaks. Its lamp shows green while it stands open.",
+          "Reception staff badge colleagues through without a second look. Stay within two seconds of a badge-holder.",
+          "Deliveries leave the dock shutter unattended in repeating windows.",
+          "Site CCTV reports to a security office console that is rarely watched."
+        ]
+      },
+      "hints": [
+        { "id": "smokers", "x": 300, "y": 1290, "radiusPx": 170, "text": "STAFF PROP THIS FIRE DOOR ON THEIR BREAKS. THE LAMP SHOWS WHEN." },
+        { "id": "reception", "x": 1180, "y": 1290, "radiusPx": 170, "text": "STAFF BADGE THROUGH HERE. SLIP IN CLOSE BEHIND THEM." },
+        { "id": "breaker", "x": 300, "y": 1040, "radiusPx": 140, "text": "THIS BREAKER BLINDS EVERY CAMERA FOR A SPELL." },
+        { "id": "console", "x": 1880, "y": 560, "radiusPx": 150, "text": "AN UNATTENDED CONSOLE. LOOP A FEED AND ITS CAMERA SEES YESTERDAY." }
+      ]
     },
     {
       "id": "data-centre",
@@ -38,7 +57,26 @@
         "badgeGate": "the lobby speed gate",
         "shutter": "Loading bay roller shutter",
         "console": "NOC multiplexer console"
-      }
+      },
+      "briefing": {
+        "roe": [
+          "No forced entry. No interference with customer hosting beyond the agreed device.",
+          "If challenged, present the letter of authorisation and withdraw.",
+          "A site lockdown ends the covert approach. Avoid triggering one."
+        ],
+        "intel": [
+          "The building runs dark and the CCTV coverage is near-total. Treat darkness as cover and camera arcs as weather.",
+          "The NOC console can loop one feed at a time. A looped camera swears old footage is live.",
+          "Each breaker kills a single camera circuit, briefly. The other circuits keep watching.",
+          "The hosting cage is restricted at all hours. No cover story survives inside it."
+        ]
+      },
+      "hints": [
+        { "id": "lobby", "x": 1200, "y": 1300, "radiusPx": 200, "text": "CAMERAS OWN THESE CORRIDORS. DARKNESS IS COVER, USE IT." },
+        { "id": "noc", "x": 780, "y": 1150, "radiusPx": 150, "text": "THE NOC MULTIPLEXER. LOOP A FEED BEFORE YOU CROSS ITS CAMERA." },
+        { "id": "breaker", "x": 240, "y": 1100, "radiusPx": 140, "text": "ONE BREAKER, ONE CIRCUIT. THE REST KEEP WATCHING." },
+        { "id": "cage", "x": 2100, "y": 520, "radiusPx": 170, "text": "THE HOSTING CAGE IS RESTRICTED. NOBODY BELONGS IN THERE, INCLUDING YOU." }
+      ]
     },
     {
       "id": "warehouse",
@@ -58,7 +96,26 @@
         "badgeGate": "the clock-in gate",
         "shutter": "Dispatch roller shutter",
         "console": "Gatehouse console"
-      }
+      },
+      "briefing": {
+        "roe": [
+          "No forced entry. No contact with goods in transit.",
+          "If challenged, present the letter of authorisation and withdraw.",
+          "Keep clear of vehicle routes on the dispatch apron."
+        ],
+        "intel": [
+          "Heavy staff traffic on the floor. Contractor hi-vis is accepted at a distance without question.",
+          "The vest means nothing up close, inside the cage or the office, or once security is alarmed.",
+          "Racking blocks sightlines both ways. The floor is a maze that works for whoever moves quietly.",
+          "Spare vests hang in the locker room and on the dispatch dock."
+        ]
+      },
+      "hints": [
+        { "id": "locker", "x": 300, "y": 1100, "radiusPx": 150, "text": "CONTRACTOR HI-VIS. AT A DISTANCE, A VEST IS A REASON TO BE HERE." },
+        { "id": "dock", "x": 1500, "y": 1050, "radiusPx": 150, "text": "A SPARE VEST ON THE DOCK. EYES SLIDE PAST HI-VIS OUT HERE." },
+        { "id": "cage", "x": 536, "y": 470, "radiusPx": 170, "text": "THE SECURE CAGE. THE VEST STOPS WORKING PAST THAT DOOR." },
+        { "id": "office", "x": 1876, "y": 500, "radiusPx": 160, "text": "THE OFFICE IS RESTRICTED. HI-VIS FOOLS NOBODY IN THERE." }
+      ]
     }
   ]
 }

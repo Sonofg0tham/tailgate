@@ -8,6 +8,24 @@ import type { ReportVenue } from '../report/generateReport';
  * detain needs: it restarts the building scene for the same contract.
  */
 
+/** The pre-mission briefing copy, authored per level in levels.json. */
+export interface LevelBriefing {
+  /** Rules of engagement bullet lines. */
+  roe: string[];
+  /** Site intel lines teaching the venue's signature mechanic in fiction. */
+  intel: string[];
+}
+
+/** One first-run hint: a circle in the world and a line of consultant copy. */
+export interface LevelHint {
+  /** Stable id, unique within the level, for the once-per-profile flag. */
+  id: string;
+  x: number;
+  y: number;
+  radiusPx: number;
+  text: string;
+}
+
 export interface LevelDef {
   /** Stable id used for data paths, cache keys and saved progress. */
   id: string;
@@ -25,6 +43,10 @@ export interface LevelDef {
   cameras: string;
   /** Venue nouns for the report's finding copy; Building C wording if absent. */
   venue?: ReportVenue;
+  /** The engagement briefing sheet copy; the sheet renders empty-safe without. */
+  briefing?: LevelBriefing;
+  /** First-run contextual hints; a level without them simply shows none. */
+  hints?: LevelHint[];
 }
 
 let levels: LevelDef[] = [];

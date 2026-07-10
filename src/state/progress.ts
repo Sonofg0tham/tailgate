@@ -22,6 +22,10 @@ export interface LevelProgress {
 interface ProgressState {
   version: 1;
   levels: Record<string, LevelProgress>;
+  /** Contract ids whose briefing sheet has been read at least once. */
+  briefingsSeen?: Record<string, boolean>;
+  /** First-run hints already shown, keyed "levelId:hintId". */
+  hintsSeen?: Record<string, boolean>;
 }
 
 const STORAGE_KEY = 'tailgate.progress';
@@ -43,6 +47,8 @@ try {
     const parsed = JSON.parse(raw) as Partial<ProgressState>;
     if (parsed.version === 1 && parsed.levels) {
       state.levels = parsed.levels;
+      state.briefingsSeen = parsed.briefingsSeen;
+      state.hintsSeen = parsed.hintsSeen;
     }
   }
 } catch {
@@ -81,6 +87,35 @@ export function unlockLevel(levelId: string): void {
   const level = entry(levelId);
   if (!level.unlocked) {
     level.unlocked = true;
+    persist();
+  }
+}
+
+/** Whether the player has read this contract's briefing sheet before. */
+export function hasSeenBriefing(levelId: string): boolean {
+  return state.briefingsSeen?.[levelId] === true;
+}
+
+/** Marks the briefing read, so later starts skip straight to the site. */
+export function markBriefingSeen(levelId: string): void {
+  state.briefingsSeen = state.briefingsSeen ?? {};
+  if (!state.briefingsSeen[levelId]) {
+    state.briefingsSeen[levelId] = true;
+    persist();
+  }
+}
+
+/** Whether a first-run hint has already been shown on this profile. */
+export function hasSeenHint(levelId: string, hintId: string): boolean {
+  return state.hintsSeen?.[`${levelId}:${hintId}`] === true;
+}
+
+/** Marks a hint shown; it never fires again on this profile. */
+export function markHintSeen(levelId: string, hintId: string): void {
+  state.hintsSeen = state.hintsSeen ?? {};
+  const key = `${levelId}:${hintId}`;
+  if (!state.hintsSeen[key]) {
+    state.hintsSeen[key] = true;
     persist();
   }
 }

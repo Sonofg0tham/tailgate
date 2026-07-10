@@ -51,6 +51,14 @@ export const READABILITY = {
     sizePx: 11,
   },
 
+  /** First-run hints: one-off consultant notes at points of interest. */
+  hints: {
+    /** A hint clears itself after this long, even if the player lingers. */
+    showForMs: 7000,
+    /** Hint text size in pixels (scaled by the HUD text setting). */
+    textSizePx: 13,
+  },
+
   /** Expanding rings where guard footsteps land, the visual ear. */
   noiseRings: {
     /** Footsteps further from the player than this draw nothing. */

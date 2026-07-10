@@ -57,6 +57,7 @@ import {
 import { ObjectiveSystem } from '../systems/ObjectiveSystem';
 import { ThrowController } from '../systems/ThrowController';
 import { DebugOverlay, type GuardHudInfo } from '../ui/DebugOverlay';
+import { HintSystem } from '../systems/HintSystem';
 import { BuildingMap } from '../world/BuildingMap';
 import { WorldRenderer } from '../world/WorldRenderer';
 
@@ -148,6 +149,8 @@ export class BuildingScene extends Phaser.Scene {
   private chevrons!: Phaser.GameObjects.Graphics;
   /** The visual ear: rings at guard footfalls within hearing range. */
   private noiseRings!: NoiseRings;
+  /** First-run consultant notes at points of interest, once per profile. */
+  private hintSystem!: HintSystem;
   /** Scene-clock ts of the last guard footfall ring. */
   private guardStepAt = 0;
   /** The guard's position last frame, to ring only while they move. */
@@ -262,6 +265,7 @@ export class BuildingScene extends Phaser.Scene {
     // Screen-edge warning for an agitated guard outside the viewport.
     this.chevrons = this.add.graphics().setScrollFactor(0).setDepth(998);
     this.noiseRings = new NoiseRings(this);
+    this.hintSystem = new HintSystem(this, this.level.id, this.level.hints ?? []);
     this.throwController = new ThrowController(
       this,
       (x, y) => this.onNoise(x, y),
@@ -486,6 +490,7 @@ export class BuildingScene extends Phaser.Scene {
 
     this.drawGuardChevron();
     this.updateGuardNoiseRings(now);
+    this.hintSystem.update(now, this.player.x, this.player.y);
 
     this.overlay.update(this.player, intent, {
       bolts: this.throwController.remaining,
@@ -681,6 +686,7 @@ export class BuildingScene extends Phaser.Scene {
       this.guardDebug,
       this.chevrons,
       this.noiseRings.gameObject,
+      this.hintSystem.gameObject,
     ]);
   }
 

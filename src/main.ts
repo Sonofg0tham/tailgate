@@ -4,6 +4,7 @@ import './style.css';
 
 import Phaser from 'phaser';
 import { PALETTE } from './config/palette';
+import { BriefingScene } from './scenes/BriefingScene';
 import { BuildingScene } from './scenes/BuildingScene';
 import { ContractSelectScene } from './scenes/ContractSelectScene';
 import { HijackScene } from './scenes/HijackScene';
@@ -56,6 +57,7 @@ async function boot(): Promise<void> {
     scene: [
       MenuScene,
       ContractSelectScene,
+      BriefingScene,
       BuildingScene,
       ReportScene,
       PauseScene,
