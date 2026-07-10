@@ -71,7 +71,7 @@ export class ReportScene extends Phaser.Scene {
     y = this.drawFindings(left, y, model.findings);
     y = this.drawClientDetections(left, y, model);
     this.drawSummary(left, y, model);
-    this.drawRating(centreX, model);
+    this.drawRatingStamp(centreX, centreY, model);
     this.buildMenu(centreX);
   }
 
@@ -158,7 +158,7 @@ export class ReportScene extends Phaser.Scene {
     return y + 8;
   }
 
-  /** Draws the one-line SUMMARY block. */
+  /** Draws the SUMMARY row and the dry closing remark beneath it. */
   private drawSummary(left: number, top: number, model: ReportModel): void {
     let y = top;
     this.mono(left, y, 'SUMMARY', 12, PALETTE.amber);
@@ -168,45 +168,100 @@ export class ReportScene extends Phaser.Scene {
     this.mono(left, y, `TIME ON SITE:  ${summary.timeOnSite}`, 11, PALETTE.text);
     this.mono(left + 240, y, `ALERT LEVEL:  ${summary.alertLevel}`, 11, PALETTE.text);
     this.mono(left + 480, y, `SECONDARIES:  ${summary.secondaries}`, 11, PALETTE.text);
+    y += 20;
+
+    this.add.text(left, y, model.ratingRemark, {
+      fontFamily: FONTS.mono,
+      fontSize: '11px',
+      color: PALETTE.text,
+      wordWrap: { width: PAGE.width - PAGE.padX * 2 },
+    });
   }
 
-  /** Draws the big outcome rating and its dry remark, bottom of the page. */
-  private drawRating(centreX: number, model: ReportModel): void {
-    const y = this.scale.height / 2 + PAGE.height / 2 - 132;
+  /**
+   * The outcome rating as a rubber stamp across the header's empty top-right
+   * corner. A fixed slot over fixed content, so however many findings the run
+   * produced, the stamp can never sit on top of flowing text again.
+   */
+  private drawRatingStamp(centreX: number, centreY: number, model: ReportModel): void {
+    // Red is reserved for detection states; DETAINED is one, the rest amber.
     const detained = model.rating === 'DETAINED';
     const colour = detained ? PALETTE.alarm : PALETTE.amber;
+    const tint = detained ? 0xff3b30 : 0xffb000;
 
-    this.add
-      .text(centreX, y, `RATING: ${model.rating}`, {
+    const x = centreX + PAGE.width / 2 - PAGE.padX - 150;
+    const y = centreY - PAGE.height / 2 + 44;
+
+    const label = this.add
+      .text(0, 0, `RATING: ${model.rating}`, {
         fontFamily: FONTS.mono,
-        fontSize: '26px',
+        fontSize: '22px',
         color: colour,
       })
-      .setOrigin(0.5, 0);
+      .setOrigin(0.5);
 
-    this.add
-      .text(centreX, y + 34, model.ratingRemark, {
-        fontFamily: FONTS.mono,
-        fontSize: '11px',
-        color: PALETTE.text,
-        align: 'center',
-        wordWrap: { width: PAGE.width - 120 },
-      })
-      .setOrigin(0.5, 0);
+    const border = this.add
+      .rectangle(0, 0, label.width + 28, label.height + 14)
+      .setStrokeStyle(2, tint, 0.9)
+      .setFillStyle(0, 0);
+
+    // The slight anticlockwise tilt and uneven alpha sell "stamped in a hurry".
+    this.add.container(x, y, [border, label]).setRotation(-0.07).setAlpha(0.92);
   }
 
   /** The end-of-run actions, navigable on pad, keyboard and mouse alike. */
   private buildMenu(centreX: number): void {
-    const top = this.scale.height / 2 + PAGE.height / 2 - 76;
+    const top = this.scale.height / 2 + PAGE.height / 2 - 96;
     this.menu = new MenuController(
       this,
       [
         { kind: 'action', label: '[ RE-RUN ENGAGEMENT ]', onSelect: () => this.newEngagement() },
+        { kind: 'action', label: '[ EXPORT REPORT ]', onSelect: () => this.exportReport() },
         { kind: 'action', label: '[ CONTRACTS ]', onSelect: () => this.contracts() },
         { kind: 'action', label: '[ MAIN MENU ]', onSelect: () => this.mainMenu() },
       ],
-      { x: centreX, top, rowHeight: 30, width: 340, labelSize: 15 }
+      { x: centreX, top, rowHeight: 26, width: 340, labelSize: 15 }
     );
+  }
+
+  /**
+   * Saves the report as a PNG for sharing: hide the menu so the page reads as
+   * a clean document, snapshot the canvas, trigger a download, put the menu
+   * back. No services involved; the file comes straight off the renderer.
+   */
+  private exportReport(): void {
+    const ref = getActiveLevel().ref.replace(/[^A-Za-z0-9-]+/g, '');
+    this.menu.setVisible(false);
+    this.game.renderer.snapshot((image) => {
+      this.menu.setVisible(true);
+      const src = (image as HTMLImageElement).src;
+      if (!src) {
+        return;
+      }
+      const link = document.createElement('a');
+      link.href = src;
+      link.download = `tailgate-engagement-${ref}.png`;
+      link.click();
+      this.flashExportNote();
+    });
+  }
+
+  /** A brief EXPORTED confirmation under the page, fading itself out. */
+  private flashExportNote(): void {
+    const note = this.add
+      .text(this.scale.width / 2, this.scale.height / 2 + PAGE.height / 2 + 11, 'REPORT EXPORTED', {
+        fontFamily: FONTS.mono,
+        fontSize: '11px',
+        color: PALETTE.amber,
+      })
+      .setOrigin(0.5);
+    this.tweens.add({
+      targets: note,
+      alpha: 0,
+      delay: 1400,
+      duration: 600,
+      onComplete: () => note.destroy(),
+    });
   }
 
   /** Re-runs the same contract from the van, chasing a better rating. */
