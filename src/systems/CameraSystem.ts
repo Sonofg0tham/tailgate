@@ -59,8 +59,9 @@ export type FreezeResult = 'frozen' | 'cooldown' | 'offline' | 'unknown';
 
 /** What the scene needs to react to after stepping every camera this frame. */
 export interface CameraTick {
-  /** Fresh curious pings this frame, one point per camera that just pinged. */
-  investigatePoints: { x: number; y: number }[];
+  /** Fresh curious pings this frame, one per camera that just pinged, each
+   * carrying its camera's id so the scene can name the tip-off later. */
+  investigatePoints: { x: number; y: number; id: string }[];
   /** True if any camera raised the building alert this frame. */
   raisedAlert: boolean;
   /** The HUD prompt line for the breaker, or null for none. */
@@ -129,13 +130,13 @@ export class CameraSystem {
     interactPressed: boolean
   ): CameraTick {
     this.lastNow = now;
-    const investigatePoints: { x: number; y: number }[] = [];
+    const investigatePoints: { x: number; y: number; id: string }[] = [];
     let raisedAlert = false;
 
     for (const camera of this.cameras) {
       const result = camera.update(now, dtMs, playerX, playerY, closedDoors);
       if (result.curiousPing) {
-        investigatePoints.push(result.curiousPing);
+        investigatePoints.push({ ...result.curiousPing, id: camera.id });
       }
       if (result.raiseAlertNow) {
         raisedAlert = true;

@@ -5,6 +5,8 @@ import { ART } from '../config/art';
 import { DETECTION } from '../config/detection';
 import { HIJACK } from '../config/hijack';
 import { INPUT } from '../config/input';
+import { READABILITY } from '../config/readability';
+import { NoiseRings } from '../systems/NoiseRings';
 import { JUICE } from '../config/juice';
 import { LIGHTING } from '../config/lighting';
 import { MOVEMENT } from '../config/movement';
@@ -138,6 +140,18 @@ export class BuildingScene extends Phaser.Scene {
    * the Escape that exits the multiplexer must not also open the pause badge.
    */
   private pauseSwallowUntil = 0;
+  /** The doorway the player most recently stood in, naming the checkpoint. */
+  private lastDoorId: string | null = null;
+  /** The last camera ping, so the DETAINED banner can name the tip-off. */
+  private lastCameraCue: { id: string; atMs: number } | null = null;
+  /** Screen-fixed chevron pointing at an agitated off-screen guard. */
+  private chevrons!: Phaser.GameObjects.Graphics;
+  /** The visual ear: rings at guard footfalls within hearing range. */
+  private noiseRings!: NoiseRings;
+  /** Scene-clock ts of the last guard footfall ring. */
+  private guardStepAt = 0;
+  /** The guard's position last frame, to ring only while they move. */
+  private prevGuardPos: { x: number; y: number } | null = null;
   /** The secondary camera rendering the live feed inside the multiplexer. */
   private feedCam?: Phaser.Cameras.Scene2D.Camera;
 
@@ -182,6 +196,14 @@ export class BuildingScene extends Phaser.Scene {
     this.doors = [];
     this.staff = [];
     this.followOffset.set(0, 0);
+    // The scene instance persists across restart(), so every per-life field
+    // must reset here. A camera cue from the previous life must not be blamed
+    // on the next banner, and a stale guard position must not ring a phantom
+    // footstep on the first frame.
+    this.lastCameraCue = null;
+    this.lastDoorId = null;
+    this.prevGuardPos = null;
+    this.guardStepAt = 0;
 
     const map = new BuildingMap(this, this.mapKey);
     this.mapZones = map.zones;
@@ -237,6 +259,9 @@ export class BuildingScene extends Phaser.Scene {
     this.controller = new MovementController(this.player);
     this.overlay = new DebugOverlay(this);
     this.guardDebug = this.add.graphics().setDepth(50);
+    // Screen-edge warning for an agitated guard outside the viewport.
+    this.chevrons = this.add.graphics().setScrollFactor(0).setDepth(998);
+    this.noiseRings = new NoiseRings(this);
     this.throwController = new ThrowController(
       this,
       (x, y) => this.onNoise(x, y),
@@ -397,6 +422,7 @@ export class BuildingScene extends Phaser.Scene {
     );
     for (const p of camTick.investigatePoints) {
       this.guard?.investigatePoint(p.x, p.y);
+      this.lastCameraCue = { id: p.id, atMs: now };
     }
     if (camTick.raisedAlert) {
       const level = raiseAlert(now);
@@ -420,6 +446,7 @@ export class BuildingScene extends Phaser.Scene {
         x: this.player.x,
         y: this.player.y,
         bolts: this.throwController.remaining,
+        label: 'PLANT SITE',
       });
     }
     if (objTick.exfilNow) {
@@ -457,9 +484,16 @@ export class BuildingScene extends Phaser.Scene {
       alertLevel: getMission().alertLevel,
     });
 
+    this.drawGuardChevron();
+    this.updateGuardNoiseRings(now);
+
     this.overlay.update(this.player, intent, {
       bolts: this.throwController.remaining,
       site: SITE_LABELS[getMission().alertLevel] ?? 'CALM',
+      loops: this.cameraSystem
+        .feedInfos(now)
+        .filter((f) => f.frozenRemainingMs > 0)
+        .map((f) => ({ id: f.id, secondsLeft: Math.ceil(f.frozenRemainingMs / 1000) })),
       light: this.guardDebugOn
         ? Math.round(this.lightModel.computeLightAt(this.player.x, this.player.y) * 100)
         : null,
@@ -645,6 +679,8 @@ export class BuildingScene extends Phaser.Scene {
       this.disguiseTag,
       ...this.overlay.screenObjects,
       this.guardDebug,
+      this.chevrons,
+      this.noiseRings.gameObject,
     ]);
   }
 
@@ -848,6 +884,9 @@ export class BuildingScene extends Phaser.Scene {
     // detain restart would respawn the player embedded in a closed barrier.
     for (const door of this.doors) {
       if (door.contains(this.player.x, this.player.y)) {
+        // Remember which doorway this was: the first interior checkpoint set
+        // just after clearing it takes this door's name for the banner.
+        this.lastDoorId = door.id;
         return;
       }
     }
@@ -865,6 +904,7 @@ export class BuildingScene extends Phaser.Scene {
         x: this.player.x,
         y: this.player.y,
         bolts: this.throwController.remaining,
+        label: this.lastDoorId ? `${this.lastDoorId.toUpperCase()} DOOR` : 'SIGN-IN POINT',
       });
     }
     this.playerWasOutside = outside;
@@ -918,7 +958,7 @@ export class BuildingScene extends Phaser.Scene {
           }
         }
       }
-      door.update(now, lockdown);
+      door.update(now, lockdown, this.player.x, this.player.y);
     }
   }
 
@@ -979,6 +1019,7 @@ export class BuildingScene extends Phaser.Scene {
     recordDetain();
     this.detained = true;
     this.physics.pause();
+    this.chevrons.clear();
 
     const cx = this.scale.width / 2;
     const cy = this.scale.height / 2;
@@ -1001,11 +1042,11 @@ export class BuildingScene extends Phaser.Scene {
     });
 
     this.add
-      .rectangle(cx, cy, 360, 96, PALETTE_HEX.base, 0.82)
+      .rectangle(cx, cy + 10, 560, 168, PALETTE_HEX.base, 0.82)
       .setScrollFactor(0)
       .setDepth(2000);
     this.add
-      .text(cx, cy - 8, 'DETAINED', {
+      .text(cx, cy - 24, 'DETAINED', {
         fontFamily: FONTS.display,
         fontSize: '64px',
         color: PALETTE.alarm,
@@ -1013,17 +1054,115 @@ export class BuildingScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(2001);
-    this.add
-      .text(cx, cy + 34, 'ESCORTED FROM SITE', {
-        fontFamily: FONTS.mono,
-        fontSize: '13px',
-        color: PALETTE.text,
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(2001);
 
-    this.time.delayedCall(DETECTION.timing.detainedFlashMs, () => this.scene.restart());
+    // Why, and where the run picks up: the two questions the blind playtest
+    // could not answer. A camera ping this recent gets named as the tip-off.
+    const cue = this.lastCameraCue;
+    const tipped =
+      cue !== null && this.time.now - cue.atMs <= READABILITY.detain.cameraTipWindowMs;
+    const cause = tipped
+      ? `CAUGHT BY PATROL, TIPPED OFF BY CAM ${cue.id.toUpperCase()}`
+      : 'CAUGHT BY SECURITY PATROL';
+    const resumeAt = getMission().checkpoint?.label ?? 'THE VAN';
+    const lines = ['ESCORTED FROM SITE', cause, `RESUMING AT: ${resumeAt}`];
+    lines.forEach((line, i) => {
+      this.add
+        .text(cx, cy + 22 + i * 20, line, {
+          fontFamily: FONTS.mono,
+          fontSize: '13px',
+          color: PALETTE.text,
+        })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(2001);
+    });
+
+    this.time.delayedCall(READABILITY.detain.bannerMs, () => this.scene.restart());
+  }
+
+  /**
+   * Rings guard footfalls the player can hear. Cadence and range live in
+   * config/readability.ts; rings only spawn while the guard actually moves,
+   * so a paused investigation goes quiet exactly like its audio does.
+   */
+  private updateGuardNoiseRings(now: number): void {
+    if (this.guard) {
+      const moved =
+        this.prevGuardPos !== null &&
+        (Math.abs(this.guard.x - this.prevGuardPos.x) > 0.5 ||
+          Math.abs(this.guard.y - this.prevGuardPos.y) > 0.5);
+      this.prevGuardPos = { x: this.guard.x, y: this.guard.y };
+      const inRange =
+        Phaser.Math.Distance.Between(this.player.x, this.player.y, this.guard.x, this.guard.y) <=
+        READABILITY.noiseRings.rangePx;
+      if (moved && inRange && now - this.guardStepAt >= READABILITY.noiseRings.stepIntervalMs) {
+        this.guardStepAt = now;
+        this.noiseRings.spawn(this.guard.x, this.guard.y, now);
+      }
+    }
+    this.noiseRings.update(now);
+  }
+
+  /**
+   * Points a screen-edge chevron at the guard when they are worked up but out
+   * of view: a hollow amber outline while curious, a doubled solid red chevron
+   * once they are fully ALERT (chasing, which is trouble, so red is honest).
+   * Shape and colour change together, per the never-colour-alone rule, the
+   * same reason the vision cones pair colour with an edge style. A calm
+   * patrol draws nothing, scouting still means walking over and looking.
+   */
+  private drawGuardChevron(): void {
+    this.chevrons.clear();
+    const guard = this.guard;
+    if (!guard || guard.state === 'patrol') {
+      return;
+    }
+    const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, guard.x, guard.y);
+    if (dist > READABILITY.chevron.rangePx) {
+      return;
+    }
+    const cam = this.cameras.main;
+    const sx = guard.x - cam.scrollX;
+    const sy = guard.y - cam.scrollY;
+    const w = this.scale.width;
+    const h = this.scale.height;
+    if (sx >= 0 && sx <= w && sy >= 0 && sy <= h) {
+      return; // visible: the guard themself is the warning
+    }
+
+    // Clamp the direction ray from the screen centre onto the inset border.
+    const { edgeInsetPx, sizePx } = READABILITY.chevron;
+    const dx = sx - w / 2;
+    const dy = sy - h / 2;
+    const scale = Math.min(
+      (w / 2 - edgeInsetPx) / Math.max(Math.abs(dx), 0.001),
+      (h / 2 - edgeInsetPx) / Math.max(Math.abs(dy), 0.001),
+      1
+    );
+    const px = w / 2 + dx * scale;
+    const py = h / 2 + dy * scale;
+    const angle = Math.atan2(dy, dx);
+    const triangle = (cx2: number, cy2: number) => {
+      const point = (a: number) => ({
+        x: cx2 + Math.cos(a) * sizePx,
+        y: cy2 + Math.sin(a) * sizePx,
+      });
+      return [point(angle), point(angle + 2.5), point(angle - 2.5)] as const;
+    };
+
+    if (guard.state === 'alert') {
+      // Chasing: two solid red arrowheads stacked along the direction.
+      this.chevrons.fillStyle(PALETTE_HEX.alarm, 0.95);
+      const back = triangle(px - Math.cos(angle) * sizePx * 1.4, py - Math.sin(angle) * sizePx * 1.4);
+      const front = triangle(px, py);
+      this.chevrons.fillTriangle(front[0].x, front[0].y, front[1].x, front[1].y, front[2].x, front[2].y);
+      this.chevrons.fillTriangle(back[0].x, back[0].y, back[1].x, back[1].y, back[2].x, back[2].y);
+    } else {
+      // Curious: a single hollow amber outline.
+      const [tip, left, right] = triangle(px, py);
+      this.chevrons.lineStyle(2, PALETTE_HEX.amber, 0.95);
+      this.chevrons.strokeTriangle(tip.x, tip.y, left.x, left.y, right.x, right.y);
+    }
   }
 
   /** The guard changed state: fire the alert sting and shake exactly on ALERT. */

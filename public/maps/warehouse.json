@@ -1632,7 +1632,7 @@
     },
     {
      "id": 36,
-     "name": "cage-door",
+     "name": "cage",
      "type": "badge",
      "x": 536,
      "y": 400,
@@ -1643,7 +1643,7 @@
     },
     {
      "id": 37,
-     "name": "office-door",
+     "name": "office",
      "type": "badge",
      "x": 1876,
      "y": 440,

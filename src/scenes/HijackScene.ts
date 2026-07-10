@@ -106,7 +106,11 @@ export class HijackScene extends Phaser.Scene {
     const info = this.building.hijackFeeds();
     this.feeds = info.feeds;
     const feed = this.feeds[this.feedIndex];
-    this.feedLabel.setText(feed ? `CAM ${pad2(this.feedIndex + 1)} / ${feed.id}` : 'NO SIGNAL');
+    // Uppercase to match every other surface that names a camera (the loop
+    // chip and the DETAINED banner), so one camera has one name.
+    this.feedLabel.setText(
+      feed ? `CAM ${pad2(this.feedIndex + 1)} / ${feed.id.toUpperCase()}` : 'NO SIGNAL'
+    );
     this.feedStatus.setText(feed ? feedStatusText(feed) : '');
     this.feedStatus.setColor(feed && feed.frozenRemainingMs > 0 ? PALETTE.amber : PALETTE.text);
     this.chargesText.setText(`LOOP CHARGES REMAINING: ${info.chargesRemaining}`);

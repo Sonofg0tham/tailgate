@@ -79,8 +79,6 @@ export const DETECTION = {
     maxCuriousMs: 9000,
     /** How long an ALERT guard keeps chasing after losing sight before giving up. */
     alertGiveUpMs: 4000,
-    /** How long the DETAINED flash shows before the run resets. */
-    detainedFlashMs: 1200,
   },
 
   /** How close (pixels, centre to centre) counts as the guard catching the player. */

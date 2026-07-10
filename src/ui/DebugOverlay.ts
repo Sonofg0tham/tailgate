@@ -20,6 +20,8 @@ export interface HudExtra {
   bolts: number;
   /** Building alert status line, e.g. "CALM". Always shown. */
   site: string;
+  /** Looped camera feeds still running, for the countdown chip. */
+  loops: { id: string; secondsLeft: number }[];
   /** Light level at the player as a percentage, shown only in guard debug. */
   light: number | null;
   /** Guard readouts, shown only when the guard debug view is on. */
@@ -52,6 +54,8 @@ export class DebugOverlay {
   private readonly ring: Phaser.GameObjects.Graphics;
   private readonly panel: Phaser.GameObjects.Rectangle;
   private readonly trim: Phaser.GameObjects.Rectangle;
+  private readonly loopPanel: Phaser.GameObjects.Rectangle;
+  private readonly loopText: Phaser.GameObjects.Text;
 
   constructor(scene: Phaser.Scene) {
     this.ring = scene.add.graphics().setDepth(30);
@@ -76,11 +80,31 @@ export class DebugOverlay {
       })
       .setScrollFactor(0)
       .setDepth(1000);
+
+    // The loop chip: only visible while a camera feed is looped, so the
+    // countdown that used to live only inside the console is on screen where
+    // the sneaking happens.
+    this.loopPanel = scene.add
+      .rectangle(8, 8, 178, 24, PALETTE_HEX.sheet, 0.88)
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(999)
+      .setStrokeStyle(1, PALETTE_HEX.amber, 0.95)
+      .setVisible(false);
+    this.loopText = scene.add
+      .text(22, 8, '', {
+        fontFamily: FONTS.mono,
+        fontSize: '13px',
+        color: PALETTE.amber,
+      })
+      .setScrollFactor(0)
+      .setDepth(1000)
+      .setVisible(false);
   }
 
   /** Every screen-fixed piece, so secondary feed cameras can ignore them. */
   get screenObjects(): Phaser.GameObjects.GameObject[] {
-    return [this.panel, this.trim, this.text];
+    return [this.panel, this.trim, this.text, this.loopPanel, this.loopText];
   }
 
   update(player: Player, intent: MovementIntent, extra: HudExtra): void {
@@ -129,5 +153,23 @@ export class DebugOverlay {
     const trim = SITE_TRIM[extra.site] ?? SITE_TRIM.CALM;
     this.panel.setStrokeStyle(1, trim.tint, trim.alpha);
     this.trim.setFillStyle(trim.tint, trim.alpha);
+
+    // The loop chip sits just under the main panel while any feed is looped.
+    const looping = extra.loops.length > 0;
+    this.loopPanel.setVisible(looping);
+    this.loopText.setVisible(looping);
+    if (looping) {
+      this.loopText.setScale(getSettings().hudScale);
+      this.loopText.setText(
+        extra.loops.map((l) => `CAM LOOP  ${l.id.toUpperCase()}  ${l.secondsLeft}s`)
+      );
+      const chipY = 8 + this.panel.height + 6;
+      this.loopPanel.setY(chipY);
+      this.loopText.setY(chipY + 8);
+      this.loopPanel.setSize(
+        Math.max(178, this.loopText.displayWidth + 28),
+        this.loopText.displayHeight + 16
+      );
+    }
   }
 }
