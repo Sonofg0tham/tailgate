@@ -13,6 +13,8 @@ export interface Checkpoint {
   y: number;
   /** Bolts the player had when the checkpoint was set. */
   bolts: number;
+  /** Where this is, for the DETAINED banner, e.g. "SMOKERS DOOR". */
+  label: string;
 }
 
 interface MissionState {

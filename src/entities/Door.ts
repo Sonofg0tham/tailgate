@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { DOORS } from '../config/doors';
+import { FONTS, PALETTE } from '../config/palette';
+import { READABILITY } from '../config/readability';
 import type { DoorKind, DoorRect } from '../world/BuildingMap';
 
 /** Barrier fill colour per door type, all distinct from the brick walls. */
@@ -21,7 +23,13 @@ function scheduleOpen(now: number, cfg: { openForMs: number; closedForMs: number
  * barrier you collide with; open, the barrier and its collision switch off so
  * anyone can pass. Badge doors open only when staff badge through (then stay
  * open for the tailgate window); smokers' and shutter doors open on their own
- * repeating schedules. A small pip above the door shows open (green) or shut.
+ * repeating schedules.
+ *
+ * Every door carries a wall-mounted state lamp, readable across the map: a
+ * green circle glow when open, an amber square glow when shut (shape and
+ * colour both change, never colour alone). The door's name fades in above the
+ * lamp as the player gets further away, so a trek across the car park is a
+ * decision, not a gamble.
  */
 export class Door {
   readonly rect: DoorRect;
@@ -29,7 +37,8 @@ export class Door {
   private isOpenNow = false;
   private tailgateCloseAt = 0; // badge doors only
   private readonly barrier: Phaser.GameObjects.Rectangle;
-  private readonly pip: Phaser.GameObjects.Graphics;
+  private readonly lamp: Phaser.GameObjects.Graphics;
+  private readonly label: Phaser.GameObjects.Text;
 
   constructor(scene: Phaser.Scene, rect: DoorRect) {
     this.rect = rect;
@@ -41,7 +50,18 @@ export class Door {
       .setDepth(11);
     scene.physics.add.existing(this.barrier, true);
 
-    this.pip = scene.add.graphics().setDepth(13);
+    // The lamp and label render above the lighting veil (depth 25): a lit
+    // fixture is visible in the dark, that is its whole job.
+    this.lamp = scene.add.graphics().setDepth(26);
+    this.label = scene.add
+      .text(cx, rect.y - 26, rect.id.toUpperCase(), {
+        fontFamily: FONTS.mono,
+        fontSize: '11px',
+        color: PALETTE.text,
+      })
+      .setOrigin(0.5)
+      .setDepth(26)
+      .setAlpha(0);
     this.applyOpen(false);
   }
 
@@ -99,9 +119,10 @@ export class Door {
   /**
    * Recomputes open/closed for this frame. In lockdown the badge doors deny all
    * and the smokers' door stays sealed; only the loading-dock shutter keeps its
-   * delivery schedule, so it is the one way out.
+   * delivery schedule, so it is the one way out. The player's position drives
+   * the label fade: the further away they are, the stronger the door's name.
    */
-  update(now: number, lockdown = false): void {
+  update(now: number, lockdown = false, playerX?: number, playerY?: number): void {
     let shouldOpen: boolean;
     switch (this.rect.kind) {
       case 'smokers':
@@ -118,6 +139,17 @@ export class Door {
     if (shouldOpen !== this.isOpenNow) {
       this.applyOpen(shouldOpen);
     }
+
+    if (playerX !== undefined && playerY !== undefined) {
+      const { labelFadeStartPx, labelFadeFullPx, labelMaxAlpha } = READABILITY.doorLamp;
+      const dist = Phaser.Math.Distance.Between(playerX, playerY, this.centreX, this.centreY);
+      const t = Phaser.Math.Clamp(
+        (dist - labelFadeStartPx) / (labelFadeFullPx - labelFadeStartPx),
+        0,
+        1
+      );
+      this.label.setAlpha(t * labelMaxAlpha);
+    }
   }
 
   private applyOpen(open: boolean): void {
@@ -125,11 +157,22 @@ export class Door {
     this.barrier.setVisible(!open);
     this.body.enable = !open;
 
-    // State pip above the door: green open, amber shut.
+    // The state lamp: green circle when open, amber square when shut, each
+    // inside a soft glow of the same colour so it reads across the map.
+    const { glowRadiusPx, coreRadiusPx } = READABILITY.doorLamp;
     const cx = this.rect.x + this.rect.width / 2;
     const py = this.rect.y - 10;
-    this.pip.clear();
-    this.pip.fillStyle(open ? 0x36f06a : 0xffb000, 1);
-    this.pip.fillCircle(cx, py, 5);
+    const tint = open ? 0x36f06a : 0xffb000;
+    this.lamp.clear();
+    this.lamp.fillStyle(tint, 0.16);
+    this.lamp.fillCircle(cx, py, glowRadiusPx);
+    this.lamp.fillStyle(tint, 0.3);
+    this.lamp.fillCircle(cx, py, glowRadiusPx * 0.6);
+    this.lamp.fillStyle(tint, 1);
+    if (open) {
+      this.lamp.fillCircle(cx, py, coreRadiusPx);
+    } else {
+      this.lamp.fillRect(cx - coreRadiusPx, py - coreRadiusPx, coreRadiusPx * 2, coreRadiusPx * 2);
+    }
   }
 }
