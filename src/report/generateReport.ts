@@ -9,6 +9,7 @@
  */
 
 import type { IngressRoute, RunStats } from '../state/runStats';
+import { DOORS } from '../config/doors';
 import { OBJECTIVES } from '../config/objectives';
 
 /** The four outcome ratings, best to worst. */
@@ -184,7 +185,7 @@ export function generateReport(
   if (used(stats.ingressRoutes, 'reception') || stats.tailgated) {
     findings.push({
       severity: 'HIGH',
-      text: `Consultant tailgated a staff member through ${venue.badgeGate} at ${stampClock(stats.ingressAtMs.reception ?? 0)}. Door dwell time (1.6s) permits unauthorised entry.`,
+      text: `Consultant tailgated a staff member through ${venue.badgeGate} at ${stampClock(stats.ingressAtMs.reception ?? 0)}. Door dwell time (${(DOORS.tailgateWindowMs / 1000).toFixed(1)}s) permits unauthorised entry.`,
     });
   }
   if (used(stats.ingressRoutes, 'shutter')) {

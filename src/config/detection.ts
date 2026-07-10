@@ -44,8 +44,13 @@ export const DETECTION = {
       walk: 2.2,
       run: 5.0,
     },
-    /** How fast suspicion drains, points/second, while the player is unseen. */
-    decayPerSecond: 22,
+    /**
+     * How fast suspicion drains, points/second, while the player is unseen.
+     * Phase 14 playtest: at 22 a near-miss shadowed the player for so long
+     * that the next brush with the cone tipped straight into CURIOUS. 30
+     * lets a clean break feel like one.
+     */
+    decayPerSecond: 30,
     /** At or above this, a PATROL guard becomes CURIOUS and investigates. */
     curiousThreshold: 45,
     /** At 100 the guard goes ALERT. Full is always 100. */
