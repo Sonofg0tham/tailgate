@@ -12,8 +12,13 @@ export const HIJACK = {
     interactRangePx: 60,
   },
 
-  /** How long a looped feed keeps its camera from detecting anything. */
-  freezeDurationMs: 12000,
+  /**
+   * How long a looped feed keeps its camera from detecting anything.
+   * Phase 14 playtest: at 12s, looping the server camera then travelling to
+   * the rack left no margin for the 3s plant hold; one hesitation meant a
+   * detain. 18s makes the loop a plan rather than a frame-perfect trick.
+   */
+  freezeDurationMs: 18000,
 
   /** Per-camera re-sync time after a loop ends before it can be looped again. */
   cameraCooldownMs: 45000,

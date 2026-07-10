@@ -60,7 +60,7 @@ Clear a contract at any rating and the next one is countersigned on the consulta
 
 Two tools sit alongside the classic tailgating, distraction and breaker tricks:
 
-- **CCTV multiplexer.** Reach the security office console and you can view every camera feed and spend a limited charge to loop one camera blind for 12 seconds. It locks out once the site alert rises far enough, and any hijack you pull off gets a mention in the Engagement Report.
+- **CCTV multiplexer.** Reach the security office console and you can view every camera feed and spend a limited charge to loop one camera blind for 18 seconds. It locks out once the site alert rises far enough, and any hijack you pull off gets a mention in the Engagement Report.
 - **Hi-vis disguise.** Wear it and guards at a distance are slower to get suspicious of you. It buys nothing up close, does nothing in restricted zones or once the site alert is up, and it burns for the rest of the run the moment a guard goes to full alert while you are wearing it.
 
 ## Tech stack

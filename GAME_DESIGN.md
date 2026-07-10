@@ -26,7 +26,7 @@ Target mission length: 10-15 minutes for a first clear.
 
 - **Move** at three speeds: creep (silent), walk (small noise radius), run (large noise radius). The primary control is an Xbox gamepad: the left analogue stick sets direction and speed together, by how far it is pushed. Keyboard is the full fallback: default pace is walk, hold Shift to creep, hold C to run.
 - **Interact**: doors, breaker box, objectives. Context prompt appears when in range.
-- **Tailgate**: staff badge through secured doors on schedules. The door stays open 1.6 seconds after they pass. Slipping through in that window is entry without a badge. A guard who sees it happen goes suspicious.
+- **Tailgate**: staff badge through secured doors on schedules. The door stays open 2 seconds after they pass (tuned in `config/doors.ts`). Slipping through in that window is entry without a badge. A guard who sees it happen goes suspicious.
 - **Distract**: throw a bolt to create a noise ping guards investigate. Supply of 3 per run.
 
 No combat. No takedowns. If a guard reaches the player, the player is detained.
@@ -102,7 +102,7 @@ A one-page pentest report generated from the actual run, rendered in IBM Plex Mo
 
 ## Accessibility (design constraints, not afterthoughts)
 
-- No twitch inputs. The tailgate window is generous (1.6s) and interactions are hold, not mash.
+- No twitch inputs. The tailgate window is generous (2.0s as of Phase 14) and interactions are hold, not mash.
 - An Xbox gamepad is the primary control: the left analogue stick sets direction and variable speed in one motion, so changing pace needs no twitch key combination. Keyboard is a full fallback. Mobile and touch remain out of scope.
 - Guard and camera states are never communicated by colour alone: cone colour changes AND edge style changes (solid, dashed, pulsing) AND an audio cue fires.
 - High-contrast UI, scalable HUD text setting, screen shake has an off toggle.
@@ -173,6 +173,22 @@ The Phase 10 pipeline. A new level is greyboxed first; when the layout and routi
 9. Accessibility: cones stay above the lighting veil, state changes are never colour alone, the brightness floor is respected, and every new motion is small and slow.
 10. Audit: `npm run typecheck`, `npm run lint`, CREDITS.md covers every file added, and a playtest on pad first, keyboard second.
 
+## v3 build phases
+
+v3 was confirmed by Craig in July 2026 after a blind playtest of the shipped campaign. The verdict: the identity and the report are the game's strongest cards; the friction is world readability, onboarding and a handful of snags. Report sharing as an image is un-parked from the parking lot below. Same rules as ever: one branch and one PR per phase, everything data-driven, typecheck and lint clean per phase.
+
+**Phase 14, snags and sharing.** Fix the playtest bugs (report stamp overlapping the summary, the console-exit Escape also opening pause, stray clicks counting as thrown bolts, no abandon option in pause), restyle the HUD as a field-readout chip on the artefact system with debug lines gated to dev builds, add report PNG export from the report screen, and a gentle first tuning pass (longer camera loop, longer door windows, faster suspicion decay) for Craig to iterate on.
+Done when: all four bugs are fixed and verified in play, the exported PNG reads as a clean document, and the tuning numbers carry playtest rationale comments.
+
+**Phase 15, world readability.** Door state lamps readable at range with the door's name, a what-caught-you line under the DETAINED banner plus where the run resumes, an in-world loop countdown chip while a feed is frozen, screen-edge chevrons for off-screen guards at CURIOUS or worse, and faint noise rings for guard footsteps in range. Never colour alone, red stays detection-only.
+Done when: a new player can explain from the screen why they were caught and which door is worth walking to.
+
+**Phase 16, onboarding briefings.** A pre-mission engagement briefing per contract (styled as the letter of authorisation, shown before a contract's first run and reachable from contract select) whose INTEL section teaches the venue's signature mechanic in fiction. First-run contextual hints defined in level data, each firing once per profile.
+Done when: each contract briefs its own mechanic, hints never repeat, and all copy lives in data.
+
+**Phase 17, audio atmosphere.** A procedural tension bed that tracks the alert ladder (silent at CALM, pulsing at CAUTIOUS, darker at LOCKDOWN), distinct stingers for guard-curious, camera-ping and camera-alarm, and per-venue weighting of the ambience beds. All synthesised, no asset files.
+Done when: the alert ladder is audible with the screen covered, and nothing clips at full volume.
+
 ## v2 parking lot (still parked, do not build)
 
-Takedowns and body management, roof ingress, daily-seed leaderboard, mobile and touch support, report sharing as an image.
+Takedowns and body management, roof ingress, daily-seed leaderboard, mobile and touch support. (Report sharing as an image was un-parked into Phase 14.)

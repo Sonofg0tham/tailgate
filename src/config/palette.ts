@@ -11,6 +11,8 @@ export const PALETTE = {
   text: '#C7CDD4',
   /** Detection and alarm states ONLY. If red appears, the player is in trouble. */
   alarm: '#FF3B30',
+  /** Raised "printed sheet" surface: report page, badge card, HUD chip. */
+  sheet: '#151A21',
 } as const;
 
 /** Same colours as numbers, for Phaser fill/tint APIs. */
@@ -19,6 +21,7 @@ export const PALETTE_HEX = {
   amber: 0xffb000,
   text: 0xc7cdd4,
   alarm: 0xff3b30,
+  sheet: 0x151a21,
 } as const;
 
 export const FONTS = {

@@ -9,6 +9,7 @@
  */
 
 import type { IngressRoute, RunStats } from '../state/runStats';
+import { DOORS } from '../config/doors';
 import { OBJECTIVES } from '../config/objectives';
 
 /** The four outcome ratings, best to worst. */
@@ -184,7 +185,7 @@ export function generateReport(
   if (used(stats.ingressRoutes, 'reception') || stats.tailgated) {
     findings.push({
       severity: 'HIGH',
-      text: `Consultant tailgated a staff member through ${venue.badgeGate} at ${stampClock(stats.ingressAtMs.reception ?? 0)}. Door dwell time (1.6s) permits unauthorised entry.`,
+      text: `Consultant tailgated a staff member through ${venue.badgeGate} at ${stampClock(stats.ingressAtMs.reception ?? 0)}. Door dwell time (${(DOORS.tailgateWindowMs / 1000).toFixed(1)}s) permits unauthorised entry.`,
     });
   }
   if (used(stats.ingressRoutes, 'shutter')) {
@@ -269,11 +270,12 @@ export function generateReport(
   if (stats.disguiseBlownAtMs !== null) {
     clientDetections.push('Hi-vis disguise challenged by security and considered burned.');
   }
-  if (stats.maxAlertLevel >= 1) {
-    clientDetections.push('Site alert level raised to CAUTIOUS.');
-  }
+  // Only the highest alert reached gets a line: lockdown implies cautious,
+  // and the report page has a fixed amount of paper to say it on.
   if (stats.maxAlertLevel >= 2) {
     clientDetections.push('Full site lockdown initiated.');
+  } else if (stats.maxAlertLevel >= 1) {
+    clientDetections.push('Site alert level raised to CAUTIOUS.');
   }
   if (clientDetections.length === 0) {
     clientDetections.push('None. Client security did not detect the assessment.');

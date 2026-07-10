@@ -12,9 +12,9 @@ const PAD_START = 9;
 
 /**
  * The pause screen, styled as a lanyard access badge per the identity spec. It
- * overlays the frozen building. Resume, restart the engagement, or open
- * settings. Pressing Start again or Escape resumes, so a pad player never needs
- * the keyboard.
+ * overlays the frozen building. Resume, restart the engagement, abandon it for
+ * the contract schedule, or open settings. Pressing Start again or Escape
+ * resumes, so a pad player never needs the keyboard.
  */
 export class PauseScene extends Phaser.Scene {
   private menu!: MenuController;
@@ -32,7 +32,7 @@ export class PauseScene extends Phaser.Scene {
     this.drawLanyard();
 
     const top = CARD.y - CARD.h / 2;
-    this.add.rectangle(CARD.x, CARD.y, CARD.w, CARD.h, 0x151a21).setStrokeStyle(1, PALETTE_HEX.amber, 0.9);
+    this.add.rectangle(CARD.x, CARD.y, CARD.w, CARD.h, PALETTE_HEX.sheet).setStrokeStyle(1, PALETTE_HEX.amber, 0.9);
 
     // Amber header band with dark text, like the coloured strip on a real badge.
     this.add.rectangle(CARD.x, top + 20, CARD.w, 34, PALETTE_HEX.amber);
@@ -78,9 +78,10 @@ export class PauseScene extends Phaser.Scene {
       [
         { kind: 'action', label: 'RESUME', onSelect: () => this.resume() },
         { kind: 'action', label: 'RESTART ENGAGEMENT', onSelect: () => this.restart() },
+        { kind: 'action', label: 'ABANDON ENGAGEMENT', onSelect: () => this.abandon() },
         { kind: 'action', label: 'SETTINGS', onSelect: () => this.openSettings() },
       ],
-      { x: CARD.x, top: top + 300, rowHeight: 36, width: 320, labelSize: 19 },
+      { x: CARD.x, top: top + 292, rowHeight: 34, width: 320, labelSize: 19 },
       { onBack: () => this.resume() }
     );
 
@@ -125,6 +126,19 @@ export class PauseScene extends Phaser.Scene {
     resetRunStats();
     this.scene.stop();
     this.scene.start('building');
+  }
+
+  /**
+   * Walks off the job and back to the contract schedule. The run in progress
+   * is discarded; the contract's best rating and unlocks are untouched, so
+   * nothing is lost beyond the attempt itself.
+   */
+  private abandon(): void {
+    resetMission();
+    resetRunStats();
+    this.scene.stop('building');
+    this.scene.stop();
+    this.scene.start('contracts');
   }
 
   private openSettings(): void {

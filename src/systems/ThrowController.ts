@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { INPUT } from '../config/input';
 import { THROW } from '../config/throw';
 import { Bolt } from '../entities/Bolt';
 import { recordBoltThrown } from '../state/runStats';
@@ -16,7 +17,10 @@ export class ThrowController {
   private boltsLeft: number;
   private readonly bolts: Bolt[] = [];
   private readonly reticle: Phaser.GameObjects.Graphics;
-  private prevThrow = false;
+  private prevPadThrow = false;
+  private pointerThrowQueued = false;
+  /** When the window last regained focus, to swallow the refocus click. */
+  private refocusedAt = 0;
   private readonly onNoise: (x: number, y: number) => void;
 
   constructor(
@@ -27,6 +31,49 @@ export class ThrowController {
     this.onNoise = onNoise;
     this.boltsLeft = initialBolts;
     this.reticle = scene.add.graphics().setDepth(45);
+
+    // Throws come from real pointerdown events on this scene, not from polling
+    // the button state. Polling made every stray click a throw: the click that
+    // refocuses the window after alt-tab, or a press carried over from another
+    // screen, each quietly cost a bolt and a report finding.
+    scene.input.on('pointerdown', this.onPointerDown, this);
+
+    const onRefocus = (): void => {
+      this.refocusedAt = performance.now();
+    };
+    scene.game.events.on(Phaser.Core.Events.FOCUS, onRefocus);
+    scene.game.events.on(Phaser.Core.Events.VISIBLE, onRefocus);
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      scene.game.events.off(Phaser.Core.Events.FOCUS, onRefocus);
+      scene.game.events.off(Phaser.Core.Events.VISIBLE, onRefocus);
+    });
+  }
+
+  /**
+   * Drops any queued click. The scene calls this on frames where a throw must
+   * not fire (the CCTV console is open, so clicks belong to the multiplexer),
+   * otherwise a click made there would launch a bolt the moment it closes.
+   */
+  discardQueued(): void {
+    this.pointerThrowQueued = false;
+  }
+
+  /** Queues a throw for the next update, unless the click is window admin. */
+  private onPointerDown(pointer: Phaser.Input.Pointer): void {
+    if (pointer.button !== 0) {
+      return;
+    }
+    // The click that gives the window focus back is not a throw. Depending on
+    // the platform the focus lands just before or just after the pointer event,
+    // so check both sides: the document still unfocused, or focus so fresh it
+    // must have come from this same click.
+    if (typeof document !== 'undefined' && !document.hasFocus()) {
+      return;
+    }
+    if (performance.now() - this.refocusedAt < INPUT.swallowWindowMs) {
+      return;
+    }
+    this.pointerThrowQueued = true;
   }
 
   get remaining(): number {
@@ -43,13 +90,16 @@ export class ThrowController {
     const aim = this.computeAim(scene, playerX, playerY, pad);
     this.drawReticle(playerX, playerY, aim);
 
-    const throwHeld = this.readThrow(scene, pad);
-    if (throwHeld && !this.prevThrow && this.boltsLeft > 0) {
+    const padThrow = pad !== undefined && pad.R2 > 0.5;
+    const throwRequested = this.pointerThrowQueued || (padThrow && !this.prevPadThrow);
+    this.pointerThrowQueued = false;
+    this.prevPadThrow = padThrow;
+
+    if (throwRequested && this.boltsLeft > 0) {
       this.bolts.push(new Bolt(scene, playerX, playerY, aim.x, aim.y, this.onNoise));
       this.boltsLeft -= 1;
       recordBoltThrown();
     }
-    this.prevThrow = throwHeld;
 
     for (let i = this.bolts.length - 1; i >= 0; i--) {
       if (this.bolts[i].update(scene, dtMs)) {
@@ -79,14 +129,6 @@ export class ThrowController {
       return player.add(to.normalize().scale(THROW.maxRangePx));
     }
     return aim;
-  }
-
-  /** True while the throw control is pressed (left click or right trigger). */
-  private readThrow(scene: Phaser.Scene, pad: Phaser.Input.Gamepad.Gamepad | undefined): boolean {
-    if (pad && pad.R2 > 0.5) {
-      return true;
-    }
-    return scene.input.activePointer.leftButtonDown();
   }
 
   private drawReticle(px: number, py: number, aim: Phaser.Math.Vector2): void {

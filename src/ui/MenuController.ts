@@ -161,6 +161,13 @@ export class MenuController {
     this.prevPad = { up: padUp, down: padDown, left: padLeft, right: padRight, a: padA, b: padB };
   }
 
+  /** Shows or hides every row and the caret, e.g. while a snapshot is taken. */
+  setVisible(visible: boolean): void {
+    this.caret.setVisible(visible);
+    for (const label of this.labels) label.setVisible(visible);
+    for (const value of this.values) value?.setVisible(visible);
+  }
+
   /** Removes every game object and input capture this controller created. */
   destroy(): void {
     this.caret.destroy();
