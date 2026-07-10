@@ -57,7 +57,7 @@ export class DebugOverlay {
     this.ring = scene.add.graphics().setDepth(30);
 
     this.panel = scene.add
-      .rectangle(8, 8, 178, 88, 0x11161d, 0.88)
+      .rectangle(8, 8, 178, 88, PALETTE_HEX.sheet, 0.88)
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(999)

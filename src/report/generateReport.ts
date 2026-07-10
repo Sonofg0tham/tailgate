@@ -270,11 +270,12 @@ export function generateReport(
   if (stats.disguiseBlownAtMs !== null) {
     clientDetections.push('Hi-vis disguise challenged by security and considered burned.');
   }
-  if (stats.maxAlertLevel >= 1) {
-    clientDetections.push('Site alert level raised to CAUTIOUS.');
-  }
+  // Only the highest alert reached gets a line: lockdown implies cautious,
+  // and the report page has a fixed amount of paper to say it on.
   if (stats.maxAlertLevel >= 2) {
     clientDetections.push('Full site lockdown initiated.');
+  } else if (stats.maxAlertLevel >= 1) {
+    clientDetections.push('Site alert level raised to CAUTIOUS.');
   }
   if (clientDetections.length === 0) {
     clientDetections.push('None. Client security did not detect the assessment.');

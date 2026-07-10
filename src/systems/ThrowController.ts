@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { INPUT } from '../config/input';
 import { THROW } from '../config/throw';
 import { Bolt } from '../entities/Bolt';
 import { recordBoltThrown } from '../state/runStats';
@@ -48,6 +49,15 @@ export class ThrowController {
     });
   }
 
+  /**
+   * Drops any queued click. The scene calls this on frames where a throw must
+   * not fire (the CCTV console is open, so clicks belong to the multiplexer),
+   * otherwise a click made there would launch a bolt the moment it closes.
+   */
+  discardQueued(): void {
+    this.pointerThrowQueued = false;
+  }
+
   /** Queues a throw for the next update, unless the click is window admin. */
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
     if (pointer.button !== 0) {
@@ -60,7 +70,7 @@ export class ThrowController {
     if (typeof document !== 'undefined' && !document.hasFocus()) {
       return;
     }
-    if (performance.now() - this.refocusedAt < 250) {
+    if (performance.now() - this.refocusedAt < INPUT.swallowWindowMs) {
       return;
     }
     this.pointerThrowQueued = true;

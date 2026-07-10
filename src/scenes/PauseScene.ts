@@ -12,9 +12,9 @@ const PAD_START = 9;
 
 /**
  * The pause screen, styled as a lanyard access badge per the identity spec. It
- * overlays the frozen building. Resume, restart the engagement, or open
- * settings. Pressing Start again or Escape resumes, so a pad player never needs
- * the keyboard.
+ * overlays the frozen building. Resume, restart the engagement, abandon it for
+ * the contract schedule, or open settings. Pressing Start again or Escape
+ * resumes, so a pad player never needs the keyboard.
  */
 export class PauseScene extends Phaser.Scene {
   private menu!: MenuController;
@@ -32,7 +32,7 @@ export class PauseScene extends Phaser.Scene {
     this.drawLanyard();
 
     const top = CARD.y - CARD.h / 2;
-    this.add.rectangle(CARD.x, CARD.y, CARD.w, CARD.h, 0x151a21).setStrokeStyle(1, PALETTE_HEX.amber, 0.9);
+    this.add.rectangle(CARD.x, CARD.y, CARD.w, CARD.h, PALETTE_HEX.sheet).setStrokeStyle(1, PALETTE_HEX.amber, 0.9);
 
     // Amber header band with dark text, like the coloured strip on a real badge.
     this.add.rectangle(CARD.x, top + 20, CARD.w, 34, PALETTE_HEX.amber);

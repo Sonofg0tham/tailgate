@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { FONTS, PALETTE } from '../config/palette';
+import { FONTS, PALETTE, PALETTE_HEX } from '../config/palette';
 import { generateReport, type Finding, type ReportModel } from '../report/generateReport';
 import { getActiveLevel, nextLevelAfter } from '../state/levels';
 import { getMission, resetMission } from '../state/mission';
@@ -19,6 +19,19 @@ const PAGE = {
 const WRAP_WIDTH = PAGE.width - PAGE.padX * 2 - 70;
 
 /**
+ * Fixed rows measured up from the page's bottom edge. The summary block and
+ * the menu live in reserved slots; the flowing sections above (findings and
+ * detections) are capped so they can never run into them, however messy the
+ * run was.
+ */
+const SLOTS = {
+  /** Centre of the first menu row. */
+  menuTop: 96,
+  /** The SUMMARY section title. */
+  summaryTitle: 168,
+} as const;
+
+/**
  * The Engagement Report end screen. Renders the report built by
  * generateReport() as a one-page corporate access-control artefact: header,
  * findings, client detections, a summary block and the big outcome rating.
@@ -29,6 +42,10 @@ const WRAP_WIDTH = PAGE.width - PAGE.padX * 2 - 70;
  */
 export class ReportScene extends Phaser.Scene {
   private menu!: MenuController;
+  /** True from EXPORT REPORT until the snapshot lands; freezes the menu. */
+  private exporting = false;
+  /** The fading EXPORTED caption, destroyed before any new capture. */
+  private exportNote?: Phaser.GameObjects.Text;
 
   constructor() {
     super('report');
@@ -59,23 +76,33 @@ export class ReportScene extends Phaser.Scene {
     const centreY = this.scale.height / 2;
 
     // Base backdrop and the lighter "sheet of paper" panel with a thin amber border.
-    this.add.rectangle(centreX, centreY, this.scale.width, this.scale.height, 0x0e1116);
+    this.add.rectangle(centreX, centreY, this.scale.width, this.scale.height, PALETTE_HEX.base);
     this.add
-      .rectangle(centreX, centreY, PAGE.width, PAGE.height, 0x151a21)
-      .setStrokeStyle(1, 0xffb000, 0.9);
+      .rectangle(centreX, centreY, PAGE.width, PAGE.height, PALETTE_HEX.sheet)
+      .setStrokeStyle(1, PALETTE_HEX.amber, 0.9);
 
     const left = centreX - PAGE.width / 2 + PAGE.padX;
+    const pageBottom = centreY + PAGE.height / 2;
     let y = centreY - PAGE.height / 2 + PAGE.padTop;
 
+    // The detections block has a known height, so the findings list gets
+    // whatever room remains above the fixed summary slot.
+    const summaryTitleY = pageBottom - SLOTS.summaryTitle;
+    const detectionsHeight = 18 + model.clientDetections.length * 14 + 8;
+    const findingsMaxY = summaryTitleY - 12 - detectionsHeight;
+
     y = this.drawHeader(left, y, model);
-    y = this.drawFindings(left, y, model.findings);
-    y = this.drawClientDetections(left, y, model);
-    this.drawSummary(left, y, model);
+    y = this.drawFindings(left, y, model.findings, findingsMaxY);
+    this.drawClientDetections(left, y, model);
+    this.drawSummary(left, summaryTitleY, model);
     this.drawRatingStamp(centreX, centreY, model);
     this.buildMenu(centreX);
   }
 
   update(): void {
+    if (this.exporting) {
+      return; // the menu is hidden for the capture; it must not act either
+    }
     const plugin = this.input.gamepad;
     const pad = plugin && plugin.total > 0 ? plugin.getPad(0) : undefined;
     this.menu.update(pad);
@@ -107,8 +134,12 @@ export class ReportScene extends Phaser.Scene {
     return y;
   }
 
-  /** Draws the FINDINGS section. Line height tightens if there are many. */
-  private drawFindings(left: number, top: number, findings: Finding[]): number {
+  /**
+   * Draws the FINDINGS section. Line height tightens if there are many, and
+   * the list is capped at maxY: findings that will not fit collapse into one
+   * "further findings on file" line, so a kitchen-sink run stays on the page.
+   */
+  private drawFindings(left: number, top: number, findings: Finding[], maxY: number): number {
     let y = top;
     this.mono(left, y, 'FINDINGS', 12, PALETTE.amber);
     y += 18;
@@ -121,11 +152,18 @@ export class ReportScene extends Phaser.Scene {
     // Reserve vertical room so findings never collide with the sections below.
     const lineGap = findings.length > 5 ? 13 : 15;
     const blockGap = findings.length > 5 ? 4 : 7;
+    const overflowLineHeight = 15;
 
-    for (const finding of findings) {
+    for (let i = 0; i < findings.length; i++) {
+      const finding = findings[i];
       const isSevere = finding.severity === 'CRITICAL' || finding.severity === 'HIGH';
-      const label = `${finding.ref}  [${finding.severity}]`;
-      this.mono(left, y, label, 11, isSevere ? PALETTE.amber : PALETTE.text);
+      const label = this.mono(
+        left,
+        y,
+        `${finding.ref}  [${finding.severity}]`,
+        11,
+        isSevere ? PALETTE.amber : PALETTE.text
+      );
 
       const body = this.add.text(left + 130, y, finding.text, {
         fontFamily: FONTS.mono,
@@ -134,8 +172,20 @@ export class ReportScene extends Phaser.Scene {
         wordWrap: { width: WRAP_WIDTH },
         lineSpacing: 2,
       });
-      const bodyHeight = body.height;
-      y += Math.max(lineGap, bodyHeight) + blockGap;
+      const advance = Math.max(lineGap, body.height) + blockGap;
+
+      // Every finding but the last must also leave room for the overflow line.
+      const isLast = i === findings.length - 1;
+      const fits = y + advance + (isLast ? 0 : overflowLineHeight) <= maxY;
+      if (!fits) {
+        label.destroy();
+        body.destroy();
+        const remaining = findings.length - i;
+        this.mono(left, y, `Plus ${remaining} further finding(s) on file with the client.`, 11, PALETTE.text);
+        y += overflowLineHeight;
+        break;
+      }
+      y += advance;
     }
 
     return y + 4;
@@ -158,7 +208,10 @@ export class ReportScene extends Phaser.Scene {
     return y + 8;
   }
 
-  /** Draws the SUMMARY row and the dry closing remark beneath it. */
+  /**
+   * Draws the SUMMARY row and the dry closing remark beneath it, in the fixed
+   * slot above the menu (see SLOTS), so the flow above can never reach it.
+   */
   private drawSummary(left: number, top: number, model: ReportModel): void {
     let y = top;
     this.mono(left, y, 'SUMMARY', 12, PALETTE.amber);
@@ -187,7 +240,7 @@ export class ReportScene extends Phaser.Scene {
     // Red is reserved for detection states; DETAINED is one, the rest amber.
     const detained = model.rating === 'DETAINED';
     const colour = detained ? PALETTE.alarm : PALETTE.amber;
-    const tint = detained ? 0xff3b30 : 0xffb000;
+    const tint = detained ? PALETTE_HEX.alarm : PALETTE_HEX.amber;
 
     const x = centreX + PAGE.width / 2 - PAGE.padX - 150;
     const y = centreY - PAGE.height / 2 + 44;
@@ -211,7 +264,7 @@ export class ReportScene extends Phaser.Scene {
 
   /** The end-of-run actions, navigable on pad, keyboard and mouse alike. */
   private buildMenu(centreX: number): void {
-    const top = this.scale.height / 2 + PAGE.height / 2 - 96;
+    const top = this.scale.height / 2 + PAGE.height / 2 - SLOTS.menuTop;
     this.menu = new MenuController(
       this,
       [
@@ -230,10 +283,23 @@ export class ReportScene extends Phaser.Scene {
    * back. No services involved; the file comes straight off the renderer.
    */
   private exportReport(): void {
+    if (this.exporting) {
+      return;
+    }
     const ref = getActiveLevel().ref.replace(/[^A-Za-z0-9-]+/g, '');
+    this.exporting = true;
+    // A still-fading note from a previous export must not end up in the file.
+    this.exportNote?.destroy();
+    this.exportNote = undefined;
     this.menu.setVisible(false);
     this.game.renderer.snapshot((image) => {
+      // The snapshot lands a frame or more later. If the scene is gone by
+      // then, the capture shows some other screen: do nothing with it.
+      if (!this.scene.isActive()) {
+        return;
+      }
       this.menu.setVisible(true);
+      this.exporting = false;
       const src = (image as HTMLImageElement).src;
       if (!src) {
         return;
@@ -255,12 +321,18 @@ export class ReportScene extends Phaser.Scene {
         color: PALETTE.amber,
       })
       .setOrigin(0.5);
+    this.exportNote = note;
     this.tweens.add({
       targets: note,
       alpha: 0,
       delay: 1400,
       duration: 600,
-      onComplete: () => note.destroy(),
+      onComplete: () => {
+        note.destroy();
+        if (this.exportNote === note) {
+          this.exportNote = undefined;
+        }
+      },
     });
   }
 
@@ -286,8 +358,14 @@ export class ReportScene extends Phaser.Scene {
   }
 
   /** Small helper for a left-aligned mono line, keeping create() readable. */
-  private mono(x: number, y: number, text: string, size: number, colour: string): void {
-    this.add.text(x, y, text, {
+  private mono(
+    x: number,
+    y: number,
+    text: string,
+    size: number,
+    colour: string
+  ): Phaser.GameObjects.Text {
+    return this.add.text(x, y, text, {
       fontFamily: FONTS.mono,
       fontSize: `${size}px`,
       color: colour,

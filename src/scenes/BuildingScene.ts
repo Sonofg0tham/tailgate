@@ -4,6 +4,7 @@ import { zoneAt } from '../audio/zoneAt';
 import { ART } from '../config/art';
 import { DETECTION } from '../config/detection';
 import { HIJACK } from '../config/hijack';
+import { INPUT } from '../config/input';
 import { JUICE } from '../config/juice';
 import { LIGHTING } from '../config/lighting';
 import { MOVEMENT } from '../config/movement';
@@ -437,7 +438,11 @@ export class BuildingScene extends Phaser.Scene {
     this.promptText.setScale(getSettings().hudScale);
     this.disguiseTag.setScale(getSettings().hudScale);
 
-    if (!this.consoleOpen) {
+    if (this.consoleOpen) {
+      // Clicks made on the multiplexer belong to the multiplexer: drop them,
+      // or the first frame after it closes would throw a bolt at the cursor.
+      this.throwController.discardQueued();
+    } else {
       this.throwController.update(this, delta, this.player.x, this.player.y, pad);
     }
 
@@ -567,7 +572,7 @@ export class BuildingScene extends Phaser.Scene {
     this.consoleOpen = false;
     // The press that closed the console (Escape or B) is still fresh; give it
     // time to fully release so it cannot double as a pause press.
-    this.pauseSwallowUntil = this.time.now + 250;
+    this.pauseSwallowUntil = this.time.now + INPUT.swallowWindowMs;
     if (cue) {
       this.audio.playConsoleCue(cue);
     }
