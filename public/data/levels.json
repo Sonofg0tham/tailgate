@@ -35,7 +35,7 @@
       "hints": [
         { "id": "smokers", "x": 300, "y": 1290, "radiusPx": 170, "text": "STAFF PROP THIS FIRE DOOR ON THEIR BREAKS. THE LAMP SHOWS WHEN." },
         { "id": "reception", "x": 1180, "y": 1290, "radiusPx": 170, "text": "STAFF BADGE THROUGH HERE. SLIP IN CLOSE BEHIND THEM." },
-        { "id": "breaker", "x": 300, "y": 1040, "radiusPx": 140, "text": "THIS BREAKER BLINDS EVERY CAMERA FOR A SPELL." },
+        { "id": "breaker", "x": 300, "y": 1040, "radiusPx": 140, "text": "THIS BREAKER BLINDS THE SERVER CAMERAS FOR A SPELL. THE REST STAY LIVE." },
         { "id": "console", "x": 1880, "y": 560, "radiusPx": 150, "text": "AN UNATTENDED CONSOLE. LOOP A FEED AND ITS CAMERA SEES YESTERDAY." }
       ]
     },
