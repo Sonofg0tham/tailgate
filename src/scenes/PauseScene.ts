@@ -78,9 +78,10 @@ export class PauseScene extends Phaser.Scene {
       [
         { kind: 'action', label: 'RESUME', onSelect: () => this.resume() },
         { kind: 'action', label: 'RESTART ENGAGEMENT', onSelect: () => this.restart() },
+        { kind: 'action', label: 'ABANDON ENGAGEMENT', onSelect: () => this.abandon() },
         { kind: 'action', label: 'SETTINGS', onSelect: () => this.openSettings() },
       ],
-      { x: CARD.x, top: top + 300, rowHeight: 36, width: 320, labelSize: 19 },
+      { x: CARD.x, top: top + 292, rowHeight: 34, width: 320, labelSize: 19 },
       { onBack: () => this.resume() }
     );
 
@@ -125,6 +126,19 @@ export class PauseScene extends Phaser.Scene {
     resetRunStats();
     this.scene.stop();
     this.scene.start('building');
+  }
+
+  /**
+   * Walks off the job and back to the contract schedule. The run in progress
+   * is discarded; the contract's best rating and unlocks are untouched, so
+   * nothing is lost beyond the attempt itself.
+   */
+  private abandon(): void {
+    resetMission();
+    resetRunStats();
+    this.scene.stop('building');
+    this.scene.stop();
+    this.scene.start('contracts');
   }
 
   private openSettings(): void {
