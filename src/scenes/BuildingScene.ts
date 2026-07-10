@@ -132,6 +132,11 @@ export class BuildingScene extends Phaser.Scene {
   private disguiseTag!: Phaser.GameObjects.Text;
   /** True while the CCTV multiplexer overlay is open. */
   private consoleOpen = false;
+  /**
+   * Ignore pause presses until this time. Set when the console closes, because
+   * the Escape that exits the multiplexer must not also open the pause badge.
+   */
+  private pauseSwallowUntil = 0;
   /** The secondary camera rendering the live feed inside the multiplexer. */
   private feedCam?: Phaser.Cameras.Scene2D.Camera;
 
@@ -271,10 +276,14 @@ export class BuildingScene extends Phaser.Scene {
     setAudioMuted(getSettings().muted);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.audio.suspendForRestart());
 
-    // Debug toggles. Edge-triggered keys so nothing stacks up on scene.restart.
-    this.gridKey = this.input.keyboard?.addKey('G');
-    this.guardDebugKey = this.input.keyboard?.addKey('H');
-    this.lightingKey = this.input.keyboard?.addKey('L');
+    // Debug toggles, dev builds only: production players get no grid, guard
+    // internals or lighting-off cheats. Edge-triggered keys so nothing stacks
+    // up on scene.restart.
+    if (import.meta.env.DEV) {
+      this.gridKey = this.input.keyboard?.addKey('G');
+      this.guardDebugKey = this.input.keyboard?.addKey('H');
+      this.lightingKey = this.input.keyboard?.addKey('L');
+    }
     this.interactKey = this.input.keyboard?.addKey('E');
     this.pauseKey = this.input.keyboard?.addKey('ESC');
 
@@ -314,8 +323,9 @@ export class BuildingScene extends Phaser.Scene {
 
     // Pause on Escape or the pad Start button. Read the edge every frame so the
     // held state never goes stale, but only act when actually in play. While
-    // the console is open, Escape and B belong to the multiplexer instead.
-    const wantsPause = this.pausePressed(pad);
+    // the console is open, Escape and B belong to the multiplexer instead, and
+    // for a beat after it closes the same press must not reopen as pause.
+    const wantsPause = this.pausePressed(pad) && this.time.now >= this.pauseSwallowUntil;
     if (wantsPause && !this.detained && !this.missionOver && !this.consoleOpen) {
       this.openPause();
       return;
@@ -555,6 +565,9 @@ export class BuildingScene extends Phaser.Scene {
       return;
     }
     this.consoleOpen = false;
+    // The press that closed the console (Escape or B) is still fresh; give it
+    // time to fully release so it cannot double as a pause press.
+    this.pauseSwallowUntil = this.time.now + 250;
     if (cue) {
       this.audio.playConsoleCue(cue);
     }
@@ -625,7 +638,7 @@ export class BuildingScene extends Phaser.Scene {
       this.lightingRenderer.veil,
       this.promptText,
       this.disguiseTag,
-      this.overlay.hudText,
+      ...this.overlay.screenObjects,
       this.guardDebug,
     ]);
   }
