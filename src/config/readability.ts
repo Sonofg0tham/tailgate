@@ -51,6 +51,27 @@ export const READABILITY = {
     sizePx: 11,
   },
 
+  /** First-run hints: one-off consultant notes at points of interest. */
+  hints: {
+    /** A hint clears itself after this long, even if the player lingers. */
+    showForMs: 7000,
+    /** Gentle fade in and out, so a hint never pops (nystagmus note). */
+    fadeInMs: 300,
+    fadeOutMs: 600,
+    /** Full strength for the line, kept below 1 so it sits into the scene. */
+    maxAlpha: 0.9,
+    /**
+     * A hint is only marked seen once it has been on screen this long. A
+     * player who sprints past before then leaves it unmarked, so it can teach
+     * them properly on a calmer approach instead of being burned unread.
+     */
+    markSeenAfterMs: 1600,
+    /** Hint text size in pixels (scaled by the HUD text setting). */
+    textSizePx: 13,
+    /** Distance up from the screen's bottom edge the line sits. */
+    riseFromBottomPx: 52,
+  },
+
   /** Expanding rings where guard footsteps land, the visual ear. */
   noiseRings: {
     /** Footsteps further from the player than this draw nothing. */

@@ -10,6 +10,7 @@
 
 import type { IngressRoute, RunStats } from '../state/runStats';
 import { DOORS } from '../config/doors';
+import { ENGAGEMENT } from '../config/engagement';
 import { OBJECTIVES } from '../config/objectives';
 
 /** The four outcome ratings, best to worst. */
@@ -288,9 +289,9 @@ export function generateReport(
     header: {
       client: level?.client ?? 'MERIDIAN BUSINESS PARK',
       site: level?.site ?? 'BUILDING C',
-      consultant: 'S0N0FG0THAM CONSULTING',
+      consultant: ENGAGEMENT.consultant,
       ref: level?.ref ?? 'ENG-2026-0417/C',
-      date: '05 JULY 2026',
+      date: ENGAGEMENT.date,
     },
     findings: numbered,
     clientDetections,
