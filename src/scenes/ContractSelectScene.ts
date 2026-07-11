@@ -59,8 +59,16 @@ export class ContractSelectScene extends Phaser.Scene {
       unlockLevel(levels[0].id);
     }
     this.briefingKey = this.input.keyboard?.addKey('TAB');
+    // Capturing TAB stops it moving browser focus off the canvas while the
+    // schedule is open. It is a global capture, so release it when this scene
+    // ends, or it would swallow TAB for the rest of the session.
     this.input.keyboard?.addCapture('TAB');
-    this.prevPadX = false;
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.keyboard?.removeCapture('TAB');
+    });
+    // Primed true so an X already held on entry must be released before it can
+    // open a briefing: a carried-over press is not a fresh one.
+    this.prevPadX = true;
 
     const items: MenuItem[] = levels.map((level, i) => this.buildCard(level, i));
     items.push({ kind: 'action', label: 'BACK', onSelect: () => this.scene.start('menu') });

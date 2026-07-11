@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { ENGAGEMENT } from '../config/engagement';
 import { FONTS, PALETTE, PALETTE_HEX } from '../config/palette';
 import { getActiveLevel, getLevel, setActiveLevel, type LevelDef } from '../state/levels';
 import { resetMission } from '../state/mission';
@@ -8,9 +9,6 @@ import { MenuController } from '../ui/MenuController';
 
 /** Sheet geometry, matching the Engagement Report's printed-page framing. */
 const PAGE = { width: 880, height: 500, padX: 28, padTop: 20 } as const;
-
-/** In-fiction date, the same one the Engagement Report prints. */
-const BRIEFING_DATE = '05 JULY 2026';
 
 /**
  * The pre-mission briefing, styled as the letter of authorisation: the sheet
@@ -59,7 +57,7 @@ export class BriefingScene extends Phaser.Scene {
     this.mono(left + 440, y, `REF:  ${this.level.ref}`, 11, PALETTE.text);
     y += 15;
     this.mono(left, y, `SITE:       ${this.level.site}`, 11, PALETTE.text);
-    this.mono(left + 440, y, `DATE: ${BRIEFING_DATE}`, 11, PALETTE.text);
+    this.mono(left + 440, y, `DATE: ${ENGAGEMENT.date}`, 11, PALETTE.text);
     y += 24;
 
     y = this.section(left, y, 'SCOPE', [this.level.scope]);
@@ -103,7 +101,7 @@ export class BriefingScene extends Phaser.Scene {
     this.add.rectangle(centreX, y - 8, PAGE.width - PAGE.padX * 2, 1, PALETTE_HEX.amber, 0.4);
     this.mono(left, y, `COUNTERSIGNED: ${this.level.client}`, 10, PALETTE.text);
     this.add
-      .text(right, y, 'S0N0FG0THAM CONSULTING', {
+      .text(right, y, ENGAGEMENT.consultant, {
         fontFamily: FONTS.mono,
         fontSize: '10px',
         color: PALETTE.text,

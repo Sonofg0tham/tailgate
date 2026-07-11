@@ -66,15 +66,15 @@
         ],
         "intel": [
           "The building runs dark and the CCTV coverage is near-total. Treat darkness as cover and camera arcs as weather.",
-          "The NOC console can loop one feed at a time. A looped camera swears old footage is live.",
-          "Each breaker kills a single camera circuit, briefly. The other circuits keep watching.",
+          "The NOC console loops a feed so its camera swears old footage is live. Charges are few, spend them where a camera guards the only way through.",
+          "The breaker kills one camera circuit, briefly. The others keep watching.",
           "The hosting cage is restricted at all hours. No cover story survives inside it."
         ]
       },
       "hints": [
-        { "id": "lobby", "x": 1200, "y": 1300, "radiusPx": 200, "text": "CAMERAS OWN THESE CORRIDORS. DARKNESS IS COVER, USE IT." },
+        { "id": "lobby", "x": 1200, "y": 1120, "radiusPx": 160, "text": "CAMERAS OWN THESE CORRIDORS. DARKNESS IS COVER, USE IT." },
         { "id": "noc", "x": 780, "y": 1150, "radiusPx": 150, "text": "THE NOC MULTIPLEXER. LOOP A FEED BEFORE YOU CROSS ITS CAMERA." },
-        { "id": "breaker", "x": 240, "y": 1100, "radiusPx": 140, "text": "ONE BREAKER, ONE CIRCUIT. THE REST KEEP WATCHING." },
+        { "id": "breaker", "x": 240, "y": 1100, "radiusPx": 140, "text": "THE BREAKER KILLS ONE CIRCUIT. THE OTHER CAMERAS KEEP WATCHING." },
         { "id": "cage", "x": 2100, "y": 520, "radiusPx": 170, "text": "THE HOSTING CAGE IS RESTRICTED. NOBODY BELONGS IN THERE, INCLUDING YOU." }
       ]
     },
@@ -107,7 +107,7 @@
           "Heavy staff traffic on the floor. Contractor hi-vis is accepted at a distance without question.",
           "The vest means nothing up close, inside the cage or the office, or once security is alarmed.",
           "Racking blocks sightlines both ways. The floor is a maze that works for whoever moves quietly.",
-          "Spare vests hang in the locker room and on the dispatch dock."
+          "Spare vests hang in the break room and on the dispatch dock."
         ]
       },
       "hints": [

@@ -68,7 +68,7 @@ Two tools sit alongside the classic tailgating, distraction and breaker tricks:
 - **Phaser 3.90** with **TypeScript** in strict mode, bundled by **Vite**.
 - Three levels built in **Tiled**, exported as JSON, driven by a level registry so the same scene code runs every contract. Guard patrols, staff schedules, door timings, camera arcs, lighting and hi-vis restricted zones all live in data files, not code.
 - **Procedural audio**: the whole soundscape is synthesised at runtime with the Web Audio API. There are no sound files in the repo.
-- **No backend, no accounts, no analytics, no cookies.** localStorage holds settings and per-contract progress (unlocks, best ratings and times), nothing else.
+- **No backend, no accounts, no analytics, no cookies.** localStorage holds settings and per-contract progress (unlocks, best ratings and times, and which briefings and first-run hints you have seen), nothing else.
 - Deployed on **Vercel**. **GitHub Actions** runs typecheck, lint and a gitleaks secret scan on every pull request.
 
 ## Development
