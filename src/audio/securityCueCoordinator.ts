@@ -17,13 +17,13 @@ export class SecurityCueCoordinator<T> {
   ) {}
 
   offer(cue: SecurityCue, nowMs: number, payload: T): boolean {
-    const last = this.lastOfferedAt.get(cue);
-    if (last !== undefined && nowMs - last < this.repeatLimitMs) return false;
-    this.lastOfferedAt.set(cue, nowMs);
     if (this.pending && nowMs >= this.pending.playAtMs) {
       this.play(this.pending.cue, this.pending.payload);
       this.pending = null;
     }
+    const last = this.lastOfferedAt.get(cue);
+    if (last !== undefined && nowMs - last < this.repeatLimitMs) return false;
+    this.lastOfferedAt.set(cue, nowMs);
     if (!this.pending) {
       this.pending = { cue, payload, playAtMs: nowMs + 250 };
     } else if (cuePriority(cue) > cuePriority(this.pending.cue)) {

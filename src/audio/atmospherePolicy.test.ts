@@ -83,6 +83,15 @@ describe('security cue policy', () => {
     coordinator.flush(250);
     expect(played).toEqual(['camera-a']);
   });
+
+  it('plays the first payload at the exact boundary before rejecting a repeated offer', () => {
+    const played: string[] = [];
+    const coordinator = new SecurityCueCoordinator<string>((_cue, position) => played.push(position));
+    coordinator.offer('camera-ping', 0, 'camera-a');
+
+    expect(coordinator.offer('camera-ping', 250, 'camera-b')).toBe(false);
+    expect(played).toEqual(['camera-a']);
+  });
 });
 
 describe('camera audio wiring policy', () => {
