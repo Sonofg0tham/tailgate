@@ -50,4 +50,17 @@ describe('restart-safe ownership', () => {
     ownership.release('building');
     expect(stopped).toBe(2);
   });
+
+  it('integrates scene shutdown by stopping each owned sample once without a shared-bed owner', () => {
+    const ownership = new SampleOwnership();
+    let stopped = 0;
+    let disconnected = 0;
+    ownership.addVoice('building', {
+      stop: () => stopped++,
+      disconnect: () => disconnected++,
+    });
+    ownership.release('building');
+    ownership.release('building');
+    expect({ stopped, disconnected }).toEqual({ stopped: 1, disconnected: 1 });
+  });
 });

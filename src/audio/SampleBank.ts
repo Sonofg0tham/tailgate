@@ -21,10 +21,7 @@ export class SampleBank {
         const bytes = await this.fetchBytes(entry.path);
         this.buffers.set(entry.id, await this.decode(bytes));
       } catch {
-        if (!this.warned) {
-          this.warned = true;
-          this.warn('Optional interaction audio could not be decoded. Procedural alerts remain active.');
-        }
+        this.warnOnce();
       }
     })).then(() => undefined);
     return this.loading;
@@ -37,6 +34,16 @@ export class SampleBank {
   choose(group: SampleGroup, random01 = Math.random()): AudioBuffer | null {
     const candidates = samplesFor(group).filter((entry) => this.buffers.has(entry.id));
     const index = chooseVariant(candidates.length, random01);
-    return index < 0 ? null : (this.buffers.get(candidates[index].id) ?? null);
+    if (index < 0) {
+      this.warnOnce();
+      return null;
+    }
+    return this.buffers.get(candidates[index].id) ?? null;
+  }
+
+  private warnOnce(): void {
+    if (this.warned) return;
+    this.warned = true;
+    this.warn('Optional interaction audio is unavailable. Procedural security alerts remain active.');
   }
 }

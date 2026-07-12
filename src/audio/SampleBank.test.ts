@@ -10,4 +10,12 @@ describe('SampleBank decode failure policy', () => {
     expect(bank.available('door-latch')).toBe(false);
     expect(warn).toHaveBeenCalledTimes(1);
   });
+
+  it('warns once when an unavailable optional footstep is requested and returns no fallback', () => {
+    const warn = vi.fn();
+    const bank = new SampleBank(async () => new ArrayBuffer(1), async () => { throw new Error('bad'); }, warn);
+    expect(bank.choose('footstep:carpet')).toBeNull();
+    expect(bank.choose('footstep:carpet')).toBeNull();
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
 });

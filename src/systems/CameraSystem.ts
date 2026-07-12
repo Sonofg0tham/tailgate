@@ -71,6 +71,7 @@ export interface CameraTick {
   prompt: string | null;
   breakerTrippedNow: boolean;
   cameraPowerReturnedNow: boolean;
+  breakerPoint: { x: number; y: number } | null;
 }
 
 /** Internal breaker state: when it was tripped and until when it is unusable. */
@@ -162,6 +163,7 @@ export class CameraSystem {
       investigatePoints, raisedAlert, alarmPoints, prompt,
       breakerTrippedNow: !wasKilled && isKilled,
       cameraPowerReturnedNow: wasKilled && !isKilled,
+      breakerPoint: this.breaker ? { x: this.breaker.def.x, y: this.breaker.def.y } : null,
     };
   }
 

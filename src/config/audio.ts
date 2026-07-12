@@ -2,13 +2,13 @@
  * Audio tuning for Tailgate. Procedural security and atmosphere layers share
  * the mix with a small CC0 Kenney interaction and footstep sample set.
  * needs lives here as plain numbers and lookups, so Craig can retune the
- * soundscape without touching synthesis code. All durations are in
+ * soundscape without touching audio engine code. All durations are in
  * milliseconds, all distances in pixels, matching the rest of the config
  * files.
  *
  */
 
-/** Floor surface underfoot, which decides the footstep synthesis colour. */
+/** Floor surface underfoot, which decides the sampled footstep treatment. */
 export type Surface = 'carpet' | 'tile' | 'concrete';
 
 /** Which ambience bed plays in a given zone, or 'none' for silence. */
@@ -97,7 +97,7 @@ export const AUDIO = {
     whCage: 'server',
   } as Record<string, AmbienceBed>,
 
-  /** Player footstep synthesis per surface: a short filtered noise burst. */
+  /** Sample filter and gain treatment that gives each floor a distinct material. */
   footstep: {
     carpet: { cutoffHz: 900, peakGain: 0.5, decayMs: 90, q: 0.7 },
     tile: { cutoffHz: 5200, peakGain: 1.0, decayMs: 70, q: 1.2 },

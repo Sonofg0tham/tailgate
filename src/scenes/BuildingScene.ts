@@ -7,6 +7,7 @@ import {
 } from '../audio/AudioManager';
 import { zoneAt } from '../audio/zoneAt';
 import { velocityFromDisplacement } from '../audio/audioPolicy';
+import { BadgeAttemptEdges } from '../audio/foleyPolicy';
 import { ART } from '../config/art';
 import { DETECTION } from '../config/detection';
 import { HIJACK } from '../config/hijack';
@@ -149,7 +150,7 @@ export class BuildingScene extends Phaser.Scene {
    */
   private pauseSwallowUntil = 0;
   private readonly doorAudioState = new Map<string, boolean>();
-  private readonly badgeDenyAudioAt = new Map<string, number>();
+  private readonly badgeAttemptEdges = new BadgeAttemptEdges();
   /** The doorway the player most recently stood in, naming the checkpoint. */
   private lastDoorId: string | null = null;
   /** The last camera ping, so the DETAINED banner can name the tip-off. */
@@ -280,9 +281,7 @@ export class BuildingScene extends Phaser.Scene {
       (x, y) => this.onNoise(x, y),
       checkpoint?.bolts,
       () => this.audio.playFoley('bolt-throw', 0.55),
-      (x) => this.audio.playFoley(
-        'metal-impact', 0.8, Phaser.Math.Clamp((x - this.player.x) / 500, -1, 1)
-      )
+      (x, y) => this.playWorldFoley('metal-impact', x, y, 600)
     );
 
     // The mission prompt, bottom centre, screen fixed.
@@ -466,8 +465,12 @@ export class BuildingScene extends Phaser.Scene {
       if (alarm) this.offerSecurityCue('camera-alarm', now, alarm.x, alarm.y, closedDoors);
     }
 
-    if (camTick.breakerTrippedNow) this.audio.playFoley('breaker-trip', 0.75);
-    if (camTick.cameraPowerReturnedNow) this.audio.playFoley('camera-return', 0.55);
+    if (camTick.breakerPoint && camTick.breakerTrippedNow) {
+      this.playWorldFoley('breaker-trip', camTick.breakerPoint.x, camTick.breakerPoint.y, 600);
+    }
+    if (camTick.breakerPoint && camTick.cameraPowerReturnedNow) {
+      this.playWorldFoley('camera-return', camTick.breakerPoint.x, camTick.breakerPoint.y, 600);
+    }
 
     const objTick = this.objectives.update({
       now,
@@ -480,7 +483,7 @@ export class BuildingScene extends Phaser.Scene {
       bumped: this.isBumped(),
     });
     if (objTick.plantedNow) {
-      this.audio.playFoley('plant-complete', 0.72);
+      this.playWorldFoley('plant-complete', this.player.x, this.player.y, 500);
       // Second checkpoint: immediately after planting the device.
       setCheckpoint({
         x: this.player.x,
@@ -1003,18 +1006,20 @@ export class BuildingScene extends Phaser.Scene {
     }
     for (const door of this.doors) {
       const wasOpen = this.doorAudioState.get(door.id) ?? door.isOpen;
-      let badgeAttempted = false;
+      let badgeEntered = false;
       if (door.kind === 'badge') {
         // Any authorised staff standing near a badge door opens it (the tailgate
         // window keeps it open for a moment after they walk on). In lockdown the
         // badge readers deny everyone, staff included.
         for (const member of this.staff) {
-          if (
-            member.isAuthorisedFor(door.id) &&
-            Phaser.Math.Distance.Between(member.x, member.y, door.centreX, door.centreY) <
-              STAFF_BADGE_DISTANCE
-          ) {
-            badgeAttempted = true;
+          const authorised = member.isAuthorisedFor(door.id);
+          const inRange = authorised && Phaser.Math.Distance.Between(
+            member.x, member.y, door.centreX, door.centreY
+          ) < STAFF_BADGE_DISTANCE;
+          if (this.badgeAttemptEdges.entered(`${member.id}:${door.id}`, inRange)) {
+            badgeEntered = true;
+          }
+          if (inRange) {
             door.badge(now, lockdown);
           }
         }
@@ -1022,15 +1027,12 @@ export class BuildingScene extends Phaser.Scene {
       door.update(now, lockdown, this.player.x, this.player.y);
       if (door.isOpen !== wasOpen) {
         const group = door.kind === 'shutter' ? 'shutter' : 'door-latch';
-        const pan = Phaser.Math.Clamp((door.centreX - this.player.x) / 600, -1, 1);
-        this.audio.playFoley(group, 0.62, pan);
-        if (door.kind === 'badge' && door.isOpen) this.audio.playFoley('badge-accept', 0.5, pan);
-      } else if (badgeAttempted && lockdown) {
-        const lastDeny = this.badgeDenyAudioAt.get(door.id) ?? -1000;
-        if (now - lastDeny >= 1000) {
-          this.audio.playFoley('badge-deny', 0.42);
-          this.badgeDenyAudioAt.set(door.id, now);
+        this.playWorldFoley(group, door.centreX, door.centreY, 600);
+        if (door.kind === 'badge' && door.isOpen) {
+          this.playWorldFoley('badge-accept', door.centreX, door.centreY, 600);
         }
+      } else if (badgeEntered && lockdown) {
+        this.playWorldFoley('badge-deny', door.centreX, door.centreY, 600);
       }
       this.doorAudioState.set(door.id, door.isOpen);
     }
@@ -1259,6 +1261,24 @@ export class BuildingScene extends Phaser.Scene {
       }
       this.triggerAlarmShake();
     }
+  }
+
+  private playWorldFoley(
+    group: 'metal-impact' | 'badge-accept' | 'badge-deny' | 'door-latch' | 'shutter' |
+      'breaker-trip' | 'camera-return' | 'plant-complete',
+    sourceX: number,
+    sourceY: number,
+    rangePx: number
+  ): void {
+    this.audio.playWorldFoley(group, {
+      sourceX,
+      sourceY,
+      playerX: this.player.x,
+      playerY: this.player.y,
+      walls: this.mapWalls,
+      closedDoors: this.doors.filter((door) => !door.isOpen).map((door) => door.rect),
+      rangePx,
+    });
   }
 
   private offerSecurityCue(

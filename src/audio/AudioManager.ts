@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { AUDIO, type AmbienceBed, type Surface } from '../config/audio';
-import { makeNoiseBuffer, playClick, playFilteredNoiseBurst, playToneBurst } from './synth';
+import { makeNoiseBuffer, playClick, playToneBurst } from './synth';
 import { zoneAt } from './zoneAt';
 import type { ZoneRect, WallRect } from '../world/BuildingMap';
 import type { SpeedState } from '../input/InputState';
@@ -26,6 +26,8 @@ import {
 import { SampleBank } from './SampleBank';
 import type { SampleGroup } from './sampleManifest';
 import { sampleTreatment } from './samplePolicy';
+import { sampleBusFor, worldFoleyTreatment, type SampleRole } from './foleyPolicy';
+import { SampleOwnership } from './sampleOwnership';
 
 /**
  * One frame's worth of world state the audio subsystem needs to decide what
@@ -83,6 +85,12 @@ interface AudioGraph extends MixCore {
 }
 
 let graph: AudioGraph | null = null;
+const sampleOwnership = new SampleOwnership();
+let nextAudioOwnerId = 0;
+
+export interface WorldFoleyFrame extends CueSpatialFrame {
+  rangePx?: number;
+}
 
 /**
  * Sets the overall volume, 0 to 1, on top of the tuned master gain. Safe before
@@ -245,6 +253,7 @@ const sharedMix = new SharedMixLifecycle<AudioGraph>(buildGraph);
  * second ambience bed).
  */
 export class AudioManager {
+  private readonly ownerId = `audio-manager-${++nextAudioOwnerId}`;
   private stingCount = 0;
 
   private lastFrameMs: number | null = null;
@@ -453,17 +462,10 @@ export class AudioManager {
       return;
     }
 
-    if (this.playSample('footstep:concrete', {
+    this.playSample('footstep:concrete', 'guard-step', {
       gain: AUDIO.guardFootstep.peakGain * gain,
       pan: panForPositions(frame.guard.x, frame.player.x, 0, hearingRange),
       cutoffHz: this.lastOcclusionCutoffHz,
-    })) return;
-    playFilteredNoiseBurst(graph.ctx, graph.buses.guard.gain, graph.noiseBuffer, {
-      cutoffHz: this.lastOcclusionCutoffHz,
-      q: 0.8,
-      peakGain: AUDIO.guardFootstep.peakGain * gain,
-      decayMs: 90,
-      pan: panForPositions(frame.guard.x, frame.player.x, 0, hearingRange),
     });
   }
 
@@ -630,22 +632,16 @@ export class AudioManager {
       return;
     }
     const treatment = sampleTreatment(surface, Math.random(), Math.random());
-    if (this.playSample(`footstep:${surface}`, treatment)) return;
-    const settings = AUDIO.footstep[surface];
-    playFilteredNoiseBurst(graph.ctx, graph.buses.footsteps.gain, graph.noiseBuffer, {
-      cutoffHz: settings.cutoffHz,
-      q: settings.q,
-      peakGain: settings.peakGain,
-      decayMs: settings.decayMs,
-    });
+    this.playSample(`footstep:${surface}`, 'player-step', treatment);
   }
 
   /**
    * Called before a detain restart. The graph and ambience beds are module
-   * scoped and must survive the scene restart untouched, so this only resets
-   * this instance's per-frame timers rather than touching any audio nodes.
+   * scoped and survive the scene restart untouched. Active samples belong to
+   * this scene instance, so they stop cleanly before its timers are reset.
    */
   suspendForRestart(): void {
+    sampleOwnership.release(this.ownerId);
     this.lastFrameMs = null;
     this.stepAccumulatorMs = 0;
     this.guardStepAccumulatorMs = 0;
@@ -657,11 +653,30 @@ export class AudioManager {
 
   /** Plays optional CC0 foley through the shared paused/headroom mix. */
   playFoley(group: Exclude<SampleGroup, `footstep:${Surface}`>, gain = 1, pan = 0): void {
-    this.playSample(group, { gain, pan, playbackRate: 0.97 + Math.random() * 0.06, cutoffHz: 12000 });
+    this.playSample(group, 'interaction', { gain, pan, playbackRate: 0.97 + Math.random() * 0.06, cutoffHz: 12000 });
+  }
+
+  /** Plays a world-located interaction with distance, stereo and occlusion treatment. */
+  playWorldFoley(group: Exclude<SampleGroup, `footstep:${Surface}`>, frame: WorldFoleyFrame): void {
+    const range = frame.rangePx ?? 600;
+    const spatial = worldFoleyTreatment(
+      frame.sourceX, frame.sourceY, frame.playerX, frame.playerY,
+      this.lineIsOccluded(
+        frame.sourceX, frame.sourceY, frame.playerX, frame.playerY,
+        frame.walls, frame.closedDoors
+      ),
+      range
+    );
+    if (spatial.gain <= 0) return;
+    this.playSample(group, 'interaction', {
+      ...spatial,
+      playbackRate: 0.97 + Math.random() * 0.06,
+    });
   }
 
   private playSample(
     group: SampleGroup,
+    role: SampleRole,
     treatment: { gain: number; pan: number; playbackRate?: number; cutoffHz: number }
   ): boolean {
     if (!graph || graph.ctx.state !== 'running') return false;
@@ -677,9 +692,25 @@ export class AudioManager {
     filter.frequency.value = treatment.cutoffHz;
     gain.gain.value = treatment.gain;
     panner.pan.value = Math.max(-1, Math.min(1, treatment.pan));
-    source.connect(filter); filter.connect(gain); gain.connect(panner); panner.connect(graph.buses.foley.gain);
+    const bus = graph.buses[sampleBusFor(role)].gain;
+    source.connect(filter); filter.connect(gain); gain.connect(panner); panner.connect(bus);
+    let cleaned = false;
+    const cleanup = (): void => {
+      if (cleaned) return;
+      cleaned = true;
+      source.disconnect(); filter.disconnect(); gain.disconnect(); panner.disconnect();
+    };
+    let stopped = false;
+    const removeOwnership = sampleOwnership.addVoice(this.ownerId, {
+      stop: () => {
+        if (stopped) return;
+        stopped = true;
+        source.stop();
+      },
+      disconnect: cleanup,
+    });
     source.start();
-    source.addEventListener('ended', () => { source.disconnect(); filter.disconnect(); gain.disconnect(); panner.disconnect(); }, { once: true });
+    source.addEventListener('ended', removeOwnership, { once: true });
     return true;
   }
 }
