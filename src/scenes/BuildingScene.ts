@@ -1,5 +1,10 @@
 import Phaser from 'phaser';
-import { AudioManager, setAudioMasterVolume, setAudioMuted } from '../audio/AudioManager';
+import {
+  AudioManager,
+  setAudioGameplayPaused,
+  setAudioMasterVolume,
+  setAudioMuted,
+} from '../audio/AudioManager';
 import { zoneAt } from '../audio/zoneAt';
 import { ART } from '../config/art';
 import { DETECTION } from '../config/detection';
@@ -299,6 +304,7 @@ export class BuildingScene extends Phaser.Scene {
     // autoplay unlock on the first input and makes no sound before that.
     this.lightingRenderer = new LightingRenderer(this);
     this.audio = new AudioManager();
+    setAudioGameplayPaused(false);
     this.audio.init(this);
     // Apply the saved audio preferences to the shared mix. Safe before unlock:
     // the values are stored and take effect when the graph is first built.
@@ -479,8 +485,22 @@ export class BuildingScene extends Phaser.Scene {
 
     this.audio.update({
       nowMs: now,
-      player: { x: this.player.x, y: this.player.y },
-      guard: this.guard ? { x: this.guard.x, y: this.guard.y, state: this.guard.state } : null,
+      player: {
+        x: this.player.x,
+        y: this.player.y,
+        velocityX: this.player.body.velocity.x,
+        velocityY: this.player.body.velocity.y,
+      },
+      guard: this.guard
+        ? {
+            id: 'primary-guard',
+            x: this.guard.x,
+            y: this.guard.y,
+            velocityX: this.guard.velocityX,
+            velocityY: this.guard.velocityY,
+            state: this.guard.state,
+          }
+        : null,
       playerSpeed: intent.speed,
       zones: this.mapZones,
       walls: this.mapWalls,
@@ -567,6 +587,7 @@ export class BuildingScene extends Phaser.Scene {
 
   /** Freezes the building and opens the lanyard pause badge over the top. */
   private openPause(): void {
+    setAudioGameplayPaused(true);
     this.scene.launch('pause');
     this.scene.pause();
   }

@@ -5,6 +5,13 @@ import { zoneAt } from './zoneAt';
 import type { ZoneRect, WallRect } from '../world/BuildingMap';
 import type { SpeedState } from '../input/InputState';
 import type { GuardState } from '../entities/Guard';
+import {
+  chooseOcclusionCutoff,
+  distanceGain,
+  isActuallyMoving,
+  panForPositions,
+} from './audioPolicy';
+import { SharedGraph } from './sharedGraph';
 
 /**
  * One frame's worth of world state the audio subsystem needs to decide what
@@ -13,8 +20,15 @@ import type { GuardState } from '../entities/Guard';
  */
 export interface AudioFrame {
   nowMs: number;
-  player: { x: number; y: number };
-  guard: { x: number; y: number; state: GuardState } | null;
+  player: { x: number; y: number; velocityX: number; velocityY: number };
+  guard: {
+    id: string;
+    x: number;
+    y: number;
+    velocityX: number;
+    velocityY: number;
+    state: GuardState;
+  } | null;
   playerSpeed: SpeedState;
   zones: ZoneRect[];
   walls: WallRect[];
@@ -42,6 +56,8 @@ interface AmbienceVoice {
 interface AudioGraph {
   ctx: AudioContext;
   masterGain: GainNode;
+  sharedGain: GainNode;
+  compressor: DynamicsCompressorNode;
   buses: {
     sting: CategoryBus;
     footsteps: CategoryBus;
@@ -56,12 +72,14 @@ interface AudioGraph {
 }
 
 let graph: AudioGraph | null = null;
+let sharedGraph: SharedGraph<AudioGraph> | null = null;
 
 // Master volume and mute live at module scope alongside the graph singleton, so
 // any scene (the settings menu, the building) can set them and they apply to the
 // one shared mix, whether or not audio has unlocked yet.
 let masterVolume01 = 1;
 let masterMuted = false;
+let gameplayPaused = false;
 
 /** The effective master gain: zero when muted, else the tuned master times 0..1. */
 function effectiveMasterGain(): number {
@@ -84,6 +102,14 @@ export function setAudioMuted(muted: boolean): void {
   masterMuted = muted;
   if (graph) {
     rampGain(graph.ctx, graph.masterGain.gain, effectiveMasterGain(), 30);
+  }
+}
+
+/** Ducks the shared graph while gameplay is paused, without rebuilding it. */
+export function setAudioGameplayPaused(paused: boolean): void {
+  gameplayPaused = paused;
+  if (graph) {
+    rampGain(graph.ctx, graph.sharedGain.gain, paused ? 0.0001 : AUDIO.volumes.headroom, 120);
   }
 }
 
@@ -172,12 +198,22 @@ function buildAmbienceVoice(ctx: AudioContext, noiseBuffer: AudioBuffer, bed: Am
 function buildGraph(ctx: AudioContext): AudioGraph {
   const masterGain = ctx.createGain();
   masterGain.gain.value = AUDIO.volumes.master;
-  masterGain.connect(ctx.destination);
+  const sharedGain = ctx.createGain();
+  sharedGain.gain.value = gameplayPaused ? 0.0001 : AUDIO.volumes.headroom;
+  const compressor = ctx.createDynamicsCompressor();
+  compressor.threshold.value = -12;
+  compressor.knee.value = 12;
+  compressor.ratio.value = 4;
+  compressor.attack.value = 0.003;
+  compressor.release.value = 0.2;
+  sharedGain.connect(masterGain);
+  masterGain.connect(compressor);
+  compressor.connect(ctx.destination);
 
   const makeBus = (volume: number): CategoryBus => {
     const gain = ctx.createGain();
     gain.gain.value = volume;
-    gain.connect(masterGain);
+    gain.connect(sharedGain);
     return { gain };
   };
 
@@ -207,6 +243,8 @@ function buildGraph(ctx: AudioContext): AudioGraph {
   return {
     ctx,
     masterGain,
+    sharedGain,
+    compressor,
     buses,
     noiseBuffer,
     ambienceVoices,
@@ -278,7 +316,8 @@ export class AudioManager {
 
     if (!graph) {
       const ctx = new AudioCtor();
-      graph = buildGraph(ctx);
+      sharedGraph ??= new SharedGraph(() => buildGraph(ctx));
+      graph = sharedGraph.getOrCreate();
       graph.masterGain.gain.value = effectiveMasterGain();
     }
 
@@ -327,7 +366,10 @@ export class AudioManager {
   }
 
   private updateFootsteps(dtMs: number, frame: AudioFrame, zoneName: string | null): void {
-    if (frame.playerSpeed === 'idle') {
+    if (
+      frame.playerSpeed === 'idle' ||
+      !isActuallyMoving(frame.player.velocityX, frame.player.velocityY)
+    ) {
       this.stepAccumulatorMs = 0;
       return;
     }
@@ -358,17 +400,23 @@ export class AudioManager {
       frame.walls,
       frame.closedDoorRects
     );
-    this.lastOcclusionCutoffHz = occluded
-      ? AUDIO.guardFootstep.occlusionWallHz
-      : AUDIO.guardFootstep.occlusionOpenHz;
+    this.lastOcclusionCutoffHz = chooseOcclusionCutoff(
+      occluded,
+      AUDIO.guardFootstep.occlusionOpenHz,
+      AUDIO.guardFootstep.occlusionWallHz
+    );
 
-    this.updateGuardFootsteps(dtMs, distance);
+    this.updateGuardFootsteps(dtMs, frame, distance);
     this.updateRadio(frame, distance);
   }
 
-  private updateGuardFootsteps(dtMs: number, distance: number): void {
+  private updateGuardFootsteps(dtMs: number, frame: AudioFrame, distance: number): void {
     const hearingRange = AUDIO.guardFootstep.hearingRangePx;
-    if (distance > hearingRange) {
+    if (
+      distance > hearingRange ||
+      !frame.guard ||
+      !isActuallyMoving(frame.guard.velocityX, frame.guard.velocityY)
+    ) {
       this.guardStepAccumulatorMs = 0;
       return;
     }
@@ -382,16 +430,17 @@ export class AudioManager {
     if (!graph) {
       return;
     }
-    const distanceGain = Phaser.Math.Clamp(1 - distance / hearingRange, 0, 1);
-    if (distanceGain <= 0) {
+    const gain = distanceGain(distance, hearingRange);
+    if (gain <= 0) {
       return;
     }
 
     playFilteredNoiseBurst(graph.ctx, graph.buses.guard.gain, graph.noiseBuffer, {
       cutoffHz: this.lastOcclusionCutoffHz,
       q: 0.8,
-      peakGain: AUDIO.guardFootstep.peakGain * distanceGain,
+      peakGain: AUDIO.guardFootstep.peakGain * gain,
       decayMs: 90,
+      pan: panForPositions(frame.guard.x, frame.player.x, 0, hearingRange),
     });
   }
 
@@ -416,15 +465,14 @@ export class AudioManager {
       return;
     }
 
-    const proximityGain = Phaser.Math.Clamp(
-      1 - distance / AUDIO.radio.proximityRangePx,
-      0,
-      1
-    );
+    const proximityGain = distanceGain(distance, AUDIO.radio.proximityRangePx);
     playClick(graph.ctx, graph.buses.radio.gain, graph.noiseBuffer, {
       cutoffHz: AUDIO.radio.cutoffHz,
       peakGain: AUDIO.radio.peakGain * proximityGain,
       durationMs: AUDIO.radio.burstMs,
+      pan: frame.guard
+        ? panForPositions(frame.guard.x, frame.player.x, 0, AUDIO.radio.proximityRangePx)
+        : 0,
     });
 
     const span = AUDIO.radio.burstEveryMaxMs - AUDIO.radio.burstEveryMinMs;

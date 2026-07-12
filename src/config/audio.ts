@@ -20,6 +20,7 @@ export const AUDIO = {
   /** Category gains, 0 to 1, multiplied under the master gain. */
   volumes: {
     master: 0.8,
+    headroom: 0.72,
     sting: 0.9,
     footsteps: 0.5,
     guard: 0.6,

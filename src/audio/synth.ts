@@ -79,7 +79,14 @@ export function playFilteredNoiseBurst(
   ctx: AudioContext,
   destination: AudioNode,
   noiseBuffer: AudioBuffer,
-  options: { cutoffHz: number; q: number; peakGain: number; decayMs: number; attackMs?: number }
+  options: {
+    cutoffHz: number;
+    q: number;
+    peakGain: number;
+    decayMs: number;
+    attackMs?: number;
+    pan?: number;
+  }
 ): void {
   const source = ctx.createBufferSource();
   source.buffer = noiseBuffer;
@@ -95,7 +102,15 @@ export function playFilteredNoiseBurst(
 
   source.connect(filter);
   filter.connect(gain);
-  gain.connect(destination);
+  const pan = options.pan;
+  const panner = pan === undefined ? null : ctx.createStereoPanner();
+  if (panner && pan !== undefined) {
+    panner.pan.value = Math.max(-1, Math.min(1, pan));
+    gain.connect(panner);
+    panner.connect(destination);
+  } else {
+    gain.connect(destination);
+  }
 
   const stopAt = scheduleGainEnvelope(
     gain,
@@ -112,6 +127,7 @@ export function playFilteredNoiseBurst(
     source.disconnect();
     filter.disconnect();
     gain.disconnect();
+    panner?.disconnect();
   };
 }
 
@@ -124,7 +140,7 @@ export function playClick(
   ctx: AudioContext,
   destination: AudioNode,
   noiseBuffer: AudioBuffer,
-  options: { cutoffHz: number; peakGain: number; durationMs: number }
+  options: { cutoffHz: number; peakGain: number; durationMs: number; pan?: number }
 ): void {
   playFilteredNoiseBurst(ctx, destination, noiseBuffer, {
     cutoffHz: options.cutoffHz,
@@ -132,6 +148,7 @@ export function playClick(
     peakGain: options.peakGain,
     decayMs: options.durationMs,
     attackMs: 1,
+    pan: options.pan,
   });
 }
 

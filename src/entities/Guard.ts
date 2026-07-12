@@ -137,6 +137,12 @@ export class Guard {
   get y(): number {
     return this.sprite.y;
   }
+  get velocityX(): number {
+    return this.body.velocity.x;
+  }
+  get velocityY(): number {
+    return this.body.velocity.y;
+  }
 
   /**
    * Advances the guard one frame: perceive the player, update state, move, and

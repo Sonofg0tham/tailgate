@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { setAudioGameplayPaused } from '../audio/AudioManager';
 import { FONTS, PALETTE, PALETTE_HEX } from '../config/palette';
 import { getActiveLevelId } from '../state/levels';
 import { resetMission } from '../state/mission';
@@ -116,6 +117,7 @@ export class PauseScene extends Phaser.Scene {
   }
 
   private resume(): void {
+    setAudioGameplayPaused(false);
     this.scene.stop();
     this.scene.resume('building');
   }
