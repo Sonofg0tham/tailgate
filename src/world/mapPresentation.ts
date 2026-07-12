@@ -6,6 +6,7 @@ export interface DecorationPoint {
   rotation: number;
   scale: number;
   alpha: number;
+  label?: string;
 }
 
 export interface DecorationLayer {
@@ -25,19 +26,28 @@ function numberProperty(object: TiledDecorationObject, name: string, fallback: n
   return typeof value === 'number' ? value : fallback;
 }
 
+function stringProperty(object: TiledDecorationObject, name: string): string | undefined {
+  const value = object.properties?.find((property) => property.name === name)?.value;
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
 /** Missing optional presentation layers are valid and contain no entries. */
 export function readDecorationLayer(layer: DecorationLayer | undefined): DecorationPoint[] {
   if (!layer) {
     return [];
   }
-  return layer.objects.map((object) => ({
-    key: object.name ?? '',
-    x: object.x ?? 0,
-    y: object.y ?? 0,
-    rotation: object.rotation ?? 0,
-    scale: numberProperty(object, 'scale', 1),
-    alpha: numberProperty(object, 'alpha', 1),
-  }));
+  return layer.objects.map((object) => {
+    const label = stringProperty(object, 'label');
+    return {
+      key: object.name ?? '',
+      x: object.x ?? 0,
+      y: object.y ?? 0,
+      rotation: object.rotation ?? 0,
+      scale: numberProperty(object, 'scale', 1),
+      alpha: numberProperty(object, 'alpha', 1),
+      ...(label ? { label } : {}),
+    };
+  });
 }
 
 /** Applies the shared warn-and-skip policy before visual sprites are created. */

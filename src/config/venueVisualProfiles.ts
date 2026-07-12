@@ -13,6 +13,7 @@ export interface VenueVisualProfile {
   routeSurface: TintTreatment;
   wall: {
     defaultTextureKey: string;
+    textureScale: number;
     materialsByZone: Readonly<Record<string, string>>;
     shadow: ShadowTreatment;
     edge: TintTreatment;
@@ -25,7 +26,8 @@ const BUILDING_C: VenueVisualProfile = {
   id: 'building-c',
   routeSurface: { colour: 0x1a2027, alpha: 1 },
   wall: {
-    defaultTextureKey: 'wall_brick',
+    defaultTextureKey: 'wall_office',
+    textureScale: 0.5,
     materialsByZone: {},
     shadow: { colour: 0x050709, alpha: 0.22, offsetX: 5, offsetY: 6 },
     edge: { colour: 0x98a2ac, alpha: 0.16 },
@@ -42,7 +44,8 @@ const DATA_CENTRE: VenueVisualProfile = {
   id: 'data-centre',
   routeSurface: { colour: 0x151c22, alpha: 1 },
   wall: {
-    defaultTextureKey: 'wall_brick',
+    defaultTextureKey: 'wall_data_panel',
+    textureScale: 0.5,
     materialsByZone: {},
     shadow: { colour: 0x040608, alpha: 0.25, offsetX: 5, offsetY: 7 },
     edge: { colour: 0x89989f, alpha: 0.14 },
@@ -59,7 +62,8 @@ const WAREHOUSE: VenueVisualProfile = {
   id: 'warehouse',
   routeSurface: { colour: 0x202328, alpha: 1 },
   wall: {
-    defaultTextureKey: 'wall_brick',
+    defaultTextureKey: 'wall_warehouse_block',
+    textureScale: 0.5,
     materialsByZone: {},
     shadow: { colour: 0x070809, alpha: 0.2, offsetX: 6, offsetY: 6 },
     edge: { colour: 0xa09f96, alpha: 0.15 },

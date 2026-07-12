@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { FLOOR_FALLBACK, FLOOR_TEXTURES, RENDER } from '../config/tiles';
+import { FONTS, PALETTE } from '../config/palette';
 import { getVenueVisualProfile, type VenueVisualProfile } from '../config/venueVisualProfiles';
 import { FALLBACK_TINT, GRID_TINT, ZONE_TINT_ALPHA, ZONE_TINTS } from '../config/zones';
 import type { BuildingMap } from './BuildingMap';
@@ -128,7 +129,7 @@ export class WorldRenderer {
         wall.height,
         profile.wall.defaultTextureKey
       );
-      brick.setTileScale(RENDER.tileScale, RENDER.tileScale);
+      brick.setTileScale(profile.wall.textureScale, profile.wall.textureScale);
       brick.setDepth(10);
       edges.fillRect(wall.x, wall.y, wall.width, Math.min(2, wall.height));
       edges.fillRect(wall.x, wall.y, Math.min(2, wall.width), wall.height);
@@ -168,6 +169,20 @@ export class WorldRenderer {
       .setAngle(decoration.rotation)
       .setAlpha(decoration.alpha)
       .setDepth(depth);
+    if (decoration.label) {
+      scene.add
+        .text(decoration.x, decoration.y, decoration.label, {
+          fontFamily: FONTS.mono,
+          fontSize: '11px',
+          color: PALETTE.text,
+          stroke: PALETTE.base,
+          strokeThickness: 2,
+        })
+        .setOrigin(0.5)
+        .setAngle(decoration.rotation)
+        .setAlpha(decoration.alpha)
+        .setDepth(depth + 0.1);
+    }
   }
 
   private drawGrid(scene: Phaser.Scene, map: BuildingMap): Phaser.GameObjects.Graphics {

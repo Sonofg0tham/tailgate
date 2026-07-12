@@ -11,6 +11,16 @@ describe('venue visual profile selection', () => {
     expect(getVenueVisualProfile('warehouse').id).toBe('warehouse');
   });
 
+  it('selects a distinct wall material for every venue', () => {
+    expect(getVenueVisualProfile('building-c').wall.defaultTextureKey).toBe('wall_office');
+    expect(getVenueVisualProfile('data-centre').wall.defaultTextureKey).toBe(
+      'wall_data_panel'
+    );
+    expect(getVenueVisualProfile('warehouse').wall.defaultTextureKey).toBe(
+      'wall_warehouse_block'
+    );
+  });
+
   it('uses Building C as the safe fallback for an unknown level', () => {
     expect(getVenueVisualProfile('unknown').id).toBe('building-c');
   });

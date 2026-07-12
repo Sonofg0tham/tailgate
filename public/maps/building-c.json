@@ -10,8 +10,8 @@
   "tileheight": 32,
   "width": 75,
   "height": 50,
-  "nextlayerid": 10,
-  "nextobjectid": 604,
+  "nextlayerid": 11,
+  "nextobjectid": 643,
   "tilesets": [],
   "layers": [
     {
@@ -127,7 +127,26 @@
         { "id": 265, "name": "prop_server_alt", "type": "", "x": 2280, "y": 560, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
         { "id": 266, "name": "prop_server", "type": "", "x": 2140, "y": 670, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
         { "id": 267, "name": "prop_server_alt", "type": "", "x": 2210, "y": 670, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
-        { "id": 268, "name": "prop_server", "type": "", "x": 2280, "y": 670, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true }
+        { "id": 268, "name": "prop_server", "type": "", "x": 2280, "y": 670, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
+        { "id": 604, "name": "env_chair", "type": "", "x": 860, "y": 648, "width": 0, "height": 0, "point": true, "rotation": 180, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.22 }] },
+        { "id": 605, "name": "env_chair", "type": "", "x": 1040, "y": 648, "width": 0, "height": 0, "point": true, "rotation": 180, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.22 }] },
+        { "id": 606, "name": "env_chair", "type": "", "x": 1220, "y": 648, "width": 0, "height": 0, "point": true, "rotation": 180, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.22 }] },
+        { "id": 607, "name": "env_chair", "type": "", "x": 1400, "y": 648, "width": 0, "height": 0, "point": true, "rotation": 180, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.22 }] },
+        { "id": 608, "name": "env_monitor", "type": "", "x": 860, "y": 586, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.2 }] },
+        { "id": 609, "name": "env_monitor", "type": "", "x": 1040, "y": 586, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.2 }] },
+        { "id": 610, "name": "env_monitor", "type": "", "x": 1220, "y": 586, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.2 }] },
+        { "id": 611, "name": "env_monitor", "type": "", "x": 1400, "y": 586, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.2 }] },
+        { "id": 612, "name": "env_copier", "type": "", "x": 1490, "y": 1150, "width": 0, "height": 0, "point": true, "rotation": 90, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.22 }] },
+        { "id": 613, "name": "env_bollard", "type": "", "x": 1080, "y": 1310, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.25 }] },
+        { "id": 614, "name": "env_bollard", "type": "", "x": 1480, "y": 1310, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.25 }] },
+        { "id": 615, "name": "env_trolley", "type": "", "x": 1820, "y": 1080, "width": 0, "height": 0, "point": true, "rotation": 90, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.9 }] },
+        { "id": 616, "name": "env_pallet_alt", "type": "", "x": 2200, "y": 1080, "width": 0, "height": 0, "point": true, "rotation": 8, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.27 }] },
+        { "id": 617, "name": "env_dock_buffer", "type": "", "x": 1840, "y": 1210, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.24 }] },
+        { "id": 618, "name": "env_dock_buffer", "type": "", "x": 2170, "y": 1210, "width": 0, "height": 0, "point": true, "rotation": 180, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.24 }] },
+        { "id": 619, "name": "env_sign_panel", "type": "", "x": 1080, "y": 1040, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.24 }, { "name": "label", "type": "string", "value": "VISITOR" }] },
+        { "id": 620, "name": "env_fire_exit", "type": "", "x": 340, "y": 1190, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.22 }] },
+        { "id": 621, "name": "env_fire_exit", "type": "", "x": 2020, "y": 800, "width": 0, "height": 0, "point": true, "rotation": 180, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.22 }] },
+        { "id": 622, "name": "env_barrier", "type": "", "x": 2210, "y": 1315, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.52 }, { "name": "alpha", "type": "float", "value": 0.85 }] }
       ]
     },
     {
@@ -207,6 +226,38 @@
         { "id": 601, "name": "kettleSteam", "type": "steam", "x": 430, "y": 566, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
         { "id": 602, "name": "rackHazeNorth", "type": "haze", "x": 2210, "y": 480, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true },
         { "id": 603, "name": "rackHazeSouth", "type": "haze", "x": 2210, "y": 620, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "decals",
+      "type": "objectgroup",
+      "draworder": "topdown",
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0,
+      "objects": [
+        { "id": 623, "name": "env_sign_panel", "type": "", "x": 500, "y": 1340, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.24 }, { "name": "alpha", "type": "float", "value": 0.5 }, { "name": "label", "type": "string", "value": "V-01" }] },
+        { "id": 624, "name": "env_sign_panel", "type": "", "x": 700, "y": 1340, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.24 }, { "name": "alpha", "type": "float", "value": 0.5 }, { "name": "label", "type": "string", "value": "V-02" }] },
+        { "id": 625, "name": "env_sign_panel", "type": "", "x": 900, "y": 1340, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.24 }, { "name": "alpha", "type": "float", "value": 0.5 }, { "name": "label", "type": "string", "value": "V-03" }] },
+        { "id": 626, "name": "env_kerb", "type": "", "x": 380, "y": 1278, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.72 }, { "name": "alpha", "type": "float", "value": 0.5 }] },
+        { "id": 627, "name": "env_kerb", "type": "", "x": 540, "y": 1278, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.72 }, { "name": "alpha", "type": "float", "value": 0.5 }] },
+        { "id": 628, "name": "env_kerb", "type": "", "x": 700, "y": 1278, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.72 }, { "name": "alpha", "type": "float", "value": 0.5 }] },
+        { "id": 629, "name": "env_kerb", "type": "", "x": 860, "y": 1278, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.72 }, { "name": "alpha", "type": "float", "value": 0.5 }] },
+        { "id": 630, "name": "env_kerb", "type": "", "x": 1020, "y": 1278, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.72 }, { "name": "alpha", "type": "float", "value": 0.5 }] },
+        { "id": 631, "name": "env_kerb", "type": "", "x": 1540, "y": 1278, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.72 }, { "name": "alpha", "type": "float", "value": 0.5 }] },
+        { "id": 632, "name": "env_kerb", "type": "", "x": 1700, "y": 1278, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.72 }, { "name": "alpha", "type": "float", "value": 0.5 }] },
+        { "id": 633, "name": "env_cable_channel", "type": "", "x": 1070, "y": 1370, "width": 0, "height": 0, "point": true, "rotation": 90, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.6 }, { "name": "alpha", "type": "float", "value": 0.45 }] },
+        { "id": 634, "name": "env_cable_channel", "type": "", "x": 1170, "y": 1370, "width": 0, "height": 0, "point": true, "rotation": 90, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.6 }, { "name": "alpha", "type": "float", "value": 0.45 }] },
+        { "id": 635, "name": "env_cable_channel", "type": "", "x": 1390, "y": 1370, "width": 0, "height": 0, "point": true, "rotation": 90, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.6 }, { "name": "alpha", "type": "float", "value": 0.45 }] },
+        { "id": 636, "name": "env_cable_channel", "type": "", "x": 1490, "y": 1370, "width": 0, "height": 0, "point": true, "rotation": 90, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.6 }, { "name": "alpha", "type": "float", "value": 0.45 }] },
+        { "id": 637, "name": "env_cable_channel", "type": "", "x": 1280, "y": 1285, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.65 }, { "name": "alpha", "type": "float", "value": 0.42 }] },
+        { "id": 638, "name": "env_drain", "type": "", "x": 450, "y": 1265, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.38 }, { "name": "alpha", "type": "float", "value": 0.55 }] },
+        { "id": 639, "name": "env_drain", "type": "", "x": 1650, "y": 1265, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.38 }, { "name": "alpha", "type": "float", "value": 0.55 }] },
+        { "id": 640, "name": "env_cable_channel", "type": "", "x": 740, "y": 960, "width": 0, "height": 0, "point": true, "rotation": 90, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.72 }, { "name": "alpha", "type": "float", "value": 0.34 }] },
+        { "id": 641, "name": "env_cable_channel", "type": "", "x": 1690, "y": 790, "width": 0, "height": 0, "point": true, "rotation": 90, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.72 }, { "name": "alpha", "type": "float", "value": 0.34 }] },
+        { "id": 642, "name": "env_cable_channel", "type": "", "x": 2045, "y": 790, "width": 0, "height": 0, "point": true, "rotation": 90, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.72 }, { "name": "alpha", "type": "float", "value": 0.34 }] }
       ]
     }
   ]

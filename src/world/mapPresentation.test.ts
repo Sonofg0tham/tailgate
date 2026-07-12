@@ -48,6 +48,31 @@ describe('Tiled presentation layers', () => {
       },
     ]);
   });
+
+  it('preserves an optional map-authored venue label', () => {
+    expect(
+      readDecorationLayer({
+        objects: [
+          {
+            name: 'env_sign_panel',
+            x: 20,
+            y: 30,
+            properties: [{ name: 'label', value: 'AISLE 01' }],
+          },
+        ],
+      })
+    ).toEqual([
+      {
+        key: 'env_sign_panel',
+        x: 20,
+        y: 30,
+        rotation: 0,
+        scale: 1,
+        alpha: 1,
+        label: 'AISLE 01',
+      },
+    ]);
+  });
 });
 
 describe('decal render policy', () => {
