@@ -6,7 +6,9 @@ type Decode = (bytes: ArrayBuffer) => Promise<AudioBuffer>;
 
 export class SampleBank {
   private readonly buffers = new Map<string, AudioBuffer>();
+  private readonly failedIds = new Set<string>();
   private loading: Promise<void> | null = null;
+  private state: 'idle' | 'loading' | 'settled' = 'idle';
   private warned = false;
 
   constructor(
@@ -16,14 +18,19 @@ export class SampleBank {
   ) {}
 
   preload(): Promise<void> {
-    this.loading ??= Promise.all(SAMPLE_MANIFEST.map(async (entry) => {
+    if (this.loading) return this.loading;
+    this.state = 'loading';
+    this.loading = Promise.all(SAMPLE_MANIFEST.map(async (entry) => {
       try {
         const bytes = await this.fetchBytes(entry.path);
         this.buffers.set(entry.id, await this.decode(bytes));
       } catch {
-        this.warnOnce();
+        this.failedIds.add(entry.id);
       }
-    })).then(() => undefined);
+    })).then(() => {
+      this.state = 'settled';
+      if (this.failedIds.size > 0) this.warnOnce();
+    });
     return this.loading;
   }
 
@@ -35,7 +42,7 @@ export class SampleBank {
     const candidates = samplesFor(group).filter((entry) => this.buffers.has(entry.id));
     const index = chooseVariant(candidates.length, random01);
     if (index < 0) {
-      this.warnOnce();
+      if (this.state === 'settled') this.warnOnce();
       return null;
     }
     return this.buffers.get(candidates[index].id) ?? null;
