@@ -5,7 +5,7 @@ import { zoneAt } from './zoneAt';
 import type { ZoneRect, WallRect } from '../world/BuildingMap';
 import type { SpeedState } from '../input/InputState';
 import type { GuardState } from '../entities/Guard';
-import { venueProfile, type LevelAudioProfile, type VenueProfileId } from './atmospherePolicy';
+import { nextTensionPulseAt, venueProfile, type LevelAudioProfile, type VenueProfileId } from './atmospherePolicy';
 import type { SecurityCue } from './audioPolicy';
 import { SecurityCueCoordinator } from './securityCueCoordinator';
 import { playSecurityCue } from './securityCues';
@@ -242,9 +242,11 @@ export class AudioManager {
   private guardStepAccumulatorMs = 0;
   private radioNextBurstAt = 0;
   private tensionNextPulseAt = 0;
+  private lastAlertLevel = 0;
   private venueNextDetailAt = 0;
-  private readonly cueSpatial = new Map<SecurityCue, CueSpatialFrame>();
-  private readonly securityCues = new SecurityCueCoordinator((cue) => this.playSecurity(cue));
+  private readonly securityCues = new SecurityCueCoordinator<CueSpatialFrame>(
+    (cue, spatial) => this.playSecurity(cue, spatial)
+  );
 
   private lastOcclusionCutoffHz: number = AUDIO.guardFootstep.occlusionOpenHz;
   private lastGuardDistancePx = Number.POSITIVE_INFINITY;
@@ -323,6 +325,10 @@ export class AudioManager {
     this.updateGuardAudio(dtMs, frame);
     this.updateAmbience(dtMs, zoneName, frame.alertLevel);
     this.updateVenueProfile(frame.venueAudio);
+    this.tensionNextPulseAt = nextTensionPulseAt(
+      this.lastAlertLevel, frame.alertLevel, frame.nowMs, this.tensionNextPulseAt
+    );
+    this.lastAlertLevel = frame.alertLevel;
     this.tensionNextPulseAt = updateTensionBed(
       graph.ctx, graph.buses.ambience.gain, graph.noiseBuffer, frame.alertLevel,
       frame.nowMs, this.tensionNextPulseAt
@@ -347,14 +353,11 @@ export class AudioManager {
 
   /** Offers a fresh guard or camera transition to the 250ms severity window. */
   offerSecurityCue(cue: SecurityCue, nowMs: number, spatial: CueSpatialFrame): void {
-    this.cueSpatial.set(cue, spatial);
-    this.securityCues.offer(cue, nowMs);
+    this.securityCues.offer(cue, nowMs, spatial);
   }
 
-  private playSecurity(cue: SecurityCue): void {
+  private playSecurity(cue: SecurityCue, spatial: CueSpatialFrame): void {
     if (!graph || graph.ctx.state !== 'running') return;
-    const spatial = this.cueSpatial.get(cue);
-    if (!spatial) return;
     const range = 600;
     const distance = Math.hypot(spatial.sourceX - spatial.playerX, spatial.sourceY - spatial.playerY);
     const gain = distanceGain(distance, range);
@@ -631,7 +634,7 @@ export class AudioManager {
     this.guardStepAccumulatorMs = 0;
     this.radioNextBurstAt = 0;
     this.tensionNextPulseAt = 0;
+    this.lastAlertLevel = 0;
     this.venueNextDetailAt = 0;
-    this.cueSpatial.clear();
   }
 }

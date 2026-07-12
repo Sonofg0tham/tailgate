@@ -448,9 +448,9 @@ export class BuildingScene extends Phaser.Scene {
       this.consoleOpen ? false : interactPressed
     );
     for (const p of camTick.investigatePoints) {
-      this.guard?.investigatePoint(p.x, p.y);
+      this.guard?.investigatePoint(p.investigateX, p.investigateY);
       this.lastCameraCue = { id: p.id, atMs: now };
-      this.offerSecurityCue('camera-ping', now, p.x, p.y, closedDoors);
+      this.offerSecurityCue('camera-ping', now, p.sourceX, p.sourceY, closedDoors);
     }
     if (camTick.raisedAlert) {
       const level = raiseAlert(now);

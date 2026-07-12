@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { CAMERAS } from '../config/cameras';
 import { Camera, type CameraState } from '../entities/Camera';
 import type { WallRect } from '../world/BuildingMap';
+import { cameraCueEvent, type CameraCueEvent } from './cameraCueEvent';
 
 /** One CCTV camera definition, as authored in public/data/cameras.json. */
 export interface CameraDef {
@@ -61,7 +62,7 @@ export type FreezeResult = 'frozen' | 'cooldown' | 'offline' | 'unknown';
 export interface CameraTick {
   /** Fresh curious pings this frame, one per camera that just pinged, each
    * carrying its camera's id so the scene can name the tip-off later. */
-  investigatePoints: { x: number; y: number; id: string }[];
+  investigatePoints: CameraCueEvent[];
   /** True if any camera raised the building alert this frame. */
   raisedAlert: boolean;
   /** Camera positions that freshly raised an alarm this frame. */
@@ -132,14 +133,16 @@ export class CameraSystem {
     interactPressed: boolean
   ): CameraTick {
     this.lastNow = now;
-    const investigatePoints: { x: number; y: number; id: string }[] = [];
+    const investigatePoints: CameraCueEvent[] = [];
     let raisedAlert = false;
     const alarmPoints: { x: number; y: number; id: string }[] = [];
 
     for (const camera of this.cameras) {
       const result = camera.update(now, dtMs, playerX, playerY, closedDoors);
       if (result.curiousPing) {
-        investigatePoints.push({ ...result.curiousPing, id: camera.id });
+        investigatePoints.push(
+          cameraCueEvent(camera.id, camera.x, camera.y, result.curiousPing.x, result.curiousPing.y)
+        );
       }
       if (result.raiseAlertNow) {
         raisedAlert = true;

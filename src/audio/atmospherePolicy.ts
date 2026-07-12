@@ -31,3 +31,14 @@ export function alertTensionProfile(alertLevel: number): AlertTensionProfile | n
   }
   return { droneHz: 73, pulseHz: 146, pulseIntervalMs: 520, filteredNoise: true };
 }
+
+/** A changed alert state starts its own rhythm now, never on the old state deadline. */
+export function nextTensionPulseAt(
+  previousLevel: number,
+  alertLevel: number,
+  nowMs: number,
+  currentDeadlineMs: number
+): number {
+  if (alertLevel <= 0) return 0;
+  return previousLevel === alertLevel ? currentDeadlineMs : nowMs;
+}
