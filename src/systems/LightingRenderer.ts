@@ -109,5 +109,8 @@ export class LightingRenderer {
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, MASK_SIZE, MASK_SIZE);
     tex.refresh();
+    // Pixel textures use nearest-neighbour filtering globally. This generated
+    // gradient is the exception, its soft falloff must stay smoothly filtered.
+    tex.setFilter(Phaser.Textures.FilterMode.LINEAR);
   }
 }

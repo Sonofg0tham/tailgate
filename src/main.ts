@@ -40,6 +40,10 @@ async function boot(): Promise<void> {
     width: GAME_WIDTH,
     height: GAME_HEIGHT,
     backgroundColor: PALETTE.base,
+    render: {
+      pixelArt: true,
+      roundPixels: true,
+    },
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,

@@ -44,7 +44,7 @@ export const AMBIENT_FALLBACK = 0.4;
 
 export const LIGHTING = {
   /** Global minimum brightness for the HUMAN player. 0 allows pitch black, 1 removes darkness. */
-  visibilityFloorGlobal: 0.22,
+  visibilityFloorGlobal: 0.28,
   /** Soft readability aura around the player. Render only, NEVER counted for detection. */
   playerAuraRadiusPx: 150,
   playerAuraStrength: 0.9,

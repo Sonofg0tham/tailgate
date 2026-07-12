@@ -221,7 +221,7 @@ export class BuildingScene extends Phaser.Scene {
     const map = new BuildingMap(this, this.mapKey);
     this.mapZones = map.zones;
     this.mapWalls = map.walls;
-    this.world = new WorldRenderer(this, map);
+    this.world = new WorldRenderer(this, map, this.level.id);
     this.lightModel = new LightModel(map.zones, map.lights);
 
     // A detain restarts here: resume from the last checkpoint if there is one.

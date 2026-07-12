@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
-import { FLOOR_FALLBACK, FLOOR_TEXTURES, RENDER, WALL_TEXTURE } from '../config/tiles';
+import { FLOOR_FALLBACK, FLOOR_TEXTURES, RENDER } from '../config/tiles';
+import { getVenueVisualProfile, type VenueVisualProfile } from '../config/venueVisualProfiles';
 import { FALLBACK_TINT, GRID_TINT, ZONE_TINT_ALPHA, ZONE_TINTS } from '../config/zones';
 import type { BuildingMap } from './BuildingMap';
+import { selectKnownDecorations, type DecorationPoint } from './mapPresentation';
 
 /** Spacing of the reference grid, matching the map's tile size. */
 const GRID_STEP = 32;
@@ -12,16 +14,20 @@ const GRID_STEP = 32;
  * placed from the map's props layer. The 32px reference grid is kept as a debug
  * overlay, hidden by default and toggled with toggleGrid().
  *
- * Depth order: floor 0, zone wash 1, walls 10, props 15, grid 20. The player
- * (drawn elsewhere at depth 40) and the noise ring (30) sit above all of this.
+ * Depth order: route -5, floor 0, wash 1, light pools 2, decals 4, walls
+ * 9-11, props 14-15, grid 20. The player (depth 40) stays above the world.
  */
 export class WorldRenderer {
   private readonly grid: Phaser.GameObjects.Graphics;
 
-  constructor(scene: Phaser.Scene, map: BuildingMap) {
+  constructor(scene: Phaser.Scene, map: BuildingMap, levelId: string) {
+    const profile = getVenueVisualProfile(levelId);
+    this.drawRouteSurface(scene, map, profile);
     this.drawFloors(scene, map);
-    this.drawWalls(scene, map);
-    this.drawProps(scene, map);
+    this.drawLightPools(scene, map, profile);
+    this.drawDecals(scene, map);
+    this.drawWalls(scene, map, profile);
+    this.drawProps(scene, map, profile);
     this.grid = this.drawGrid(scene, map);
   }
 
@@ -29,6 +35,23 @@ export class WorldRenderer {
   toggleGrid(): boolean {
     this.grid.setVisible(!this.grid.visible);
     return this.grid.visible;
+  }
+
+  private drawRouteSurface(
+    scene: Phaser.Scene,
+    map: BuildingMap,
+    profile: VenueVisualProfile
+  ): void {
+    scene.add
+      .rectangle(
+        map.widthInPixels / 2,
+        map.heightInPixels / 2,
+        map.widthInPixels,
+        map.heightInPixels,
+        profile.routeSurface.colour,
+        profile.routeSurface.alpha
+      )
+      .setDepth(-5);
   }
 
   private drawFloors(scene: Phaser.Scene, map: BuildingMap): void {
@@ -49,25 +72,102 @@ export class WorldRenderer {
     }
   }
 
-  private drawWalls(scene: Phaser.Scene, map: BuildingMap): void {
-    for (const wall of map.walls) {
-      const cx = wall.x + wall.width / 2;
-      const cy = wall.y + wall.height / 2;
-      const brick = scene.add.tileSprite(cx, cy, wall.width, wall.height, WALL_TEXTURE);
-      brick.setTileScale(RENDER.tileScale, RENDER.tileScale);
-      brick.setDepth(10);
+  private drawLightPools(
+    scene: Phaser.Scene,
+    map: BuildingMap,
+    profile: VenueVisualProfile
+  ): void {
+    for (const light of map.lights) {
+      const treatment = profile.lightPools[light.kind] ?? profile.lightPools.pool;
+      if (!treatment) {
+        continue;
+      }
+      scene.add
+        .ellipse(
+          light.x + light.width / 2,
+          light.y + light.height / 2,
+          Math.max(24, light.width),
+          Math.max(24, light.height),
+          treatment.colour,
+          treatment.alpha
+        )
+        .setDepth(2);
     }
   }
 
-  private drawProps(scene: Phaser.Scene, map: BuildingMap): void {
-    for (const prop of map.props) {
-      if (!scene.textures.exists(prop.key)) {
-        // A prop naming a texture we did not load is a data bug, skip it loudly.
-        console.warn(`Unknown prop texture "${prop.key}" at ${prop.x},${prop.y}`);
-        continue;
-      }
-      scene.add.sprite(prop.x, prop.y, prop.key).setScale(RENDER.propScale).setDepth(15);
+  private drawDecals(scene: Phaser.Scene, map: BuildingMap): void {
+    const decals = selectKnownDecorations(
+      map.decals,
+      (key) => scene.textures.exists(key),
+      'decal'
+    );
+    for (const decal of decals) {
+      this.addDecorationSprite(scene, decal, 4);
     }
+  }
+
+  private drawWalls(scene: Phaser.Scene, map: BuildingMap, profile: VenueVisualProfile): void {
+    const shadows = scene.add.graphics().setDepth(9);
+    const edges = scene.add.graphics().setDepth(11);
+    shadows.fillStyle(profile.wall.shadow.colour, profile.wall.shadow.alpha);
+    edges.fillStyle(profile.wall.edge.colour, profile.wall.edge.alpha);
+
+    for (const wall of map.walls) {
+      const cx = wall.x + wall.width / 2;
+      const cy = wall.y + wall.height / 2;
+      shadows.fillRect(
+        wall.x + profile.wall.shadow.offsetX,
+        wall.y + profile.wall.shadow.offsetY,
+        wall.width,
+        wall.height
+      );
+      const brick = scene.add.tileSprite(
+        cx,
+        cy,
+        wall.width,
+        wall.height,
+        profile.wall.defaultTextureKey
+      );
+      brick.setTileScale(RENDER.tileScale, RENDER.tileScale);
+      brick.setDepth(10);
+      edges.fillRect(wall.x, wall.y, wall.width, Math.min(2, wall.height));
+      edges.fillRect(wall.x, wall.y, Math.min(2, wall.width), wall.height);
+    }
+  }
+
+  private drawProps(scene: Phaser.Scene, map: BuildingMap, profile: VenueVisualProfile): void {
+    const props = selectKnownDecorations(
+      map.props,
+      (key) => scene.textures.exists(key),
+      'prop'
+    );
+    for (const prop of props) {
+      scene.add
+        .sprite(
+          prop.x + profile.propShadow.offsetX,
+          prop.y + profile.propShadow.offsetY,
+          prop.key
+        )
+        .setScale(RENDER.propScale * prop.scale)
+        .setAngle(prop.rotation)
+        .setTint(profile.propShadow.colour)
+        .setAlpha(profile.propShadow.alpha * prop.alpha)
+        .setDepth(14);
+      this.addDecorationSprite(scene, prop, 15);
+    }
+  }
+
+  private addDecorationSprite(
+    scene: Phaser.Scene,
+    decoration: DecorationPoint,
+    depth: number
+  ): void {
+    scene.add
+      .sprite(decoration.x, decoration.y, decoration.key)
+      .setScale(RENDER.propScale * decoration.scale)
+      .setAngle(decoration.rotation)
+      .setAlpha(decoration.alpha)
+      .setDepth(depth);
   }
 
   private drawGrid(scene: Phaser.Scene, map: BuildingMap): Phaser.GameObjects.Graphics {

@@ -21,4 +21,10 @@ export const THROW = {
 
   /** Gamepad right-stick push below this is ignored when aiming. */
   aimDeadzone: 0.25,
+
+  /** Time for an idle aim trace to disappear after its active window, in milliseconds. */
+  aimFadeMs: 150,
+
+  /** Time mouse aim remains readable after the pointer stops moving, in milliseconds. */
+  mouseAimHoldMs: 650,
 } as const;

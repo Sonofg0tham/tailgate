@@ -1,4 +1,9 @@
 import Phaser from 'phaser';
+import {
+  readDecorationLayer,
+  type DecorationLayer,
+  type DecorationPoint,
+} from './mapPresentation';
 
 /** A named floor area read from the Tiled `zones` object layer. */
 export interface ZoneRect {
@@ -30,12 +35,10 @@ export interface WallRect {
 }
 
 /** A furniture prop read from the Tiled `props` object layer. */
-export interface PropPoint {
-  /** Texture key to draw, matching a key in IMAGE_ASSETS (e.g. "prop_desk"). */
-  key: string;
-  x: number;
-  y: number;
-}
+export type PropPoint = DecorationPoint;
+
+/** A non-colliding visual sprite read from the optional Tiled `decals` layer. */
+export type DecalPoint = DecorationPoint;
 
 /** A light source read from the Tiled `lights` layer. */
 export interface LightRect {
@@ -91,6 +94,7 @@ export class BuildingMap {
   readonly zones: ZoneRect[];
   readonly walls: WallRect[];
   readonly props: PropPoint[];
+  readonly decals: DecalPoint[];
   readonly doors: DoorRect[];
   readonly objectives: ObjectivePoint[];
   readonly lights: LightRect[];
@@ -108,6 +112,7 @@ export class BuildingMap {
     this.zones = BuildingMap.readZones(map);
     this.walls = BuildingMap.readWalls(map);
     this.props = BuildingMap.readProps(map);
+    this.decals = BuildingMap.readDecals(map);
     this.doors = BuildingMap.readDoors(map);
     this.objectives = BuildingMap.readObjectives(map);
     this.lights = BuildingMap.readLights(map);
@@ -205,15 +210,13 @@ export class BuildingMap {
   }
 
   private static readProps(map: Phaser.Tilemaps.Tilemap): PropPoint[] {
-    const layer = map.getObjectLayer('props');
-    if (!layer) {
-      return [];
-    }
-    return layer.objects.map((obj) => ({
-      key: obj.name ?? '',
-      x: obj.x ?? 0,
-      y: obj.y ?? 0,
-    }));
+    const layer = map.getObjectLayer('props') as unknown as DecorationLayer | null;
+    return readDecorationLayer(layer ?? undefined);
+  }
+
+  private static readDecals(map: Phaser.Tilemaps.Tilemap): DecalPoint[] {
+    const layer = map.getObjectLayer('decals') as unknown as DecorationLayer | null;
+    return readDecorationLayer(layer ?? undefined);
   }
 
   private static readDoors(map: Phaser.Tilemaps.Tilemap): DoorRect[] {
