@@ -95,13 +95,20 @@ export class ThrowController {
       pad !== undefined && pad.rightStick.length() >= THROW.aimDeadzone;
     const aim = this.computeAim(scene, playerX, playerY, pad);
     const pointer = scene.input.activePointer;
-    const displayAlpha = this.aimDisplay.update({
+    const display = this.aimDisplay.update({
       dtMs,
       controllerEngaged,
       mouseX: pointer.x,
       mouseY: pointer.y,
+      aimX: aim.x,
+      aimY: aim.y,
     });
-    this.drawTrajectory(playerX, playerY, aim, displayAlpha);
+    this.drawTrajectory(
+      playerX,
+      playerY,
+      { x: display.aimX, y: display.aimY },
+      display.alpha
+    );
 
     const padThrow = pad !== undefined && pad.R2 > 0.5;
     const throwRequested = this.pointerThrowQueued || (padThrow && !this.prevPadThrow);
@@ -151,7 +158,7 @@ export class ThrowController {
   private drawTrajectory(
     px: number,
     py: number,
-    aim: Phaser.Math.Vector2,
+    aim: { x: number; y: number },
     alpha: number
   ): void {
     this.reticle.clear();
