@@ -403,7 +403,15 @@ export class BuildingScene extends Phaser.Scene {
     // Shared occluder set for the guard, cameras and audio this frame.
     const closedDoors = this.doors.filter((d) => !d.isOpen).map((d) => d.rect);
 
+    let guardActualVelocity = { x: 0, y: 0 };
     if (this.guard) {
+      // Capture the completed physics step before Guard.update writes the next
+      // requested velocity, matching the player footstep rule.
+      guardActualVelocity = velocityFromDisplacement(
+        this.guard.displacementX,
+        this.guard.displacementY,
+        delta
+      );
       // The guard's own sightline lights where it looks; darkness elsewhere is
       // cover, so sample the light at the player and feed it into perception.
       this.lightModel.setGuardTorch(this.guard.x, this.guard.y, this.guard.facingAngle);
@@ -505,8 +513,8 @@ export class BuildingScene extends Phaser.Scene {
             id: this.guardId,
             x: this.guard.x,
             y: this.guard.y,
-            velocityX: this.guard.velocityX,
-            velocityY: this.guard.velocityY,
+            velocityX: guardActualVelocity.x,
+            velocityY: guardActualVelocity.y,
             state: this.guard.state,
           }
         : null,

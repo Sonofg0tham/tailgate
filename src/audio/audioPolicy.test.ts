@@ -41,6 +41,14 @@ describe('movement audio policy', () => {
     expect(isActuallyMoving(0.5, 0.5)).toBe(false);
     expect(isActuallyMoving(2, 0)).toBe(true);
   });
+
+  it('reports a paused guard as stationary despite its next requested velocity', () => {
+    const requestedVelocity = { x: 90, y: 0 };
+    const completedVelocity = velocityFromDisplacement(0, 0, 16);
+
+    expect(requestedVelocity.x).toBeGreaterThan(0);
+    expect(isActuallyMoving(completedVelocity.x, completedVelocity.y)).toBe(false);
+  });
 });
 
 describe('security cue policy', () => {

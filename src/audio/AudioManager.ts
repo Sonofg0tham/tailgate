@@ -11,7 +11,12 @@ import {
   isActuallyMoving,
   panForPositions,
 } from './audioPolicy';
-import { SharedGraph } from './sharedGraph';
+import {
+  buildMixCore,
+  rampGain,
+  SharedMixLifecycle,
+  type MixCore,
+} from './sharedMix';
 
 /**
  * One frame's worth of world state the audio subsystem needs to decide what
@@ -36,11 +41,6 @@ export interface AudioFrame {
   alertLevel: number;
 }
 
-/** One category's node graph: a gain feeding the master bus. */
-interface CategoryBus {
-  gain: GainNode;
-}
-
 /** The ambience bed nodes for one bed type, so it can be faded independently. */
 interface AmbienceVoice {
   gain: GainNode;
@@ -53,18 +53,7 @@ interface AmbienceVoice {
  * the ambience beds or open a second AudioContext). AudioManager instances
  * are cheap; this graph is the expensive singleton behind them.
  */
-interface AudioGraph {
-  ctx: AudioContext;
-  masterGain: GainNode;
-  sharedGain: GainNode;
-  compressor: DynamicsCompressorNode;
-  buses: {
-    sting: CategoryBus;
-    footsteps: CategoryBus;
-    guard: CategoryBus;
-    radio: CategoryBus;
-    ambience: CategoryBus;
-  };
+interface AudioGraph extends MixCore {
   noiseBuffer: AudioBuffer;
   ambienceVoices: Partial<Record<AmbienceBed, AmbienceVoice>>;
   ambienceGains: Partial<Record<AmbienceBed, GainNode>>;
@@ -72,45 +61,23 @@ interface AudioGraph {
 }
 
 let graph: AudioGraph | null = null;
-let sharedGraph: SharedGraph<AudioGraph> | null = null;
-
-// Master volume and mute live at module scope alongside the graph singleton, so
-// any scene (the settings menu, the building) can set them and they apply to the
-// one shared mix, whether or not audio has unlocked yet.
-let masterVolume01 = 1;
-let masterMuted = false;
-let gameplayPaused = false;
-
-/** The effective master gain: zero when muted, else the tuned master times 0..1. */
-function effectiveMasterGain(): number {
-  return masterMuted ? 0 : AUDIO.volumes.master * masterVolume01;
-}
 
 /**
  * Sets the overall volume, 0 to 1, on top of the tuned master gain. Safe before
  * audio unlocks: the value is stored and applied when the graph is built.
  */
 export function setAudioMasterVolume(v01: number): void {
-  masterVolume01 = Phaser.Math.Clamp(v01, 0, 1);
-  if (graph && !masterMuted) {
-    graph.masterGain.gain.setValueAtTime(effectiveMasterGain(), graph.ctx.currentTime);
-  }
+  sharedMix.setMasterVolume(v01);
 }
 
 /** Mutes or unmutes the whole mix with a short click-free ramp. */
 export function setAudioMuted(muted: boolean): void {
-  masterMuted = muted;
-  if (graph) {
-    rampGain(graph.ctx, graph.masterGain.gain, effectiveMasterGain(), 30);
-  }
+  sharedMix.setMuted(muted);
 }
 
 /** Ducks the shared graph while gameplay is paused, without rebuilding it. */
 export function setAudioGameplayPaused(paused: boolean): void {
-  gameplayPaused = paused;
-  if (graph) {
-    rampGain(graph.ctx, graph.sharedGain.gain, paused ? 0.0001 : AUDIO.volumes.headroom, 120);
-  }
+  sharedMix.setGameplayPaused(paused);
 }
 
 /** Builds one steady ambience voice for a bed, routed through its own gain. */
@@ -195,35 +162,8 @@ function buildAmbienceVoice(ctx: AudioContext, noiseBuffer: AudioBuffer, bed: Am
 }
 
 /** Builds the module-singleton audio graph. Called at most once per page life. */
-function buildGraph(ctx: AudioContext): AudioGraph {
-  const masterGain = ctx.createGain();
-  masterGain.gain.value = AUDIO.volumes.master;
-  const sharedGain = ctx.createGain();
-  sharedGain.gain.value = gameplayPaused ? 0.0001 : AUDIO.volumes.headroom;
-  const compressor = ctx.createDynamicsCompressor();
-  compressor.threshold.value = -12;
-  compressor.knee.value = 12;
-  compressor.ratio.value = 4;
-  compressor.attack.value = 0.003;
-  compressor.release.value = 0.2;
-  sharedGain.connect(masterGain);
-  masterGain.connect(compressor);
-  compressor.connect(ctx.destination);
-
-  const makeBus = (volume: number): CategoryBus => {
-    const gain = ctx.createGain();
-    gain.gain.value = volume;
-    gain.connect(sharedGain);
-    return { gain };
-  };
-
-  const buses = {
-    sting: makeBus(AUDIO.volumes.sting),
-    footsteps: makeBus(AUDIO.volumes.footsteps),
-    guard: makeBus(AUDIO.volumes.guard),
-    radio: makeBus(AUDIO.volumes.radio),
-    ambience: makeBus(AUDIO.volumes.ambience),
-  };
+function buildGraph(ctx: AudioContext, gameplayPaused: boolean): AudioGraph {
+  const mix = buildMixCore(ctx, gameplayPaused);
 
   const noiseBuffer = makeNoiseBuffer(ctx, 2);
 
@@ -233,7 +173,7 @@ function buildGraph(ctx: AudioContext): AudioGraph {
   for (const bed of beds) {
     const voice = buildAmbienceVoice(ctx, noiseBuffer, bed);
     if (voice) {
-      voice.gain.connect(buses.ambience.gain);
+      voice.gain.connect(mix.buses.ambience.gain);
       voice.gain.gain.value = 0;
       ambienceVoices[bed] = voice;
       ambienceGains[bed] = voice.gain;
@@ -241,11 +181,7 @@ function buildGraph(ctx: AudioContext): AudioGraph {
   }
 
   return {
-    ctx,
-    masterGain,
-    sharedGain,
-    compressor,
-    buses,
+    ...mix,
     noiseBuffer,
     ambienceVoices,
     ambienceGains,
@@ -253,20 +189,7 @@ function buildGraph(ctx: AudioContext): AudioGraph {
   };
 }
 
-/** Ramps a gain param to a target value over durationMs without clicking. */
-function rampGain(ctx: AudioContext, param: AudioParam, target: number, durationMs: number): void {
-  const now = ctx.currentTime;
-  const safeTarget = Math.max(target, 0);
-  param.cancelScheduledValues(now);
-  const current = Math.max(param.value, 0.0001);
-  param.setValueAtTime(current, now);
-  if (safeTarget <= 0.0001) {
-    param.linearRampToValueAtTime(0.0001, now + durationMs / 1000);
-    param.setValueAtTime(0, now + durationMs / 1000);
-  } else {
-    param.exponentialRampToValueAtTime(safeTarget, now + durationMs / 1000);
-  }
-}
+const sharedMix = new SharedMixLifecycle<AudioGraph>(buildGraph);
 
 /**
  * Owns Tailgate's procedural soundscape: footsteps, guard audio cues, radio
@@ -316,9 +239,7 @@ export class AudioManager {
 
     if (!graph) {
       const ctx = new AudioCtor();
-      sharedGraph ??= new SharedGraph(() => buildGraph(ctx));
-      graph = sharedGraph.getOrCreate();
-      graph.masterGain.gain.value = effectiveMasterGain();
+      graph = sharedMix.getOrCreate(ctx);
     }
 
     if (graph.ctx.state === 'suspended') {
