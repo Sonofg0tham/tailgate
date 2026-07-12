@@ -6,6 +6,7 @@ import {
   setAudioMuted,
 } from '../audio/AudioManager';
 import { zoneAt } from '../audio/zoneAt';
+import { velocityFromDisplacement } from '../audio/audioPolicy';
 import { ART } from '../config/art';
 import { DETECTION } from '../config/detection';
 import { HIJACK } from '../config/hijack';
@@ -96,6 +97,7 @@ export class BuildingScene extends Phaser.Scene {
   private walls!: Phaser.Physics.Arcade.StaticGroup;
   private keys?: KeyboardKeys;
   private guard?: Guard;
+  private guardId = '';
   private doors: Door[] = [];
   private staff: Staff[] = [];
   private throwController!: ThrowController;
@@ -379,6 +381,13 @@ export class BuildingScene extends Phaser.Scene {
     const intent = this.consoleOpen
       ? this.controller.update(undefined, undefined)
       : this.controller.update(pad, this.keys);
+    // Arcade Physics has already completed this frame's movement. Capture its
+    // displacement before applyMotion writes the next requested velocity.
+    const playerActualVelocity = velocityFromDisplacement(
+      this.player.body.deltaX(),
+      this.player.body.deltaY(),
+      delta
+    );
     this.player.applyMotion(intent, delta);
     this.updateLookAhead(intent.direction);
 
@@ -488,12 +497,12 @@ export class BuildingScene extends Phaser.Scene {
       player: {
         x: this.player.x,
         y: this.player.y,
-        velocityX: this.player.body.velocity.x,
-        velocityY: this.player.body.velocity.y,
+        velocityX: playerActualVelocity.x,
+        velocityY: playerActualVelocity.y,
       },
       guard: this.guard
         ? {
-            id: 'primary-guard',
+            id: this.guardId,
             x: this.guard.x,
             y: this.guard.y,
             velocityX: this.guard.velocityX,
@@ -1036,6 +1045,7 @@ export class BuildingScene extends Phaser.Scene {
     }
     this.baseRoute = first.route;
     this.cautiousExtra = first.cautiousExtra ?? [];
+    this.guardId = first.id;
     this.guard = new Guard(this, first.route, map.walls, (state) => this.onGuardStateCue(state));
     this.physics.add.collider(this.guard.sprite, this.walls);
   }

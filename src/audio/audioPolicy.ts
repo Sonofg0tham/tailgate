@@ -36,9 +36,27 @@ export function isActuallyMoving(velocityX: number, velocityY: number, threshold
   return Math.hypot(velocityX, velocityY) > thresholdPxPerSecond;
 }
 
+/** Converts completed physics displacement into actual velocity for audio. */
+export function velocityFromDisplacement(
+  deltaX: number,
+  deltaY: number,
+  frameMs: number
+): { x: number; y: number } {
+  if (frameMs <= 0) return { x: 0, y: 0 };
+  const framesPerSecond = 1000 / frameMs;
+  return { x: deltaX * framesPerSecond, y: deltaY * framesPerSecond };
+}
+
 export interface PendingSecurityCue {
   cue: SecurityCue;
   playAtMs: number;
+}
+
+export interface SecurityCueOfferResult {
+  /** A previous window's winner that became due before this offer. */
+  readyCue: SecurityCue | null;
+  /** The new or updated window containing this offer. */
+  pending: PendingSecurityCue;
 }
 
 /** Collects cues briefly so simultaneous detections produce one clear sound. */
@@ -47,13 +65,19 @@ export class SecurityCueArbitrator {
 
   constructor(private readonly windowMs = 250) {}
 
-  offer(cue: SecurityCue, nowMs: number): PendingSecurityCue {
-    if (!this.pending || nowMs >= this.pending.playAtMs) {
+  offer(cue: SecurityCue, nowMs: number): SecurityCueOfferResult {
+    let readyCue: SecurityCue | null = null;
+    if (this.pending && nowMs >= this.pending.playAtMs) {
+      readyCue = this.pending.cue;
+      this.pending = null;
+    }
+
+    if (!this.pending) {
       this.pending = { cue, playAtMs: nowMs + this.windowMs };
     } else if (cuePriority(cue) > cuePriority(this.pending.cue)) {
       this.pending = { ...this.pending, cue };
     }
-    return { ...this.pending };
+    return { readyCue, pending: { ...this.pending } };
   }
 
   takeReady(nowMs: number): SecurityCue | null {

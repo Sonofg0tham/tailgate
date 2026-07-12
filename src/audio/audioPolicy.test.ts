@@ -4,6 +4,7 @@ import {
   cuePriority,
   distanceGain,
   isActuallyMoving,
+  velocityFromDisplacement,
   panForPositions,
   SecurityCueArbitrator,
 } from './audioPolicy';
@@ -27,6 +28,14 @@ describe('audio spatial policy', () => {
 });
 
 describe('movement audio policy', () => {
+  it('reports no actual movement when non-idle input produces zero displacement', () => {
+    const requestedSpeed = 'walk';
+    const velocity = velocityFromDisplacement(0, 0, 16);
+
+    expect(requestedSpeed).not.toBe('idle');
+    expect(isActuallyMoving(velocity.x, velocity.y)).toBe(false);
+  });
+
   it('requires actual body velocity before scheduling footsteps', () => {
     expect(isActuallyMoving(0, 0)).toBe(false);
     expect(isActuallyMoving(0.5, 0.5)).toBe(false);
@@ -43,9 +52,18 @@ describe('security cue policy', () => {
 
   it('keeps only the highest severity cue inside a 250ms window', () => {
     const arbitrator = new SecurityCueArbitrator(250);
-    expect(arbitrator.offer('guard-curious', 1000)).toEqual({ cue: 'guard-curious', playAtMs: 1250 });
-    expect(arbitrator.offer('camera-alarm', 1100)).toEqual({ cue: 'camera-alarm', playAtMs: 1250 });
-    expect(arbitrator.offer('camera-ping', 1200)).toEqual({ cue: 'camera-alarm', playAtMs: 1250 });
+    expect(arbitrator.offer('guard-curious', 1000)).toEqual({
+      readyCue: null,
+      pending: { cue: 'guard-curious', playAtMs: 1250 },
+    });
+    expect(arbitrator.offer('camera-alarm', 1100).pending).toEqual({
+      cue: 'camera-alarm',
+      playAtMs: 1250,
+    });
+    expect(arbitrator.offer('camera-ping', 1200).pending).toEqual({
+      cue: 'camera-alarm',
+      playAtMs: 1250,
+    });
     expect(arbitrator.takeReady(1249)).toBeNull();
     expect(arbitrator.takeReady(1250)).toBe('camera-alarm');
   });
@@ -54,6 +72,29 @@ describe('security cue policy', () => {
     const arbitrator = new SecurityCueArbitrator();
     arbitrator.offer('guard-alert', 0);
     expect(arbitrator.takeReady(250)).toBe('guard-alert');
-    expect(arbitrator.offer('camera-ping', 300)).toEqual({ cue: 'camera-ping', playAtMs: 550 });
+    expect(arbitrator.offer('camera-ping', 300).pending).toEqual({
+      cue: 'camera-ping',
+      playAtMs: 550,
+    });
+  });
+
+  it('returns the existing winner at the exact boundary before queueing the new cue', () => {
+    const arbitrator = new SecurityCueArbitrator();
+    arbitrator.offer('camera-alarm', 1000);
+
+    expect(arbitrator.offer('guard-curious', 1250)).toEqual({
+      readyCue: 'camera-alarm',
+      pending: { cue: 'guard-curious', playAtMs: 1500 },
+    });
+  });
+
+  it('returns an overdue winner before queueing a later offer', () => {
+    const arbitrator = new SecurityCueArbitrator();
+    arbitrator.offer('guard-alert', 1000);
+
+    expect(arbitrator.offer('camera-ping', 1600)).toEqual({
+      readyCue: 'guard-alert',
+      pending: { cue: 'camera-ping', playAtMs: 1850 },
+    });
   });
 });
