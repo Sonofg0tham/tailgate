@@ -18,3 +18,7 @@ export function sampleTreatment(surface: Surface, pitchRandom01: number, panRand
     ...SURFACE[surface],
   };
 }
+
+export function guardStepPlaybackRate(random01: number): number {
+  return 0.96 + Math.max(0, Math.min(1, random01)) * 0.08;
+}

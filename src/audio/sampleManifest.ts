@@ -16,16 +16,23 @@ export interface SampleDefinition {
 
 const RPG = 'https://kenney.nl/assets/rpg-audio';
 const UI = 'https://kenney.nl/assets/interface-sounds';
-const footGroups: SampleGroup[] = ['footstep:carpet', 'footstep:tile', 'footstep:concrete'];
 const sample = (id: string, sourceFilename: string, sourceUrl: string, groups: SampleGroup[]): SampleDefinition => ({
   id, path: `/assets/audio/${id}.ogg`, sourceFilename, sourceUrl, author: 'Kenney', licence: 'CC0 1.0', groups,
 });
 
 export const SAMPLE_MANIFEST: readonly SampleDefinition[] = [
-  sample('footstep-1', 'footstep00.ogg', RPG, footGroups),
-  sample('footstep-2', 'footstep01.ogg', RPG, footGroups),
-  sample('footstep-3', 'footstep02.ogg', RPG, footGroups),
-  sample('footstep-4', 'footstep03.ogg', RPG, footGroups),
+  sample('footstep-carpet-1', 'cloth1.ogg', RPG, ['footstep:carpet']),
+  sample('footstep-carpet-2', 'cloth2.ogg', RPG, ['footstep:carpet']),
+  sample('footstep-carpet-3', 'cloth3.ogg', RPG, ['footstep:carpet']),
+  sample('footstep-carpet-4', 'cloth4.ogg', RPG, ['footstep:carpet']),
+  sample('footstep-tile-1', 'footstep00.ogg', RPG, ['footstep:tile']),
+  sample('footstep-tile-2', 'footstep01.ogg', RPG, ['footstep:tile']),
+  sample('footstep-tile-3', 'footstep02.ogg', RPG, ['footstep:tile']),
+  sample('footstep-tile-4', 'footstep03.ogg', RPG, ['footstep:tile']),
+  sample('footstep-concrete-1', 'footstep04.ogg', RPG, ['footstep:concrete']),
+  sample('footstep-concrete-2', 'footstep05.ogg', RPG, ['footstep:concrete']),
+  sample('footstep-concrete-3', 'footstep06.ogg', RPG, ['footstep:concrete']),
+  sample('footstep-concrete-4', 'footstep07.ogg', RPG, ['footstep:concrete']),
   sample('bolt-throw', 'drawKnife1.ogg', RPG, ['bolt-throw']),
   sample('metal-impact-1', 'metalPot1.ogg', RPG, ['metal-impact']),
   sample('metal-impact-2', 'metalPot2.ogg', RPG, ['metal-impact']),

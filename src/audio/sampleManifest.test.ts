@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE_MANIFEST } from './sampleManifest';
-import { chooseVariant, sampleTreatment } from './samplePolicy';
+import { chooseVariant, guardStepPlaybackRate, sampleTreatment } from './samplePolicy';
 import { SampleOwnership } from './sampleOwnership';
 
 describe('hybrid sample manifest', () => {
@@ -16,9 +16,17 @@ describe('hybrid sample manifest', () => {
   });
 
   it('provides four footstep choices for every runtime surface', () => {
+    const paths = new Set<string>();
     for (const surface of ['carpet', 'tile', 'concrete'] as const) {
-      expect(SAMPLE_MANIFEST.filter((sample) => sample.groups.includes(`footstep:${surface}`))).toHaveLength(4);
+      const samples = SAMPLE_MANIFEST.filter((sample) => sample.groups.includes(`footstep:${surface}`));
+      expect(samples).toHaveLength(4);
+      for (const sample of samples) {
+        expect(paths.has(sample.path)).toBe(false);
+        paths.add(sample.path);
+        expect(sample.groups).toEqual([`footstep:${surface}`]);
+      }
     }
+    expect(SAMPLE_MANIFEST).toHaveLength(24);
   });
 });
 
@@ -37,6 +45,11 @@ describe('sample variation policy', () => {
     expect(low.pan).toBeGreaterThanOrEqual(-0.18);
     expect(high.pan).toBeLessThanOrEqual(0.18);
     expect(low.cutoffHz).not.toBe(high.cutoffHz);
+  });
+
+  it('keeps guard step pitch variation restrained', () => {
+    expect(guardStepPlaybackRate(0)).toBe(0.96);
+    expect(guardStepPlaybackRate(1)).toBe(1.04);
   });
 });
 

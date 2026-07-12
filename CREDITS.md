@@ -54,10 +54,18 @@ Audio API. Interaction foley and footsteps use the Kenney CC0 files listed below
 
 ### Kenney RPG Audio
 
-- public/assets/audio/footstep-1.ogg | https://kenney.nl/assets/rpg-audio (footstep00.ogg) | Kenney | CC0 1.0
-- public/assets/audio/footstep-2.ogg | https://kenney.nl/assets/rpg-audio (footstep01.ogg) | Kenney | CC0 1.0
-- public/assets/audio/footstep-3.ogg | https://kenney.nl/assets/rpg-audio (footstep02.ogg) | Kenney | CC0 1.0
-- public/assets/audio/footstep-4.ogg | https://kenney.nl/assets/rpg-audio (footstep03.ogg) | Kenney | CC0 1.0
+- public/assets/audio/footstep-carpet-1.ogg | https://kenney.nl/assets/rpg-audio (cloth1.ogg) | Kenney | CC0 1.0
+- public/assets/audio/footstep-carpet-2.ogg | https://kenney.nl/assets/rpg-audio (cloth2.ogg) | Kenney | CC0 1.0
+- public/assets/audio/footstep-carpet-3.ogg | https://kenney.nl/assets/rpg-audio (cloth3.ogg) | Kenney | CC0 1.0
+- public/assets/audio/footstep-carpet-4.ogg | https://kenney.nl/assets/rpg-audio (cloth4.ogg) | Kenney | CC0 1.0
+- public/assets/audio/footstep-tile-1.ogg | https://kenney.nl/assets/rpg-audio (footstep00.ogg) | Kenney | CC0 1.0
+- public/assets/audio/footstep-tile-2.ogg | https://kenney.nl/assets/rpg-audio (footstep01.ogg) | Kenney | CC0 1.0
+- public/assets/audio/footstep-tile-3.ogg | https://kenney.nl/assets/rpg-audio (footstep02.ogg) | Kenney | CC0 1.0
+- public/assets/audio/footstep-tile-4.ogg | https://kenney.nl/assets/rpg-audio (footstep03.ogg) | Kenney | CC0 1.0
+- public/assets/audio/footstep-concrete-1.ogg | https://kenney.nl/assets/rpg-audio (footstep04.ogg) | Kenney | CC0 1.0
+- public/assets/audio/footstep-concrete-2.ogg | https://kenney.nl/assets/rpg-audio (footstep05.ogg) | Kenney | CC0 1.0
+- public/assets/audio/footstep-concrete-3.ogg | https://kenney.nl/assets/rpg-audio (footstep06.ogg) | Kenney | CC0 1.0
+- public/assets/audio/footstep-concrete-4.ogg | https://kenney.nl/assets/rpg-audio (footstep07.ogg) | Kenney | CC0 1.0
 - public/assets/audio/bolt-throw.ogg | https://kenney.nl/assets/rpg-audio (drawKnife1.ogg) | Kenney | CC0 1.0
 - public/assets/audio/metal-impact-1.ogg | https://kenney.nl/assets/rpg-audio (metalPot1.ogg) | Kenney | CC0 1.0
 - public/assets/audio/metal-impact-2.ogg | https://kenney.nl/assets/rpg-audio (metalPot2.ogg) | Kenney | CC0 1.0

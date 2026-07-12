@@ -25,9 +25,10 @@ import {
 } from './sharedMix';
 import { SampleBank } from './SampleBank';
 import type { SampleGroup } from './sampleManifest';
-import { sampleTreatment } from './samplePolicy';
+import { guardStepPlaybackRate, sampleTreatment } from './samplePolicy';
 import { sampleBusFor, worldFoleyTreatment, type SampleRole } from './foleyPolicy';
 import { SampleOwnership } from './sampleOwnership';
+import { AudioUnlockListeners, type UnlockEventTarget } from './audioUnlockListeners';
 
 /**
  * One frame's worth of world state the audio subsystem needs to decide what
@@ -255,6 +256,7 @@ const sharedMix = new SharedMixLifecycle<AudioGraph>(buildGraph);
 export class AudioManager {
   private readonly ownerId = `audio-manager-${++nextAudioOwnerId}`;
   private stingCount = 0;
+  private readonly unlockListeners = new AudioUnlockListeners(() => this.unlockAudio());
 
   private lastFrameMs: number | null = null;
   private stepAccumulatorMs = 0;
@@ -278,16 +280,15 @@ export class AudioManager {
   /** Arms one-time autoplay unlockers. Safe to call every scene create(). */
   init(scene: Phaser.Scene): void {
     if (graph && graph.ctx.state === 'running') {
-      // Graph already up and running, nothing to arm.
+      this.unlockListeners.dispose();
       return;
     }
-
-    const unlock = (): void => {
-      this.unlockAudio();
-    };
-
-    scene.input.once('pointerdown', unlock);
-    scene.input.keyboard?.once('keydown', unlock);
+    this.unlockListeners.arm(
+      scene.input as unknown as UnlockEventTarget,
+      scene.input.keyboard as unknown as UnlockEventTarget | undefined,
+      scene.input.gamepad as unknown as UnlockEventTarget | undefined
+    );
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.unlockListeners.dispose());
   }
 
   private unlockAudio(): void {
@@ -466,6 +467,7 @@ export class AudioManager {
       gain: AUDIO.guardFootstep.peakGain * gain,
       pan: panForPositions(frame.guard.x, frame.player.x, 0, hearingRange),
       cutoffHz: this.lastOcclusionCutoffHz,
+      playbackRate: guardStepPlaybackRate(Math.random()),
     });
   }
 
@@ -641,6 +643,7 @@ export class AudioManager {
    * this scene instance, so they stop cleanly before its timers are reset.
    */
   suspendForRestart(): void {
+    this.unlockListeners.dispose();
     sampleOwnership.release(this.ownerId);
     this.lastFrameMs = null;
     this.stepAccumulatorMs = 0;
