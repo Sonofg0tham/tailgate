@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AudioManager } from '../audio/AudioManager';
 import { FONTS, PALETTE, PALETTE_HEX } from '../config/palette';
 import { generateReport, type Finding, type ReportModel } from '../report/generateReport';
 import { getActiveLevel, nextLevelAfter } from '../state/levels';
@@ -52,6 +53,7 @@ export class ReportScene extends Phaser.Scene {
   }
 
   create(): void {
+    new AudioManager().playFoley('document-stamp', 0.62);
     const stats = getRunStats();
     const mission = getMission();
     const level = getActiveLevel();

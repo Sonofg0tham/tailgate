@@ -1,4 +1,5 @@
 import type { ReportVenue } from '../report/generateReport';
+import type { LevelAudioProfile } from '../audio/atmospherePolicy';
 
 /**
  * The level registry and the active level, module-level singletons like
@@ -41,6 +42,8 @@ export interface LevelDef {
   guards: string;
   staff: string;
   cameras: string;
+  /** Procedural venue sound identity. Building C is used when absent. */
+  audio?: LevelAudioProfile;
   /** Venue nouns for the report's finding copy; Building C wording if absent. */
   venue?: ReportVenue;
   /** The engagement briefing sheet copy; the sheet renders empty-safe without. */

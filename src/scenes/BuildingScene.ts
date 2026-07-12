@@ -1,6 +1,13 @@
 import Phaser from 'phaser';
-import { AudioManager, setAudioMasterVolume, setAudioMuted } from '../audio/AudioManager';
+import {
+  AudioManager,
+  setAudioGameplayPaused,
+  setAudioMasterVolume,
+  setAudioMuted,
+} from '../audio/AudioManager';
 import { zoneAt } from '../audio/zoneAt';
+import { velocityFromDisplacement } from '../audio/audioPolicy';
+import { BadgeAttemptEdges } from '../audio/foleyPolicy';
 import { ART } from '../config/art';
 import { DETECTION } from '../config/detection';
 import { HIJACK } from '../config/hijack';
@@ -91,6 +98,7 @@ export class BuildingScene extends Phaser.Scene {
   private walls!: Phaser.Physics.Arcade.StaticGroup;
   private keys?: KeyboardKeys;
   private guard?: Guard;
+  private guardId = '';
   private doors: Door[] = [];
   private staff: Staff[] = [];
   private throwController!: ThrowController;
@@ -141,6 +149,8 @@ export class BuildingScene extends Phaser.Scene {
    * the Escape that exits the multiplexer must not also open the pause badge.
    */
   private pauseSwallowUntil = 0;
+  private readonly doorAudioState = new Map<string, boolean>();
+  private readonly badgeAttemptEdges = new BadgeAttemptEdges();
   /** The doorway the player most recently stood in, naming the checkpoint. */
   private lastDoorId: string | null = null;
   /** The last camera ping, so the DETAINED banner can name the tip-off. */
@@ -269,7 +279,9 @@ export class BuildingScene extends Phaser.Scene {
     this.throwController = new ThrowController(
       this,
       (x, y) => this.onNoise(x, y),
-      checkpoint?.bolts
+      checkpoint?.bolts,
+      () => this.audio.playFoley('bolt-throw', 0.55),
+      (x, y) => this.playWorldFoley('metal-impact', x, y, 600)
     );
 
     // The mission prompt, bottom centre, screen fixed.
@@ -299,6 +311,7 @@ export class BuildingScene extends Phaser.Scene {
     // autoplay unlock on the first input and makes no sound before that.
     this.lightingRenderer = new LightingRenderer(this);
     this.audio = new AudioManager();
+    setAudioGameplayPaused(false);
     this.audio.init(this);
     // Apply the saved audio preferences to the shared mix. Safe before unlock:
     // the values are stored and take effect when the graph is first built.
@@ -373,6 +386,13 @@ export class BuildingScene extends Phaser.Scene {
     const intent = this.consoleOpen
       ? this.controller.update(undefined, undefined)
       : this.controller.update(pad, this.keys);
+    // Arcade Physics has already completed this frame's movement. Capture its
+    // displacement before applyMotion writes the next requested velocity.
+    const playerActualVelocity = velocityFromDisplacement(
+      this.player.body.deltaX(),
+      this.player.body.deltaY(),
+      delta
+    );
     this.player.applyMotion(intent, delta);
     this.updateLookAhead(intent.direction);
 
@@ -388,7 +408,15 @@ export class BuildingScene extends Phaser.Scene {
     // Shared occluder set for the guard, cameras and audio this frame.
     const closedDoors = this.doors.filter((d) => !d.isOpen).map((d) => d.rect);
 
+    let guardActualVelocity = { x: 0, y: 0 };
     if (this.guard) {
+      // Capture the completed physics step before Guard.update writes the next
+      // requested velocity, matching the player footstep rule.
+      guardActualVelocity = velocityFromDisplacement(
+        this.guard.displacementX,
+        this.guard.displacementY,
+        delta
+      );
       // The guard's own sightline lights where it looks; darkness elsewhere is
       // cover, so sample the light at the player and feed it into perception.
       this.lightModel.setGuardTorch(this.guard.x, this.guard.y, this.guard.facingAngle);
@@ -425,13 +453,23 @@ export class BuildingScene extends Phaser.Scene {
       this.consoleOpen ? false : interactPressed
     );
     for (const p of camTick.investigatePoints) {
-      this.guard?.investigatePoint(p.x, p.y);
+      this.guard?.investigatePoint(p.investigateX, p.investigateY);
       this.lastCameraCue = { id: p.id, atMs: now };
+      this.offerSecurityCue('camera-ping', now, p.sourceX, p.sourceY, closedDoors);
     }
     if (camTick.raisedAlert) {
       const level = raiseAlert(now);
       recordAlertLevel(level);
       this.triggerAlarmShake();
+      const alarm = camTick.alarmPoints[0];
+      if (alarm) this.offerSecurityCue('camera-alarm', now, alarm.x, alarm.y, closedDoors);
+    }
+
+    if (camTick.breakerPoint && camTick.breakerTrippedNow) {
+      this.playWorldFoley('breaker-trip', camTick.breakerPoint.x, camTick.breakerPoint.y, 600);
+    }
+    if (camTick.breakerPoint && camTick.cameraPowerReturnedNow) {
+      this.playWorldFoley('camera-return', camTick.breakerPoint.x, camTick.breakerPoint.y, 600);
     }
 
     const objTick = this.objectives.update({
@@ -445,6 +483,7 @@ export class BuildingScene extends Phaser.Scene {
       bumped: this.isBumped(),
     });
     if (objTick.plantedNow) {
+      this.playWorldFoley('plant-complete', this.player.x, this.player.y, 500);
       // Second checkpoint: immediately after planting the device.
       setCheckpoint({
         x: this.player.x,
@@ -479,13 +518,28 @@ export class BuildingScene extends Phaser.Scene {
 
     this.audio.update({
       nowMs: now,
-      player: { x: this.player.x, y: this.player.y },
-      guard: this.guard ? { x: this.guard.x, y: this.guard.y, state: this.guard.state } : null,
+      player: {
+        x: this.player.x,
+        y: this.player.y,
+        velocityX: playerActualVelocity.x,
+        velocityY: playerActualVelocity.y,
+      },
+      guard: this.guard
+        ? {
+            id: this.guardId,
+            x: this.guard.x,
+            y: this.guard.y,
+            velocityX: guardActualVelocity.x,
+            velocityY: guardActualVelocity.y,
+            state: this.guard.state,
+          }
+        : null,
       playerSpeed: intent.speed,
       zones: this.mapZones,
       walls: this.mapWalls,
       closedDoorRects: closedDoors,
       alertLevel: getMission().alertLevel,
+      venueAudio: this.level.audio,
     });
 
     this.drawGuardChevron();
@@ -567,6 +621,7 @@ export class BuildingScene extends Phaser.Scene {
 
   /** Freezes the building and opens the lanyard pause badge over the top. */
   private openPause(): void {
+    setAudioGameplayPaused(true);
     this.scene.launch('pause');
     this.scene.pause();
   }
@@ -950,21 +1005,36 @@ export class BuildingScene extends Phaser.Scene {
       member.update(now, dtMs);
     }
     for (const door of this.doors) {
+      const wasOpen = this.doorAudioState.get(door.id) ?? door.isOpen;
+      let badgeEntered = false;
       if (door.kind === 'badge') {
         // Any authorised staff standing near a badge door opens it (the tailgate
         // window keeps it open for a moment after they walk on). In lockdown the
         // badge readers deny everyone, staff included.
         for (const member of this.staff) {
-          if (
-            member.isAuthorisedFor(door.id) &&
-            Phaser.Math.Distance.Between(member.x, member.y, door.centreX, door.centreY) <
-              STAFF_BADGE_DISTANCE
-          ) {
+          const authorised = member.isAuthorisedFor(door.id);
+          const inRange = authorised && Phaser.Math.Distance.Between(
+            member.x, member.y, door.centreX, door.centreY
+          ) < STAFF_BADGE_DISTANCE;
+          if (this.badgeAttemptEdges.entered(`${member.id}:${door.id}`, inRange)) {
+            badgeEntered = true;
+          }
+          if (inRange) {
             door.badge(now, lockdown);
           }
         }
       }
       door.update(now, lockdown, this.player.x, this.player.y);
+      if (door.isOpen !== wasOpen) {
+        const group = door.kind === 'shutter' ? 'shutter' : 'door-latch';
+        this.playWorldFoley(group, door.centreX, door.centreY, 600);
+        if (door.kind === 'badge' && door.isOpen) {
+          this.playWorldFoley('badge-accept', door.centreX, door.centreY, 600);
+        }
+      } else if (badgeEntered && lockdown) {
+        this.playWorldFoley('badge-deny', door.centreX, door.centreY, 600);
+      }
+      this.doorAudioState.set(door.id, door.isOpen);
     }
   }
 
@@ -1015,6 +1085,7 @@ export class BuildingScene extends Phaser.Scene {
     }
     this.baseRoute = first.route;
     this.cautiousExtra = first.cautiousExtra ?? [];
+    this.guardId = first.id;
     this.guard = new Guard(this, first.route, map.walls, (state) => this.onGuardStateCue(state));
     this.physics.add.collider(this.guard.sprite, this.walls);
   }
@@ -1171,8 +1242,11 @@ export class BuildingScene extends Phaser.Scene {
     }
   }
 
-  /** The guard changed state: fire the alert sting and shake exactly on ALERT. */
+  /** The guard changed state: offer one transition cue and shake exactly on ALERT. */
   private onGuardStateCue(state: GuardState): void {
+    if (state === 'curious' && this.guard) {
+      this.offerSecurityCue('guard-curious', this.time.now, this.guard.x, this.guard.y);
+    }
     if (state === 'alert') {
       // A guard going full ALERT on a disguised player burns the disguise for
       // the rest of the run: security now knows the vest.
@@ -1182,9 +1256,46 @@ export class BuildingScene extends Phaser.Scene {
         recordDisguiseBlown();
         this.refreshDisguiseTag();
       }
-      this.audio.playAlertSting();
+      if (this.guard) {
+        this.offerSecurityCue('guard-alert', this.time.now, this.guard.x, this.guard.y);
+      }
       this.triggerAlarmShake();
     }
+  }
+
+  private playWorldFoley(
+    group: 'metal-impact' | 'badge-accept' | 'badge-deny' | 'door-latch' | 'shutter' |
+      'breaker-trip' | 'camera-return' | 'plant-complete',
+    sourceX: number,
+    sourceY: number,
+    rangePx: number
+  ): void {
+    this.audio.playWorldFoley(group, {
+      sourceX,
+      sourceY,
+      playerX: this.player.x,
+      playerY: this.player.y,
+      walls: this.mapWalls,
+      closedDoors: this.doors.filter((door) => !door.isOpen).map((door) => door.rect),
+      rangePx,
+    });
+  }
+
+  private offerSecurityCue(
+    cue: 'guard-curious' | 'guard-alert' | 'camera-ping' | 'camera-alarm',
+    now: number,
+    sourceX: number,
+    sourceY: number,
+    closedDoors = this.doors.filter((door) => !door.isOpen).map((door) => door.rect)
+  ): void {
+    this.audio.offerSecurityCue(cue, now, {
+      sourceX,
+      sourceY,
+      playerX: this.player.x,
+      playerY: this.player.y,
+      walls: this.mapWalls,
+      closedDoors,
+    });
   }
 
   private guardInfo(): GuardHudInfo | null {

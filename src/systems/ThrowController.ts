@@ -26,7 +26,9 @@ export class ThrowController {
   constructor(
     scene: Phaser.Scene,
     onNoise: (x: number, y: number) => void,
-    initialBolts: number = THROW.boltCount
+    initialBolts: number = THROW.boltCount,
+    private readonly onThrow: () => void = () => {},
+    private readonly onImpact: (x: number, y: number) => void = () => {}
   ) {
     this.onNoise = onNoise;
     this.boltsLeft = initialBolts;
@@ -96,7 +98,11 @@ export class ThrowController {
     this.prevPadThrow = padThrow;
 
     if (throwRequested && this.boltsLeft > 0) {
-      this.bolts.push(new Bolt(scene, playerX, playerY, aim.x, aim.y, this.onNoise));
+      this.onThrow();
+      this.bolts.push(new Bolt(scene, playerX, playerY, aim.x, aim.y, (x, y) => {
+        this.onImpact(x, y);
+        this.onNoise(x, y);
+      }));
       this.boltsLeft -= 1;
       recordBoltThrown();
     }

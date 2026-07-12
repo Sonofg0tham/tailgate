@@ -1,10 +1,34 @@
 import Phaser from 'phaser';
 import { AUDIO, type AmbienceBed, type Surface } from '../config/audio';
-import { makeNoiseBuffer, playClick, playFilteredNoiseBurst, playToneBurst } from './synth';
+import { makeNoiseBuffer, playClick, playToneBurst } from './synth';
 import { zoneAt } from './zoneAt';
 import type { ZoneRect, WallRect } from '../world/BuildingMap';
 import type { SpeedState } from '../input/InputState';
 import type { GuardState } from '../entities/Guard';
+import { nextTensionPulseAt, venueProfile, type LevelAudioProfile, type VenueProfileId } from './atmospherePolicy';
+import type { SecurityCue } from './audioPolicy';
+import { SecurityCueCoordinator } from './securityCueCoordinator';
+import { playSecurityCue } from './securityCues';
+import { updateTensionBed } from './tensionBed';
+import { updateVenueDetail } from './venueAtmosphere';
+import {
+  chooseOcclusionCutoff,
+  distanceGain,
+  isActuallyMoving,
+  panForPositions,
+} from './audioPolicy';
+import {
+  buildMixCore,
+  rampGain,
+  SharedMixLifecycle,
+  type MixCore,
+} from './sharedMix';
+import { SampleBank } from './SampleBank';
+import type { SampleGroup } from './sampleManifest';
+import { guardStepPlaybackRate, sampleTreatment } from './samplePolicy';
+import { sampleBusFor, worldFoleyTreatment, type SampleRole } from './foleyPolicy';
+import { SampleOwnership } from './sampleOwnership';
+import { AudioUnlockListeners, type UnlockEventTarget } from './audioUnlockListeners';
 
 /**
  * One frame's worth of world state the audio subsystem needs to decide what
@@ -13,18 +37,30 @@ import type { GuardState } from '../entities/Guard';
  */
 export interface AudioFrame {
   nowMs: number;
-  player: { x: number; y: number };
-  guard: { x: number; y: number; state: GuardState } | null;
+  player: { x: number; y: number; velocityX: number; velocityY: number };
+  guard: {
+    id: string;
+    x: number;
+    y: number;
+    velocityX: number;
+    velocityY: number;
+    state: GuardState;
+  } | null;
   playerSpeed: SpeedState;
   zones: ZoneRect[];
   walls: WallRect[];
   closedDoorRects: WallRect[];
   alertLevel: number;
+  venueAudio?: LevelAudioProfile;
 }
 
-/** One category's node graph: a gain feeding the master bus. */
-interface CategoryBus {
-  gain: GainNode;
+interface CueSpatialFrame {
+  sourceX: number;
+  sourceY: number;
+  playerX: number;
+  playerY: number;
+  walls: WallRect[];
+  closedDoors: WallRect[];
 }
 
 /** The ambience bed nodes for one bed type, so it can be faded independently. */
@@ -39,33 +75,22 @@ interface AmbienceVoice {
  * the ambience beds or open a second AudioContext). AudioManager instances
  * are cheap; this graph is the expensive singleton behind them.
  */
-interface AudioGraph {
-  ctx: AudioContext;
-  masterGain: GainNode;
-  buses: {
-    sting: CategoryBus;
-    footsteps: CategoryBus;
-    guard: CategoryBus;
-    radio: CategoryBus;
-    ambience: CategoryBus;
-  };
+interface AudioGraph extends MixCore {
   noiseBuffer: AudioBuffer;
   ambienceVoices: Partial<Record<AmbienceBed, AmbienceVoice>>;
   ambienceGains: Partial<Record<AmbienceBed, GainNode>>;
   activeBed: AmbienceBed;
+  venueVoices: Record<VenueProfileId, AmbienceVoice>;
+  activeVenue: VenueProfileId | null;
+  samples: SampleBank;
 }
 
 let graph: AudioGraph | null = null;
+const sampleOwnership = new SampleOwnership();
+let nextAudioOwnerId = 0;
 
-// Master volume and mute live at module scope alongside the graph singleton, so
-// any scene (the settings menu, the building) can set them and they apply to the
-// one shared mix, whether or not audio has unlocked yet.
-let masterVolume01 = 1;
-let masterMuted = false;
-
-/** The effective master gain: zero when muted, else the tuned master times 0..1. */
-function effectiveMasterGain(): number {
-  return masterMuted ? 0 : AUDIO.volumes.master * masterVolume01;
+export interface WorldFoleyFrame extends CueSpatialFrame {
+  rangePx?: number;
 }
 
 /**
@@ -73,18 +98,17 @@ function effectiveMasterGain(): number {
  * audio unlocks: the value is stored and applied when the graph is built.
  */
 export function setAudioMasterVolume(v01: number): void {
-  masterVolume01 = Phaser.Math.Clamp(v01, 0, 1);
-  if (graph && !masterMuted) {
-    graph.masterGain.gain.setValueAtTime(effectiveMasterGain(), graph.ctx.currentTime);
-  }
+  sharedMix.setMasterVolume(v01);
 }
 
 /** Mutes or unmutes the whole mix with a short click-free ramp. */
 export function setAudioMuted(muted: boolean): void {
-  masterMuted = muted;
-  if (graph) {
-    rampGain(graph.ctx, graph.masterGain.gain, effectiveMasterGain(), 30);
-  }
+  sharedMix.setMuted(muted);
+}
+
+/** Ducks the shared graph while gameplay is paused, without rebuilding it. */
+export function setAudioGameplayPaused(paused: boolean): void {
+  sharedMix.setGameplayPaused(paused);
 }
 
 /** Builds one steady ambience voice for a bed, routed through its own gain. */
@@ -169,25 +193,8 @@ function buildAmbienceVoice(ctx: AudioContext, noiseBuffer: AudioBuffer, bed: Am
 }
 
 /** Builds the module-singleton audio graph. Called at most once per page life. */
-function buildGraph(ctx: AudioContext): AudioGraph {
-  const masterGain = ctx.createGain();
-  masterGain.gain.value = AUDIO.volumes.master;
-  masterGain.connect(ctx.destination);
-
-  const makeBus = (volume: number): CategoryBus => {
-    const gain = ctx.createGain();
-    gain.gain.value = volume;
-    gain.connect(masterGain);
-    return { gain };
-  };
-
-  const buses = {
-    sting: makeBus(AUDIO.volumes.sting),
-    footsteps: makeBus(AUDIO.volumes.footsteps),
-    guard: makeBus(AUDIO.volumes.guard),
-    radio: makeBus(AUDIO.volumes.radio),
-    ambience: makeBus(AUDIO.volumes.ambience),
-  };
+function buildGraph(ctx: AudioContext, gameplayPaused: boolean): AudioGraph {
+  const mix = buildMixCore(ctx, gameplayPaused);
 
   const noiseBuffer = makeNoiseBuffer(ctx, 2);
 
@@ -197,55 +204,70 @@ function buildGraph(ctx: AudioContext): AudioGraph {
   for (const bed of beds) {
     const voice = buildAmbienceVoice(ctx, noiseBuffer, bed);
     if (voice) {
-      voice.gain.connect(buses.ambience.gain);
+      voice.gain.connect(mix.buses.ambience.gain);
       voice.gain.gain.value = 0;
       ambienceVoices[bed] = voice;
       ambienceGains[bed] = voice.gain;
     }
   }
 
+  const venueBeds: Record<VenueProfileId, AmbienceBed> = {
+    'building-c': 'office',
+    'data-centre': 'server',
+    warehouse: 'dock',
+  };
+  const venueVoices = {} as Record<VenueProfileId, AmbienceVoice>;
+  for (const [id, bed] of Object.entries(venueBeds) as [VenueProfileId, AmbienceBed][]) {
+    const voice = buildAmbienceVoice(ctx, noiseBuffer, bed);
+    if (!voice) throw new Error(`Venue ambience ${id} has no voice`);
+    voice.gain.connect(mix.buses.ambience.gain);
+    voice.gain.gain.value = 0;
+    venueVoices[id] = voice;
+  }
+  const samples = new SampleBank(
+    async (path) => (await fetch(path)).arrayBuffer(),
+    async (bytes) => ctx.decodeAudioData(bytes)
+  );
+  void samples.preload();
+
   return {
-    ctx,
-    masterGain,
-    buses,
+    ...mix,
     noiseBuffer,
     ambienceVoices,
     ambienceGains,
     activeBed: 'none',
+    venueVoices,
+    activeVenue: null,
+    samples,
   };
 }
 
-/** Ramps a gain param to a target value over durationMs without clicking. */
-function rampGain(ctx: AudioContext, param: AudioParam, target: number, durationMs: number): void {
-  const now = ctx.currentTime;
-  const safeTarget = Math.max(target, 0);
-  param.cancelScheduledValues(now);
-  const current = Math.max(param.value, 0.0001);
-  param.setValueAtTime(current, now);
-  if (safeTarget <= 0.0001) {
-    param.linearRampToValueAtTime(0.0001, now + durationMs / 1000);
-    param.setValueAtTime(0, now + durationMs / 1000);
-  } else {
-    param.exponentialRampToValueAtTime(safeTarget, now + durationMs / 1000);
-  }
-}
+const sharedMix = new SharedMixLifecycle<AudioGraph>(buildGraph);
 
 /**
- * Owns Tailgate's procedural soundscape: footsteps, guard audio cues, radio
- * chatter, ambience beds and the alert sting, all synthesised at runtime with
- * Web Audio, no sound assets. The instance is cheap to construct; the actual
+ * Owns Tailgate's hybrid soundscape. Security, tension and venue beds remain
+ * procedural; licensed CC0 samples provide footsteps and interaction foley.
+ * The instance is cheap to construct; the actual
  * AudioContext and node graph live in module scope and are created lazily on
  * the first user gesture, per browser autoplay rules, and survive scene
  * restarts (a detain restart must not open a second context or stack a
  * second ambience bed).
  */
 export class AudioManager {
+  private readonly ownerId = `audio-manager-${++nextAudioOwnerId}`;
   private stingCount = 0;
+  private readonly unlockListeners = new AudioUnlockListeners(() => this.unlockAudio());
 
   private lastFrameMs: number | null = null;
   private stepAccumulatorMs = 0;
   private guardStepAccumulatorMs = 0;
   private radioNextBurstAt = 0;
+  private tensionNextPulseAt = 0;
+  private lastAlertLevel = 0;
+  private venueNextDetailAt = 0;
+  private readonly securityCues = new SecurityCueCoordinator<CueSpatialFrame>(
+    (cue, spatial) => this.playSecurity(cue, spatial)
+  );
 
   private lastOcclusionCutoffHz: number = AUDIO.guardFootstep.occlusionOpenHz;
   private lastGuardDistancePx = Number.POSITIVE_INFINITY;
@@ -258,16 +280,15 @@ export class AudioManager {
   /** Arms one-time autoplay unlockers. Safe to call every scene create(). */
   init(scene: Phaser.Scene): void {
     if (graph && graph.ctx.state === 'running') {
-      // Graph already up and running, nothing to arm.
+      this.unlockListeners.dispose();
       return;
     }
-
-    const unlock = (): void => {
-      this.unlockAudio();
-    };
-
-    scene.input.once('pointerdown', unlock);
-    scene.input.keyboard?.once('keydown', unlock);
+    this.unlockListeners.arm(
+      scene.input as unknown as UnlockEventTarget,
+      scene.input.keyboard as unknown as UnlockEventTarget | undefined,
+      scene.input.gamepad as unknown as UnlockEventTarget | undefined
+    );
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.unlockListeners.dispose());
   }
 
   private unlockAudio(): void {
@@ -278,8 +299,7 @@ export class AudioManager {
 
     if (!graph) {
       const ctx = new AudioCtor();
-      graph = buildGraph(ctx);
-      graph.masterGain.gain.value = effectiveMasterGain();
+      graph = sharedMix.getOrCreate(ctx);
     }
 
     if (graph.ctx.state === 'suspended') {
@@ -324,10 +344,60 @@ export class AudioManager {
     this.updateFootsteps(dtMs, frame, zoneName);
     this.updateGuardAudio(dtMs, frame);
     this.updateAmbience(dtMs, zoneName, frame.alertLevel);
+    this.updateVenueProfile(frame.venueAudio);
+    this.tensionNextPulseAt = nextTensionPulseAt(
+      this.lastAlertLevel, frame.alertLevel, frame.nowMs, this.tensionNextPulseAt
+    );
+    this.lastAlertLevel = frame.alertLevel;
+    this.tensionNextPulseAt = updateTensionBed(
+      graph.ctx, graph.buses.ambience.gain, graph.noiseBuffer, frame.alertLevel,
+      frame.nowMs, this.tensionNextPulseAt
+    );
+    this.venueNextDetailAt = updateVenueDetail(
+      graph.ctx, graph.buses.ambience.gain, graph.noiseBuffer, frame.venueAudio,
+      frame.nowMs, this.venueNextDetailAt
+    );
+    this.securityCues.flush(frame.nowMs);
+  }
+
+  private updateVenueProfile(configured: LevelAudioProfile | undefined): void {
+    if (!graph) return;
+    const target = venueProfile(configured).profile;
+    if (target === graph.activeVenue) return;
+    if (graph.activeVenue) {
+      rampGain(graph.ctx, graph.venueVoices[graph.activeVenue].gain.gain, 0, AUDIO.ambience.crossfadeMs);
+    }
+    rampGain(graph.ctx, graph.venueVoices[target].gain.gain, 0.28, AUDIO.ambience.crossfadeMs);
+    graph.activeVenue = target;
+  }
+
+  /** Offers a fresh guard or camera transition to the 250ms severity window. */
+  offerSecurityCue(cue: SecurityCue, nowMs: number, spatial: CueSpatialFrame): void {
+    this.securityCues.offer(cue, nowMs, spatial);
+  }
+
+  private playSecurity(cue: SecurityCue, spatial: CueSpatialFrame): void {
+    if (!graph || graph.ctx.state !== 'running') return;
+    const range = 600;
+    const distance = Math.hypot(spatial.sourceX - spatial.playerX, spatial.sourceY - spatial.playerY);
+    const gain = distanceGain(distance, range);
+    if (gain <= 0) return;
+    const occluded = this.lineIsOccluded(
+      spatial.sourceX, spatial.sourceY, spatial.playerX, spatial.playerY,
+      spatial.walls, spatial.closedDoors
+    );
+    playSecurityCue(
+      graph.ctx, graph.buses.sting.gain, graph.noiseBuffer, cue, gain,
+      panForPositions(spatial.sourceX, spatial.playerX, 0, range),
+      chooseOcclusionCutoff(occluded, 4800, 650)
+    );
   }
 
   private updateFootsteps(dtMs: number, frame: AudioFrame, zoneName: string | null): void {
-    if (frame.playerSpeed === 'idle') {
+    if (
+      frame.playerSpeed === 'idle' ||
+      !isActuallyMoving(frame.player.velocityX, frame.player.velocityY)
+    ) {
       this.stepAccumulatorMs = 0;
       return;
     }
@@ -358,17 +428,23 @@ export class AudioManager {
       frame.walls,
       frame.closedDoorRects
     );
-    this.lastOcclusionCutoffHz = occluded
-      ? AUDIO.guardFootstep.occlusionWallHz
-      : AUDIO.guardFootstep.occlusionOpenHz;
+    this.lastOcclusionCutoffHz = chooseOcclusionCutoff(
+      occluded,
+      AUDIO.guardFootstep.occlusionOpenHz,
+      AUDIO.guardFootstep.occlusionWallHz
+    );
 
-    this.updateGuardFootsteps(dtMs, distance);
+    this.updateGuardFootsteps(dtMs, frame, distance);
     this.updateRadio(frame, distance);
   }
 
-  private updateGuardFootsteps(dtMs: number, distance: number): void {
+  private updateGuardFootsteps(dtMs: number, frame: AudioFrame, distance: number): void {
     const hearingRange = AUDIO.guardFootstep.hearingRangePx;
-    if (distance > hearingRange) {
+    if (
+      distance > hearingRange ||
+      !frame.guard ||
+      !isActuallyMoving(frame.guard.velocityX, frame.guard.velocityY)
+    ) {
       this.guardStepAccumulatorMs = 0;
       return;
     }
@@ -382,16 +458,16 @@ export class AudioManager {
     if (!graph) {
       return;
     }
-    const distanceGain = Phaser.Math.Clamp(1 - distance / hearingRange, 0, 1);
-    if (distanceGain <= 0) {
+    const gain = distanceGain(distance, hearingRange);
+    if (gain <= 0) {
       return;
     }
 
-    playFilteredNoiseBurst(graph.ctx, graph.buses.guard.gain, graph.noiseBuffer, {
+    this.playSample('footstep:concrete', 'guard-step', {
+      gain: AUDIO.guardFootstep.peakGain * gain,
+      pan: panForPositions(frame.guard.x, frame.player.x, 0, hearingRange),
       cutoffHz: this.lastOcclusionCutoffHz,
-      q: 0.8,
-      peakGain: AUDIO.guardFootstep.peakGain * distanceGain,
-      decayMs: 90,
+      playbackRate: guardStepPlaybackRate(Math.random()),
     });
   }
 
@@ -416,15 +492,14 @@ export class AudioManager {
       return;
     }
 
-    const proximityGain = Phaser.Math.Clamp(
-      1 - distance / AUDIO.radio.proximityRangePx,
-      0,
-      1
-    );
+    const proximityGain = distanceGain(distance, AUDIO.radio.proximityRangePx);
     playClick(graph.ctx, graph.buses.radio.gain, graph.noiseBuffer, {
       cutoffHz: AUDIO.radio.cutoffHz,
       peakGain: AUDIO.radio.peakGain * proximityGain,
       durationMs: AUDIO.radio.burstMs,
+      pan: frame.guard
+        ? panForPositions(frame.guard.x, frame.player.x, 0, AUDIO.radio.proximityRangePx)
+        : 0,
     });
 
     const span = AUDIO.radio.burstEveryMaxMs - AUDIO.radio.burstEveryMinMs;
@@ -558,24 +633,87 @@ export class AudioManager {
     if (!graph || graph.ctx.state !== 'running') {
       return;
     }
-    const settings = AUDIO.footstep[surface];
-    playFilteredNoiseBurst(graph.ctx, graph.buses.footsteps.gain, graph.noiseBuffer, {
-      cutoffHz: settings.cutoffHz,
-      q: settings.q,
-      peakGain: settings.peakGain,
-      decayMs: settings.decayMs,
-    });
+    const treatment = sampleTreatment(surface, Math.random(), Math.random());
+    this.playSample(`footstep:${surface}`, 'player-step', treatment);
   }
 
   /**
    * Called before a detain restart. The graph and ambience beds are module
-   * scoped and must survive the scene restart untouched, so this only resets
-   * this instance's per-frame timers rather than touching any audio nodes.
+   * scoped and survive the scene restart untouched. Active samples belong to
+   * this scene instance, so they stop cleanly before its timers are reset.
    */
   suspendForRestart(): void {
+    this.unlockListeners.dispose();
+    sampleOwnership.release(this.ownerId);
     this.lastFrameMs = null;
     this.stepAccumulatorMs = 0;
     this.guardStepAccumulatorMs = 0;
     this.radioNextBurstAt = 0;
+    this.tensionNextPulseAt = 0;
+    this.lastAlertLevel = 0;
+    this.venueNextDetailAt = 0;
+  }
+
+  /** Plays optional CC0 foley through the shared paused/headroom mix. */
+  playFoley(group: Exclude<SampleGroup, `footstep:${Surface}`>, gain = 1, pan = 0): void {
+    this.playSample(group, 'interaction', { gain, pan, playbackRate: 0.97 + Math.random() * 0.06, cutoffHz: 12000 });
+  }
+
+  /** Plays a world-located interaction with distance, stereo and occlusion treatment. */
+  playWorldFoley(group: Exclude<SampleGroup, `footstep:${Surface}`>, frame: WorldFoleyFrame): void {
+    const range = frame.rangePx ?? 600;
+    const spatial = worldFoleyTreatment(
+      frame.sourceX, frame.sourceY, frame.playerX, frame.playerY,
+      this.lineIsOccluded(
+        frame.sourceX, frame.sourceY, frame.playerX, frame.playerY,
+        frame.walls, frame.closedDoors
+      ),
+      range
+    );
+    if (spatial.gain <= 0) return;
+    this.playSample(group, 'interaction', {
+      ...spatial,
+      playbackRate: 0.97 + Math.random() * 0.06,
+    });
+  }
+
+  private playSample(
+    group: SampleGroup,
+    role: SampleRole,
+    treatment: { gain: number; pan: number; playbackRate?: number; cutoffHz: number }
+  ): boolean {
+    if (!graph || graph.ctx.state !== 'running') return false;
+    const buffer = graph.samples.choose(group);
+    if (!buffer) return false;
+    const source = graph.ctx.createBufferSource();
+    const filter = graph.ctx.createBiquadFilter();
+    const gain = graph.ctx.createGain();
+    const panner = graph.ctx.createStereoPanner();
+    source.buffer = buffer;
+    source.playbackRate.value = treatment.playbackRate ?? 1;
+    filter.type = 'lowpass';
+    filter.frequency.value = treatment.cutoffHz;
+    gain.gain.value = treatment.gain;
+    panner.pan.value = Math.max(-1, Math.min(1, treatment.pan));
+    const bus = graph.buses[sampleBusFor(role)].gain;
+    source.connect(filter); filter.connect(gain); gain.connect(panner); panner.connect(bus);
+    let cleaned = false;
+    const cleanup = (): void => {
+      if (cleaned) return;
+      cleaned = true;
+      source.disconnect(); filter.disconnect(); gain.disconnect(); panner.disconnect();
+    };
+    let stopped = false;
+    const removeOwnership = sampleOwnership.addVoice(this.ownerId, {
+      stop: () => {
+        if (stopped) return;
+        stopped = true;
+        source.stop();
+      },
+      disconnect: cleanup,
+    });
+    source.start();
+    source.addEventListener('ended', removeOwnership, { once: true });
+    return true;
   }
 }

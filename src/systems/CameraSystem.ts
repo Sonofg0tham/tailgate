@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { CAMERAS } from '../config/cameras';
 import { Camera, type CameraState } from '../entities/Camera';
 import type { WallRect } from '../world/BuildingMap';
+import { cameraCueEvent, type CameraCueEvent } from './cameraCueEvent';
 
 /** One CCTV camera definition, as authored in public/data/cameras.json. */
 export interface CameraDef {
@@ -61,11 +62,16 @@ export type FreezeResult = 'frozen' | 'cooldown' | 'offline' | 'unknown';
 export interface CameraTick {
   /** Fresh curious pings this frame, one per camera that just pinged, each
    * carrying its camera's id so the scene can name the tip-off later. */
-  investigatePoints: { x: number; y: number; id: string }[];
+  investigatePoints: CameraCueEvent[];
   /** True if any camera raised the building alert this frame. */
   raisedAlert: boolean;
+  /** Camera positions that freshly raised an alarm this frame. */
+  alarmPoints: { x: number; y: number; id: string }[];
   /** The HUD prompt line for the breaker, or null for none. */
   prompt: string | null;
+  breakerTrippedNow: boolean;
+  cameraPowerReturnedNow: boolean;
+  breakerPoint: { x: number; y: number } | null;
 }
 
 /** Internal breaker state: when it was tripped and until when it is unusable. */
@@ -87,6 +93,7 @@ interface BreakerRuntime {
 export class CameraSystem {
   private readonly cameras: Camera[];
   private readonly breaker: BreakerRuntime | undefined;
+  private breakerWasKilled = false;
   /** The scene-clock ts from the most recent update(), used by debugLines(). */
   private lastNow = 0;
 
@@ -130,22 +137,34 @@ export class CameraSystem {
     interactPressed: boolean
   ): CameraTick {
     this.lastNow = now;
-    const investigatePoints: { x: number; y: number; id: string }[] = [];
+    const investigatePoints: CameraCueEvent[] = [];
     let raisedAlert = false;
+    const alarmPoints: { x: number; y: number; id: string }[] = [];
 
     for (const camera of this.cameras) {
       const result = camera.update(now, dtMs, playerX, playerY, closedDoors);
       if (result.curiousPing) {
-        investigatePoints.push({ ...result.curiousPing, id: camera.id });
+        investigatePoints.push(
+          cameraCueEvent(camera.id, camera.x, camera.y, result.curiousPing.x, result.curiousPing.y)
+        );
       }
       if (result.raiseAlertNow) {
         raisedAlert = true;
+        alarmPoints.push({ x: camera.x, y: camera.y, id: camera.id });
       }
     }
 
+    const wasKilled = this.breakerWasKilled;
     const prompt = this.updateBreaker(now, playerX, playerY, interactPressed);
+    const isKilled = this.breaker ? now < this.breaker.killUntilMs : false;
+    this.breakerWasKilled = isKilled;
 
-    return { investigatePoints, raisedAlert, prompt };
+    return {
+      investigatePoints, raisedAlert, alarmPoints, prompt,
+      breakerTrippedNow: !wasKilled && isKilled,
+      cameraPowerReturnedNow: wasKilled && !isKilled,
+      breakerPoint: this.breaker ? { x: this.breaker.def.x, y: this.breaker.def.y } : null,
+    };
   }
 
   /** One debug line per camera plus a breaker line, for the debug overlay. */
