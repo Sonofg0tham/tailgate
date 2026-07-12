@@ -64,6 +64,8 @@ export interface CameraTick {
   investigatePoints: { x: number; y: number; id: string }[];
   /** True if any camera raised the building alert this frame. */
   raisedAlert: boolean;
+  /** Camera positions that freshly raised an alarm this frame. */
+  alarmPoints: { x: number; y: number; id: string }[];
   /** The HUD prompt line for the breaker, or null for none. */
   prompt: string | null;
 }
@@ -132,6 +134,7 @@ export class CameraSystem {
     this.lastNow = now;
     const investigatePoints: { x: number; y: number; id: string }[] = [];
     let raisedAlert = false;
+    const alarmPoints: { x: number; y: number; id: string }[] = [];
 
     for (const camera of this.cameras) {
       const result = camera.update(now, dtMs, playerX, playerY, closedDoors);
@@ -140,12 +143,13 @@ export class CameraSystem {
       }
       if (result.raiseAlertNow) {
         raisedAlert = true;
+        alarmPoints.push({ x: camera.x, y: camera.y, id: camera.id });
       }
     }
 
     const prompt = this.updateBreaker(now, playerX, playerY, interactPressed);
 
-    return { investigatePoints, raisedAlert, prompt };
+    return { investigatePoints, raisedAlert, alarmPoints, prompt };
   }
 
   /** One debug line per camera plus a breaker line, for the debug overlay. */

@@ -5,6 +5,12 @@ import { zoneAt } from './zoneAt';
 import type { ZoneRect, WallRect } from '../world/BuildingMap';
 import type { SpeedState } from '../input/InputState';
 import type { GuardState } from '../entities/Guard';
+import { venueProfile, type LevelAudioProfile, type VenueProfileId } from './atmospherePolicy';
+import type { SecurityCue } from './audioPolicy';
+import { SecurityCueCoordinator } from './securityCueCoordinator';
+import { playSecurityCue } from './securityCues';
+import { updateTensionBed } from './tensionBed';
+import { updateVenueDetail } from './venueAtmosphere';
 import {
   chooseOcclusionCutoff,
   distanceGain,
@@ -39,6 +45,16 @@ export interface AudioFrame {
   walls: WallRect[];
   closedDoorRects: WallRect[];
   alertLevel: number;
+  venueAudio?: LevelAudioProfile;
+}
+
+interface CueSpatialFrame {
+  sourceX: number;
+  sourceY: number;
+  playerX: number;
+  playerY: number;
+  walls: WallRect[];
+  closedDoors: WallRect[];
 }
 
 /** The ambience bed nodes for one bed type, so it can be faded independently. */
@@ -58,6 +74,8 @@ interface AudioGraph extends MixCore {
   ambienceVoices: Partial<Record<AmbienceBed, AmbienceVoice>>;
   ambienceGains: Partial<Record<AmbienceBed, GainNode>>;
   activeBed: AmbienceBed;
+  venueVoices: Record<VenueProfileId, AmbienceVoice>;
+  activeVenue: VenueProfileId | null;
 }
 
 let graph: AudioGraph | null = null;
@@ -180,12 +198,28 @@ function buildGraph(ctx: AudioContext, gameplayPaused: boolean): AudioGraph {
     }
   }
 
+  const venueBeds: Record<VenueProfileId, AmbienceBed> = {
+    'building-c': 'office',
+    'data-centre': 'server',
+    warehouse: 'dock',
+  };
+  const venueVoices = {} as Record<VenueProfileId, AmbienceVoice>;
+  for (const [id, bed] of Object.entries(venueBeds) as [VenueProfileId, AmbienceBed][]) {
+    const voice = buildAmbienceVoice(ctx, noiseBuffer, bed);
+    if (!voice) throw new Error(`Venue ambience ${id} has no voice`);
+    voice.gain.connect(mix.buses.ambience.gain);
+    voice.gain.gain.value = 0;
+    venueVoices[id] = voice;
+  }
+
   return {
     ...mix,
     noiseBuffer,
     ambienceVoices,
     ambienceGains,
     activeBed: 'none',
+    venueVoices,
+    activeVenue: null,
   };
 }
 
@@ -207,6 +241,10 @@ export class AudioManager {
   private stepAccumulatorMs = 0;
   private guardStepAccumulatorMs = 0;
   private radioNextBurstAt = 0;
+  private tensionNextPulseAt = 0;
+  private venueNextDetailAt = 0;
+  private readonly cueSpatial = new Map<SecurityCue, CueSpatialFrame>();
+  private readonly securityCues = new SecurityCueCoordinator((cue) => this.playSecurity(cue));
 
   private lastOcclusionCutoffHz: number = AUDIO.guardFootstep.occlusionOpenHz;
   private lastGuardDistancePx = Number.POSITIVE_INFINITY;
@@ -284,6 +322,52 @@ export class AudioManager {
     this.updateFootsteps(dtMs, frame, zoneName);
     this.updateGuardAudio(dtMs, frame);
     this.updateAmbience(dtMs, zoneName, frame.alertLevel);
+    this.updateVenueProfile(frame.venueAudio);
+    this.tensionNextPulseAt = updateTensionBed(
+      graph.ctx, graph.buses.ambience.gain, graph.noiseBuffer, frame.alertLevel,
+      frame.nowMs, this.tensionNextPulseAt
+    );
+    this.venueNextDetailAt = updateVenueDetail(
+      graph.ctx, graph.buses.ambience.gain, graph.noiseBuffer, frame.venueAudio,
+      frame.nowMs, this.venueNextDetailAt
+    );
+    this.securityCues.flush(frame.nowMs);
+  }
+
+  private updateVenueProfile(configured: LevelAudioProfile | undefined): void {
+    if (!graph) return;
+    const target = venueProfile(configured).profile;
+    if (target === graph.activeVenue) return;
+    if (graph.activeVenue) {
+      rampGain(graph.ctx, graph.venueVoices[graph.activeVenue].gain.gain, 0, AUDIO.ambience.crossfadeMs);
+    }
+    rampGain(graph.ctx, graph.venueVoices[target].gain.gain, 0.28, AUDIO.ambience.crossfadeMs);
+    graph.activeVenue = target;
+  }
+
+  /** Offers a fresh guard or camera transition to the 250ms severity window. */
+  offerSecurityCue(cue: SecurityCue, nowMs: number, spatial: CueSpatialFrame): void {
+    this.cueSpatial.set(cue, spatial);
+    this.securityCues.offer(cue, nowMs);
+  }
+
+  private playSecurity(cue: SecurityCue): void {
+    if (!graph || graph.ctx.state !== 'running') return;
+    const spatial = this.cueSpatial.get(cue);
+    if (!spatial) return;
+    const range = 600;
+    const distance = Math.hypot(spatial.sourceX - spatial.playerX, spatial.sourceY - spatial.playerY);
+    const gain = distanceGain(distance, range);
+    if (gain <= 0) return;
+    const occluded = this.lineIsOccluded(
+      spatial.sourceX, spatial.sourceY, spatial.playerX, spatial.playerY,
+      spatial.walls, spatial.closedDoors
+    );
+    playSecurityCue(
+      graph.ctx, graph.buses.sting.gain, graph.noiseBuffer, cue, gain,
+      panForPositions(spatial.sourceX, spatial.playerX, 0, range),
+      chooseOcclusionCutoff(occluded, 4800, 650)
+    );
   }
 
   private updateFootsteps(dtMs: number, frame: AudioFrame, zoneName: string | null): void {
@@ -546,5 +630,8 @@ export class AudioManager {
     this.stepAccumulatorMs = 0;
     this.guardStepAccumulatorMs = 0;
     this.radioNextBurstAt = 0;
+    this.tensionNextPulseAt = 0;
+    this.venueNextDetailAt = 0;
+    this.cueSpatial.clear();
   }
 }

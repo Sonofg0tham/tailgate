@@ -450,11 +450,14 @@ export class BuildingScene extends Phaser.Scene {
     for (const p of camTick.investigatePoints) {
       this.guard?.investigatePoint(p.x, p.y);
       this.lastCameraCue = { id: p.id, atMs: now };
+      this.offerSecurityCue('camera-ping', now, p.x, p.y, closedDoors);
     }
     if (camTick.raisedAlert) {
       const level = raiseAlert(now);
       recordAlertLevel(level);
       this.triggerAlarmShake();
+      const alarm = camTick.alarmPoints[0];
+      if (alarm) this.offerSecurityCue('camera-alarm', now, alarm.x, alarm.y, closedDoors);
     }
 
     const objTick = this.objectives.update({
@@ -523,6 +526,7 @@ export class BuildingScene extends Phaser.Scene {
       walls: this.mapWalls,
       closedDoorRects: closedDoors,
       alertLevel: getMission().alertLevel,
+      venueAudio: this.level.audio,
     });
 
     this.drawGuardChevron();
@@ -1210,8 +1214,11 @@ export class BuildingScene extends Phaser.Scene {
     }
   }
 
-  /** The guard changed state: fire the alert sting and shake exactly on ALERT. */
+  /** The guard changed state: offer one transition cue and shake exactly on ALERT. */
   private onGuardStateCue(state: GuardState): void {
+    if (state === 'curious' && this.guard) {
+      this.offerSecurityCue('guard-curious', this.time.now, this.guard.x, this.guard.y);
+    }
     if (state === 'alert') {
       // A guard going full ALERT on a disguised player burns the disguise for
       // the rest of the run: security now knows the vest.
@@ -1221,9 +1228,28 @@ export class BuildingScene extends Phaser.Scene {
         recordDisguiseBlown();
         this.refreshDisguiseTag();
       }
-      this.audio.playAlertSting();
+      if (this.guard) {
+        this.offerSecurityCue('guard-alert', this.time.now, this.guard.x, this.guard.y);
+      }
       this.triggerAlarmShake();
     }
+  }
+
+  private offerSecurityCue(
+    cue: 'guard-curious' | 'guard-alert' | 'camera-ping' | 'camera-alarm',
+    now: number,
+    sourceX: number,
+    sourceY: number,
+    closedDoors = this.doors.filter((door) => !door.isOpen).map((door) => door.rect)
+  ): void {
+    this.audio.offerSecurityCue(cue, now, {
+      sourceX,
+      sourceY,
+      playerX: this.player.x,
+      playerY: this.player.y,
+      walls: this.mapWalls,
+      closedDoors,
+    });
   }
 
   private guardInfo(): GuardHudInfo | null {

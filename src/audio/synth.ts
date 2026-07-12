@@ -166,6 +166,7 @@ export function playToneBurst(
     holdMs: number;
     releaseMs: number;
     peakGain: number;
+    pan?: number;
   }
 ): void {
   const osc = ctx.createOscillator();
@@ -176,7 +177,14 @@ export function playToneBurst(
   gain.gain.value = 0;
 
   osc.connect(gain);
-  gain.connect(destination);
+  const panner = options.pan === undefined ? null : ctx.createStereoPanner();
+  if (panner && options.pan !== undefined) {
+    panner.pan.value = Math.max(-1, Math.min(1, options.pan));
+    gain.connect(panner);
+    panner.connect(destination);
+  } else {
+    gain.connect(destination);
+  }
 
   const stopAt = scheduleGainEnvelope(
     gain,
@@ -192,5 +200,6 @@ export function playToneBurst(
   osc.onended = () => {
     osc.disconnect();
     gain.disconnect();
+    panner?.disconnect();
   };
 }

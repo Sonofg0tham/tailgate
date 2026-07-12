@@ -12,6 +12,7 @@
       "guards": "data/building-c/guards.json",
       "staff": "data/building-c/staff.json",
       "cameras": "data/building-c/cameras.json",
+      "audio": { "profile": "building-c", "detailCue": "printer-kitchen", "detailEveryMinMs": 9000, "detailEveryMaxMs": 18000 },
       "venue": {
         "plantTarget": "rack 4 in the server room",
         "smokersDoor": "Fire door on the south elevation",
@@ -51,6 +52,7 @@
       "guards": "data/data-centre/guards.json",
       "staff": "data/data-centre/staff.json",
       "cameras": "data/data-centre/cameras.json",
+      "audio": { "profile": "data-centre", "detailCue": "relay-tick", "detailEveryMinMs": 5000, "detailEveryMaxMs": 11000 },
       "venue": {
         "plantTarget": "the customer rack in the hosting cage",
         "smokersDoor": "Plant room fire door",
@@ -90,6 +92,7 @@
       "guards": "data/warehouse/guards.json",
       "staff": "data/warehouse/staff.json",
       "cameras": "data/warehouse/cameras.json",
+      "audio": { "profile": "warehouse", "detailCue": "settling-metal", "detailEveryMinMs": 7000, "detailEveryMaxMs": 15000 },
       "venue": {
         "plantTarget": "the comms rack in the secure cage",
         "smokersDoor": "Break room fire door",
