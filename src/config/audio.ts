@@ -1,13 +1,11 @@
 /**
- * Audio tuning for Tailgate. Everything the procedural Web Audio subsystem
+ * Audio tuning for Tailgate. Procedural security and atmosphere layers share
+ * the mix with a small CC0 Kenney interaction and footstep sample set.
  * needs lives here as plain numbers and lookups, so Craig can retune the
  * soundscape without touching synthesis code. All durations are in
  * milliseconds, all distances in pixels, matching the rest of the config
  * files.
  *
- * Every sound in this game is synthesised at runtime, there are no audio
- * asset files. That keeps licensing trivial (CC0 by construction) and keeps
- * the repo small.
  */
 
 /** Floor surface underfoot, which decides the footstep synthesis colour. */
@@ -26,6 +24,7 @@ export const AUDIO = {
     guard: 0.6,
     radio: 0.4,
     ambience: 0.35,
+    foley: 0.42,
   },
 
   /** Security console cues: short quiet triangle tones on the sting bus. */

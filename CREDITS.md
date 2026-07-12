@@ -47,12 +47,32 @@ Pack: https://kenney.nl/assets/top-down-shooter | Kenney | CC0 1.0
 
 ## Audio
 
-All game audio is synthesised at runtime with the Web Audio API. There are no audio
-files in the repo, so there is nothing third-party to license. The sound is generated
-from oscillators and filtered noise in code (see src/audio/), which makes it CC0 by
-construction: it is our own original output with no external source.
+Security cues, tension and venue atmosphere are synthesised at runtime with the Web
+Audio API. Interaction foley and footsteps use the Kenney CC0 files listed below.
 
-- Footsteps, guard footsteps, radio chatter, zone ambience beds, alert sting | generated in src/audio/ (Web Audio synthesis) | CJM Labs | CC0 1.0
+- Radio chatter, zone ambience beds, security stingers and tension bed | generated in src/audio/ (Web Audio synthesis) | CJM Labs | CC0 1.0
+
+### Kenney RPG Audio
+
+- public/assets/audio/footstep-1.ogg | https://kenney.nl/assets/rpg-audio (footstep00.ogg) | Kenney | CC0 1.0
+- public/assets/audio/footstep-2.ogg | https://kenney.nl/assets/rpg-audio (footstep01.ogg) | Kenney | CC0 1.0
+- public/assets/audio/footstep-3.ogg | https://kenney.nl/assets/rpg-audio (footstep02.ogg) | Kenney | CC0 1.0
+- public/assets/audio/footstep-4.ogg | https://kenney.nl/assets/rpg-audio (footstep03.ogg) | Kenney | CC0 1.0
+- public/assets/audio/bolt-throw.ogg | https://kenney.nl/assets/rpg-audio (drawKnife1.ogg) | Kenney | CC0 1.0
+- public/assets/audio/metal-impact-1.ogg | https://kenney.nl/assets/rpg-audio (metalPot1.ogg) | Kenney | CC0 1.0
+- public/assets/audio/metal-impact-2.ogg | https://kenney.nl/assets/rpg-audio (metalPot2.ogg) | Kenney | CC0 1.0
+- public/assets/audio/metal-impact-3.ogg | https://kenney.nl/assets/rpg-audio (metalPot3.ogg) | Kenney | CC0 1.0
+- public/assets/audio/door-latch.ogg | https://kenney.nl/assets/rpg-audio (metalLatch.ogg) | Kenney | CC0 1.0
+- public/assets/audio/shutter.ogg | https://kenney.nl/assets/rpg-audio (creak2.ogg) | Kenney | CC0 1.0
+- public/assets/audio/document-stamp.ogg | https://kenney.nl/assets/rpg-audio (bookPlace1.ogg) | Kenney | CC0 1.0
+
+### Kenney Interface Sounds
+
+- public/assets/audio/badge-accept.ogg | https://kenney.nl/assets/interface-sounds (confirmation_001.ogg) | Kenney | CC0 1.0
+- public/assets/audio/badge-deny.ogg | https://kenney.nl/assets/interface-sounds (error_001.ogg) | Kenney | CC0 1.0
+- public/assets/audio/breaker-trip.ogg | https://kenney.nl/assets/interface-sounds (switch_003.ogg) | Kenney | CC0 1.0
+- public/assets/audio/camera-return.ogg | https://kenney.nl/assets/interface-sounds (toggle_002.ogg) | Kenney | CC0 1.0
+- public/assets/audio/plant-complete.ogg | https://kenney.nl/assets/interface-sounds (confirmation_003.ogg) | Kenney | CC0 1.0
 
 ## Generated textures
 

@@ -186,7 +186,7 @@ Done when: a new player can explain from the screen why they were caught and whi
 **Phase 16, onboarding briefings.** A pre-mission engagement briefing per contract (styled as the letter of authorisation, shown before a contract's first run and reachable from contract select) whose INTEL section teaches the venue's signature mechanic in fiction. First-run contextual hints defined in level data, each firing once per profile.
 Done when: each contract briefs its own mechanic, hints never repeat, and all copy lives in data.
 
-**Phase 17, audio atmosphere.** A procedural tension bed that tracks the alert ladder (silent at CALM, pulsing at CAUTIOUS, darker at LOCKDOWN), distinct stingers for guard-curious, camera-ping and camera-alarm, and per-venue weighting of the ambience beds. All synthesised, no asset files.
+**Phase 17, audio atmosphere.** A procedural tension bed that tracks the alert ladder (silent at CALM, pulsing at CAUTIOUS, darker at LOCKDOWN), distinct stingers for guard-curious, camera-ping and camera-alarm, and per-venue weighting of the ambience beds. Security, tension and venue layers are synthesised. Footsteps and interaction foley use a compact, credited Kenney CC0 sample set with restrained runtime surface, pitch, filtering and spatial treatment.
 Done when: the alert ladder is audible with the screen covered, and nothing clips at full volume.
 
 ## v2 parking lot (still parked, do not build)

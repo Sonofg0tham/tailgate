@@ -23,6 +23,9 @@ import {
   SharedMixLifecycle,
   type MixCore,
 } from './sharedMix';
+import { SampleBank } from './SampleBank';
+import type { SampleGroup } from './sampleManifest';
+import { sampleTreatment } from './samplePolicy';
 
 /**
  * One frame's worth of world state the audio subsystem needs to decide what
@@ -76,6 +79,7 @@ interface AudioGraph extends MixCore {
   activeBed: AmbienceBed;
   venueVoices: Record<VenueProfileId, AmbienceVoice>;
   activeVenue: VenueProfileId | null;
+  samples: SampleBank;
 }
 
 let graph: AudioGraph | null = null;
@@ -211,6 +215,11 @@ function buildGraph(ctx: AudioContext, gameplayPaused: boolean): AudioGraph {
     voice.gain.gain.value = 0;
     venueVoices[id] = voice;
   }
+  const samples = new SampleBank(
+    async (path) => (await fetch(path)).arrayBuffer(),
+    async (bytes) => ctx.decodeAudioData(bytes)
+  );
+  void samples.preload();
 
   return {
     ...mix,
@@ -220,15 +229,16 @@ function buildGraph(ctx: AudioContext, gameplayPaused: boolean): AudioGraph {
     activeBed: 'none',
     venueVoices,
     activeVenue: null,
+    samples,
   };
 }
 
 const sharedMix = new SharedMixLifecycle<AudioGraph>(buildGraph);
 
 /**
- * Owns Tailgate's procedural soundscape: footsteps, guard audio cues, radio
- * chatter, ambience beds and the alert sting, all synthesised at runtime with
- * Web Audio, no sound assets. The instance is cheap to construct; the actual
+ * Owns Tailgate's hybrid soundscape. Security, tension and venue beds remain
+ * procedural; licensed CC0 samples provide footsteps and interaction foley.
+ * The instance is cheap to construct; the actual
  * AudioContext and node graph live in module scope and are created lazily on
  * the first user gesture, per browser autoplay rules, and survive scene
  * restarts (a detain restart must not open a second context or stack a
@@ -443,6 +453,11 @@ export class AudioManager {
       return;
     }
 
+    if (this.playSample('footstep:concrete', {
+      gain: AUDIO.guardFootstep.peakGain * gain,
+      pan: panForPositions(frame.guard.x, frame.player.x, 0, hearingRange),
+      cutoffHz: this.lastOcclusionCutoffHz,
+    })) return;
     playFilteredNoiseBurst(graph.ctx, graph.buses.guard.gain, graph.noiseBuffer, {
       cutoffHz: this.lastOcclusionCutoffHz,
       q: 0.8,
@@ -614,6 +629,8 @@ export class AudioManager {
     if (!graph || graph.ctx.state !== 'running') {
       return;
     }
+    const treatment = sampleTreatment(surface, Math.random(), Math.random());
+    if (this.playSample(`footstep:${surface}`, treatment)) return;
     const settings = AUDIO.footstep[surface];
     playFilteredNoiseBurst(graph.ctx, graph.buses.footsteps.gain, graph.noiseBuffer, {
       cutoffHz: settings.cutoffHz,
@@ -636,5 +653,33 @@ export class AudioManager {
     this.tensionNextPulseAt = 0;
     this.lastAlertLevel = 0;
     this.venueNextDetailAt = 0;
+  }
+
+  /** Plays optional CC0 foley through the shared paused/headroom mix. */
+  playFoley(group: Exclude<SampleGroup, `footstep:${Surface}`>, gain = 1, pan = 0): void {
+    this.playSample(group, { gain, pan, playbackRate: 0.97 + Math.random() * 0.06, cutoffHz: 12000 });
+  }
+
+  private playSample(
+    group: SampleGroup,
+    treatment: { gain: number; pan: number; playbackRate?: number; cutoffHz: number }
+  ): boolean {
+    if (!graph || graph.ctx.state !== 'running') return false;
+    const buffer = graph.samples.choose(group);
+    if (!buffer) return false;
+    const source = graph.ctx.createBufferSource();
+    const filter = graph.ctx.createBiquadFilter();
+    const gain = graph.ctx.createGain();
+    const panner = graph.ctx.createStereoPanner();
+    source.buffer = buffer;
+    source.playbackRate.value = treatment.playbackRate ?? 1;
+    filter.type = 'lowpass';
+    filter.frequency.value = treatment.cutoffHz;
+    gain.gain.value = treatment.gain;
+    panner.pan.value = Math.max(-1, Math.min(1, treatment.pan));
+    source.connect(filter); filter.connect(gain); gain.connect(panner); panner.connect(graph.buses.foley.gain);
+    source.start();
+    source.addEventListener('ended', () => { source.disconnect(); filter.disconnect(); gain.disconnect(); panner.disconnect(); }, { once: true });
+    return true;
   }
 }

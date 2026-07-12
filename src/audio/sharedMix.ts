@@ -15,6 +15,7 @@ export interface MixCore {
     guard: CategoryBus;
     radio: CategoryBus;
     ambience: CategoryBus;
+    foley: CategoryBus;
   };
 }
 
@@ -52,6 +53,7 @@ export function buildMixCore(ctx: AudioContext, gameplayPaused: boolean): MixCor
       guard: makeBus(AUDIO.volumes.guard),
       radio: makeBus(AUDIO.volumes.radio),
       ambience: makeBus(AUDIO.volumes.ambience),
+      foley: makeBus(AUDIO.volumes.foley),
     },
   };
 }

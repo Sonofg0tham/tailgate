@@ -148,6 +148,8 @@ export class BuildingScene extends Phaser.Scene {
    * the Escape that exits the multiplexer must not also open the pause badge.
    */
   private pauseSwallowUntil = 0;
+  private readonly doorAudioState = new Map<string, boolean>();
+  private readonly badgeDenyAudioAt = new Map<string, number>();
   /** The doorway the player most recently stood in, naming the checkpoint. */
   private lastDoorId: string | null = null;
   /** The last camera ping, so the DETAINED banner can name the tip-off. */
@@ -276,7 +278,11 @@ export class BuildingScene extends Phaser.Scene {
     this.throwController = new ThrowController(
       this,
       (x, y) => this.onNoise(x, y),
-      checkpoint?.bolts
+      checkpoint?.bolts,
+      () => this.audio.playFoley('bolt-throw', 0.55),
+      (x) => this.audio.playFoley(
+        'metal-impact', 0.8, Phaser.Math.Clamp((x - this.player.x) / 500, -1, 1)
+      )
     );
 
     // The mission prompt, bottom centre, screen fixed.
@@ -460,6 +466,9 @@ export class BuildingScene extends Phaser.Scene {
       if (alarm) this.offerSecurityCue('camera-alarm', now, alarm.x, alarm.y, closedDoors);
     }
 
+    if (camTick.breakerTrippedNow) this.audio.playFoley('breaker-trip', 0.75);
+    if (camTick.cameraPowerReturnedNow) this.audio.playFoley('camera-return', 0.55);
+
     const objTick = this.objectives.update({
       now,
       dtMs: delta,
@@ -471,6 +480,7 @@ export class BuildingScene extends Phaser.Scene {
       bumped: this.isBumped(),
     });
     if (objTick.plantedNow) {
+      this.audio.playFoley('plant-complete', 0.72);
       // Second checkpoint: immediately after planting the device.
       setCheckpoint({
         x: this.player.x,
@@ -992,6 +1002,8 @@ export class BuildingScene extends Phaser.Scene {
       member.update(now, dtMs);
     }
     for (const door of this.doors) {
+      const wasOpen = this.doorAudioState.get(door.id) ?? door.isOpen;
+      let badgeAttempted = false;
       if (door.kind === 'badge') {
         // Any authorised staff standing near a badge door opens it (the tailgate
         // window keeps it open for a moment after they walk on). In lockdown the
@@ -1002,11 +1014,25 @@ export class BuildingScene extends Phaser.Scene {
             Phaser.Math.Distance.Between(member.x, member.y, door.centreX, door.centreY) <
               STAFF_BADGE_DISTANCE
           ) {
+            badgeAttempted = true;
             door.badge(now, lockdown);
           }
         }
       }
       door.update(now, lockdown, this.player.x, this.player.y);
+      if (door.isOpen !== wasOpen) {
+        const group = door.kind === 'shutter' ? 'shutter' : 'door-latch';
+        const pan = Phaser.Math.Clamp((door.centreX - this.player.x) / 600, -1, 1);
+        this.audio.playFoley(group, 0.62, pan);
+        if (door.kind === 'badge' && door.isOpen) this.audio.playFoley('badge-accept', 0.5, pan);
+      } else if (badgeAttempted && lockdown) {
+        const lastDeny = this.badgeDenyAudioAt.get(door.id) ?? -1000;
+        if (now - lastDeny >= 1000) {
+          this.audio.playFoley('badge-deny', 0.42);
+          this.badgeDenyAudioAt.set(door.id, now);
+        }
+      }
+      this.doorAudioState.set(door.id, door.isOpen);
     }
   }
 

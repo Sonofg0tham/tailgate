@@ -69,6 +69,8 @@ export interface CameraTick {
   alarmPoints: { x: number; y: number; id: string }[];
   /** The HUD prompt line for the breaker, or null for none. */
   prompt: string | null;
+  breakerTrippedNow: boolean;
+  cameraPowerReturnedNow: boolean;
 }
 
 /** Internal breaker state: when it was tripped and until when it is unusable. */
@@ -90,6 +92,7 @@ interface BreakerRuntime {
 export class CameraSystem {
   private readonly cameras: Camera[];
   private readonly breaker: BreakerRuntime | undefined;
+  private breakerWasKilled = false;
   /** The scene-clock ts from the most recent update(), used by debugLines(). */
   private lastNow = 0;
 
@@ -150,9 +153,16 @@ export class CameraSystem {
       }
     }
 
+    const wasKilled = this.breakerWasKilled;
     const prompt = this.updateBreaker(now, playerX, playerY, interactPressed);
+    const isKilled = this.breaker ? now < this.breaker.killUntilMs : false;
+    this.breakerWasKilled = isKilled;
 
-    return { investigatePoints, raisedAlert, alarmPoints, prompt };
+    return {
+      investigatePoints, raisedAlert, alarmPoints, prompt,
+      breakerTrippedNow: !wasKilled && isKilled,
+      cameraPowerReturnedNow: wasKilled && !isKilled,
+    };
   }
 
   /** One debug line per camera plus a breaker line, for the debug overlay. */

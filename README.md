@@ -67,7 +67,7 @@ Two tools sit alongside the classic tailgating, distraction and breaker tricks:
 
 - **Phaser 3.90** with **TypeScript** in strict mode, bundled by **Vite**.
 - Three levels built in **Tiled**, exported as JSON, driven by a level registry so the same scene code runs every contract. Guard patrols, staff schedules, door timings, camera arcs, lighting and hi-vis restricted zones all live in data files, not code.
-- **Procedural audio**: the whole soundscape is synthesised at runtime with the Web Audio API. There are no sound files in the repo.
+- **Hybrid audio**: security cues, tension and venue atmosphere are synthesised at runtime. A compact Kenney CC0 sample set gives footsteps and physical interactions a clearer material sound.
 - **No backend, no accounts, no analytics, no cookies.** localStorage holds settings and per-contract progress (unlocks, best ratings and times, and which briefings and first-run hints you have seen), nothing else.
 - Deployed on **Vercel**. **GitHub Actions** runs typecheck, lint and a gitleaks secret scan on every pull request.
 
@@ -89,4 +89,4 @@ v1 shipped in seven phases (skeleton, the space, being watched, doors and people
 
 ## Licence and credits
 
-Every third-party asset is CC0 or CC-BY and logged in [CREDITS.md](CREDITS.md), which doubles as an asset SBOM. The audio is procedurally synthesised, so there are no third-party sound files. Art is from [Kenney](https://kenney.nl) (CC0) and the fonts (Saira Condensed, IBM Plex Mono) are under the SIL Open Font License.
+Every third-party asset is CC0 or CC-BY and logged in [CREDITS.md](CREDITS.md), which doubles as an asset SBOM. Art and interaction audio are from [Kenney](https://kenney.nl) (CC0). The fonts (Saira Condensed, IBM Plex Mono) are under the SIL Open Font License.
