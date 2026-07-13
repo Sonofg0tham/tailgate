@@ -29,6 +29,9 @@ export const IMAGE_ASSETS: Record<string, string> = {
   floor_tile_cool: 'assets/tiles/floor_tile_cool.png',
   floor_concrete: 'assets/tiles/floor_concrete.png',
   wall_brick: 'assets/tiles/wall_brick.png',
+  wall_office: 'assets/environment/wall_office.png',
+  wall_data_panel: 'assets/environment/wall_data_panel.png',
+  wall_warehouse_block: 'assets/environment/wall_warehouse_block.png',
   // Furniture props (keys match the names used in the map's props layer)
   prop_desk: 'assets/tiles/prop_desk.png',
   prop_desk_small: 'assets/tiles/prop_desk_small.png',
@@ -42,6 +45,22 @@ export const IMAGE_ASSETS: Record<string, string> = {
   prop_server: 'assets/tiles/prop_server.png',
   prop_server_alt: 'assets/tiles/prop_server_alt.png',
   prop_fence: 'assets/tiles/prop_fence.png',
+  // Venue dressing, authored only in each map's props and decals layers
+  env_chair: 'assets/environment/chair.png',
+  env_monitor: 'assets/environment/monitor.png',
+  env_copier: 'assets/environment/copier.png',
+  env_bollard: 'assets/environment/bollard.png',
+  env_kerb: 'assets/environment/kerb.png',
+  env_drain: 'assets/environment/drain.png',
+  env_barrier: 'assets/environment/barrier.png',
+  env_vent: 'assets/environment/vent.png',
+  env_cable_channel: 'assets/environment/cable_channel.png',
+  env_rack_endcap: 'assets/environment/rack_endcap.png',
+  env_pallet_alt: 'assets/environment/pallet_alt.png',
+  env_trolley: 'assets/environment/trolley.png',
+  env_dock_buffer: 'assets/environment/dock_buffer.png',
+  env_sign_panel: 'assets/environment/sign_panel.png',
+  env_fire_exit: 'assets/environment/fire_exit.png',
   // Player
   player_hold: 'assets/characters/player_hold.png',
   player_stand: 'assets/characters/player_stand.png',
@@ -84,5 +103,13 @@ export const FLOOR_TEXTURES: Record<string, string> = {
 /** Used if a zone has no explicit floor mapping, so a typo is still walkable. */
 export const FLOOR_FALLBACK = 'floor_tile';
 
-/** The wall texture tiled over every wall rectangle. */
-export const WALL_TEXTURE = 'wall_brick';
+export interface DecorationRenderTreatment {
+  colour: number;
+  alpha: number;
+  tintMode: 'fill' | 'multiply';
+}
+
+/** Renderer-only treatments for sprites whose source colours compete with game signals. */
+export const DECORATION_TREATMENTS: Readonly<Record<string, DecorationRenderTreatment>> = {
+  env_barrier: { colour: 0x7d8791, alpha: 0.72, tintMode: 'fill' },
+};

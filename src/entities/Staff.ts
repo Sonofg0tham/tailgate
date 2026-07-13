@@ -51,6 +51,9 @@ export class Staff {
     this.sprite.setScale(RENDER.playerScale);
     this.sprite.setDepth(39); // under the player and guard
     this.sprite.setCollideWorldBounds(true);
+    // Staff are physical people, but the player must not shove their authored
+    // patrol route out of alignment when they meet in a doorway or corridor.
+    this.sprite.setPushable(false);
     const fw = this.sprite.width;
     const fh = this.sprite.height;
     const radius = Math.min(fw, fh) * 0.34;

@@ -3,6 +3,7 @@ import { INPUT } from '../config/input';
 import { THROW } from '../config/throw';
 import { Bolt } from '../entities/Bolt';
 import { recordBoltThrown } from '../state/runStats';
+import { AimDisplayState } from './AimDisplayState';
 
 /**
  * Handles the distraction throw: aiming, the throw trigger, the live bolts and
@@ -17,6 +18,7 @@ export class ThrowController {
   private boltsLeft: number;
   private readonly bolts: Bolt[] = [];
   private readonly reticle: Phaser.GameObjects.Graphics;
+  private readonly aimDisplay = new AimDisplayState();
   private prevPadThrow = false;
   private pointerThrowQueued = false;
   /** When the window last regained focus, to swallow the refocus click. */
@@ -89,8 +91,24 @@ export class ThrowController {
     playerY: number,
     pad: Phaser.Input.Gamepad.Gamepad | undefined
   ): void {
+    const controllerEngaged =
+      pad !== undefined && pad.rightStick.length() >= THROW.aimDeadzone;
     const aim = this.computeAim(scene, playerX, playerY, pad);
-    this.drawReticle(playerX, playerY, aim);
+    const pointer = scene.input.activePointer;
+    const display = this.aimDisplay.update({
+      dtMs,
+      controllerEngaged,
+      mouseX: pointer.x,
+      mouseY: pointer.y,
+      aimX: aim.x,
+      aimY: aim.y,
+    });
+    this.drawTrajectory(
+      playerX,
+      playerY,
+      { x: display.aimX, y: display.aimY },
+      display.alpha
+    );
 
     const padThrow = pad !== undefined && pad.R2 > 0.5;
     const throwRequested = this.pointerThrowQueued || (padThrow && !this.prevPadThrow);
@@ -137,16 +155,27 @@ export class ThrowController {
     return aim;
   }
 
-  private drawReticle(px: number, py: number, aim: Phaser.Math.Vector2): void {
+  private drawTrajectory(
+    px: number,
+    py: number,
+    aim: { x: number; y: number },
+    alpha: number
+  ): void {
     this.reticle.clear();
-    if (this.boltsLeft <= 0) {
+    if (this.boltsLeft <= 0 || alpha <= 0) {
       return;
     }
-    this.reticle.lineStyle(1, 0xc7cdd4, 0.3);
-    this.reticle.lineBetween(px, py, aim.x, aim.y);
-    this.reticle.lineStyle(1.5, 0xffb000, 0.9);
-    this.reticle.strokeCircle(aim.x, aim.y, 8);
-    this.reticle.lineBetween(aim.x - 12, aim.y, aim.x + 12, aim.y);
-    this.reticle.lineBetween(aim.x, aim.y - 12, aim.x, aim.y + 12);
+
+    const dx = aim.x - px;
+    const dy = aim.y - py;
+    const distance = Math.hypot(dx, dy);
+    const spacing = 18;
+    this.reticle.fillStyle(0xc7cdd4, 0.48 * alpha);
+    for (let along = spacing; along < distance; along += spacing) {
+      const t = along / distance;
+      this.reticle.fillCircle(px + dx * t, py + dy * t, 1.6);
+    }
+    this.reticle.fillStyle(0xffb000, 0.85 * alpha);
+    this.reticle.fillCircle(aim.x, aim.y, 3);
   }
 }

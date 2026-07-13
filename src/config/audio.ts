@@ -39,6 +39,13 @@ export const AUDIO = {
     peakGain: 0.22,
   },
 
+  /** A restrained shutter confirmation, distinct from every security cue. */
+  photograph: {
+    cutoffHz: 4200,
+    peakGain: 0.16,
+    durationMs: 45,
+  },
+
   /** Which floor surface each zone reads as, by ZoneRect name. */
   zoneSurface: {
     // Building C

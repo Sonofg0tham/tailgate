@@ -35,6 +35,27 @@ Pack: https://kenney.nl/assets/roguelike-modern-city | Kenney | CC0 1.0
 - public/assets/tiles/prop_server_alt.png | pack tile_0322 | Kenney | CC0 1.0
 - public/assets/tiles/prop_fence.png | pack tile_0644 | Kenney | CC0 1.0
 
+### Phase 18 venue materials and dressing
+
+- public/assets/environment/wall_office.png | Top-down Shooter, PNG/Tiles/tile_12.png | https://kenney.nl/assets/top-down-shooter | Kenney | CC0 1.0
+- public/assets/environment/wall_data_panel.png | Platformer Pack Industrial, PNG/Default size/platformIndustrial_045.png | https://kenney.nl/assets/platformer-pack-industrial | Kenney | CC0 1.0
+- public/assets/environment/wall_warehouse_block.png | Platformer Pack Industrial, PNG/Default size/platformIndustrial_057.png | https://kenney.nl/assets/platformer-pack-industrial | Kenney | CC0 1.0
+- public/assets/environment/chair.png | Top-down Shooter, PNG/Tiles/tile_528.png | https://kenney.nl/assets/top-down-shooter | Kenney | CC0 1.0
+- public/assets/environment/monitor.png | Platformer Pack Industrial, PNG/Default size/platformIndustrial_031.png | https://kenney.nl/assets/platformer-pack-industrial | Kenney | CC0 1.0
+- public/assets/environment/copier.png | Platformer Pack Industrial, PNG/Default size/platformIndustrial_046.png | https://kenney.nl/assets/platformer-pack-industrial | Kenney | CC0 1.0
+- public/assets/environment/bollard.png | Platformer Pack Industrial, PNG/Default size/platformIndustrial_041.png | https://kenney.nl/assets/platformer-pack-industrial | Kenney | CC0 1.0
+- public/assets/environment/kerb.png | Top-down Shooter, PNG/Tiles/tile_520.png | https://kenney.nl/assets/top-down-shooter | Kenney | CC0 1.0
+- public/assets/environment/drain.png | Top-down Shooter, PNG/Tiles/tile_269.png | https://kenney.nl/assets/top-down-shooter | Kenney | CC0 1.0
+- public/assets/environment/barrier.png | Platformer Pack Industrial, PNG/Default size/platformIndustrial_064.png | https://kenney.nl/assets/platformer-pack-industrial | Kenney | CC0 1.0
+- public/assets/environment/vent.png | Platformer Pack Industrial, PNG/Default size/platformIndustrial_035.png | https://kenney.nl/assets/platformer-pack-industrial | Kenney | CC0 1.0
+- public/assets/environment/cable_channel.png | Top-down Shooter, PNG/Tiles/tile_514.png | https://kenney.nl/assets/top-down-shooter | Kenney | CC0 1.0
+- public/assets/environment/rack_endcap.png | Platformer Pack Industrial, PNG/Default size/platformIndustrial_074.png | https://kenney.nl/assets/platformer-pack-industrial | Kenney | CC0 1.0
+- public/assets/environment/pallet_alt.png | Top-down Shooter, PNG/Tiles/tile_453.png | https://kenney.nl/assets/top-down-shooter | Kenney | CC0 1.0
+- public/assets/environment/trolley.png | Roguelike Indoors, Tilesheets/roguelikeIndoor_transparent.png, tile t264 (row 9, column 21) | https://kenney.nl/assets/roguelike-indoors | Kenney | CC0 1.0
+- public/assets/environment/dock_buffer.png | Top-down Shooter, PNG/Tiles/tile_501.png | https://kenney.nl/assets/top-down-shooter | Kenney | CC0 1.0
+- public/assets/environment/sign_panel.png | Platformer Pack Industrial, PNG/Default size/platformIndustrial_082.png | https://kenney.nl/assets/platformer-pack-industrial | Kenney | CC0 1.0
+- public/assets/environment/fire_exit.png | Platformer Pack Industrial, PNG/Default size/platformIndustrial_084.png | https://kenney.nl/assets/platformer-pack-industrial | Kenney | CC0 1.0
+
 ### Player character, from Kenney "Top-down Shooter"
 
 Pack: https://kenney.nl/assets/top-down-shooter | Kenney | CC0 1.0

@@ -10,8 +10,8 @@
  "tileheight": 32,
  "width": 75,
  "height": 50,
- "nextlayerid": 9,
- "nextobjectid": 230,
+ "nextlayerid": 10,
+ "nextobjectid": 273,
  "tilesets": [],
  "layers": [
   {
@@ -2467,6 +2467,421 @@
      "point": true,
      "rotation": 0,
      "visible": true
+    },
+    {
+     "id": 230,
+     "name": "env_rack_endcap",
+     "type": "",
+     "x": 220,
+     "y": 350,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.24
+      },
+      {
+       "name": "label",
+       "type": "string",
+       "value": "A-01"
+      }
+     ]
+    },
+    {
+     "id": 231,
+     "name": "env_rack_endcap",
+     "type": "",
+     "x": 1080,
+     "y": 350,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 180,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.24
+      }
+     ]
+    },
+    {
+     "id": 232,
+     "name": "env_rack_endcap",
+     "type": "",
+     "x": 220,
+     "y": 480,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.24
+      },
+      {
+       "name": "label",
+       "type": "string",
+       "value": "A-02"
+      }
+     ]
+    },
+    {
+     "id": 233,
+     "name": "env_rack_endcap",
+     "type": "",
+     "x": 1080,
+     "y": 480,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 180,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.24
+      }
+     ]
+    },
+    {
+     "id": 234,
+     "name": "env_rack_endcap",
+     "type": "",
+     "x": 220,
+     "y": 610,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.24
+      },
+      {
+       "name": "label",
+       "type": "string",
+       "value": "A-03"
+      }
+     ]
+    },
+    {
+     "id": 235,
+     "name": "env_rack_endcap",
+     "type": "",
+     "x": 1080,
+     "y": 610,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 180,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.24
+      }
+     ]
+    },
+    {
+     "id": 236,
+     "name": "env_rack_endcap",
+     "type": "",
+     "x": 1260,
+     "y": 350,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.24
+      },
+      {
+       "name": "label",
+       "type": "string",
+       "value": "B-01"
+      }
+     ]
+    },
+    {
+     "id": 237,
+     "name": "env_rack_endcap",
+     "type": "",
+     "x": 2040,
+     "y": 350,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 180,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.24
+      }
+     ]
+    },
+    {
+     "id": 238,
+     "name": "env_rack_endcap",
+     "type": "",
+     "x": 1260,
+     "y": 480,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.24
+      },
+      {
+       "name": "label",
+       "type": "string",
+       "value": "B-02"
+      }
+     ]
+    },
+    {
+     "id": 239,
+     "name": "env_rack_endcap",
+     "type": "",
+     "x": 2040,
+     "y": 480,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 180,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.24
+      }
+     ]
+    },
+    {
+     "id": 240,
+     "name": "env_rack_endcap",
+     "type": "",
+     "x": 1260,
+     "y": 610,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.24
+      },
+      {
+       "name": "label",
+       "type": "string",
+       "value": "B-03"
+      }
+     ]
+    },
+    {
+     "id": 241,
+     "name": "env_rack_endcap",
+     "type": "",
+     "x": 2040,
+     "y": 610,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 180,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.24
+      }
+     ]
+    },
+    {
+     "id": 242,
+     "name": "env_sign_panel",
+     "type": "",
+     "x": 2210,
+     "y": 300,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.22
+      },
+      {
+       "name": "label",
+       "type": "string",
+       "value": "CAGE"
+      }
+     ]
+    },
+    {
+     "id": 243,
+     "name": "env_monitor",
+     "type": "",
+     "x": 700,
+     "y": 1050,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.2
+      }
+     ]
+    },
+    {
+     "id": 244,
+     "name": "env_copier",
+     "type": "",
+     "x": 900,
+     "y": 1160,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 90,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.22
+      }
+     ]
+    },
+    {
+     "id": 245,
+     "name": "env_bollard",
+     "type": "",
+     "x": 1110,
+     "y": 1320,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.25
+      }
+     ]
+    },
+    {
+     "id": 246,
+     "name": "env_bollard",
+     "type": "",
+     "x": 1290,
+     "y": 1320,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.25
+      }
+     ]
+    },
+    {
+     "id": 247,
+     "name": "env_fire_exit",
+     "type": "",
+     "x": 1040,
+     "y": 1190,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.22
+      }
+     ]
+    },
+    {
+     "id": 248,
+     "name": "env_pallet_alt",
+     "type": "",
+     "x": 1650,
+     "y": 1100,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.25
+      }
+     ]
+    },
+    {
+     "id": 249,
+     "name": "env_trolley",
+     "type": "",
+     "x": 1740,
+     "y": 1100,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 90,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.9
+      }
+     ]
     }
    ]
   },
@@ -2833,6 +3248,570 @@
      "point": true,
      "rotation": 0,
      "visible": true
+    }
+   ]
+  },
+  {
+   "id": 9,
+   "name": "decals",
+   "type": "objectgroup",
+   "draworder": "topdown",
+   "opacity": 1,
+   "visible": true,
+   "x": 0,
+   "y": 0,
+   "objects": [
+    {
+     "id": 250,
+     "name": "env_vent",
+     "type": "",
+     "x": 420,
+     "y": 420,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.34
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.58
+      }
+     ]
+    },
+    {
+     "id": 251,
+     "name": "env_vent",
+     "type": "",
+     "x": 800,
+     "y": 420,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.34
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.58
+      }
+     ]
+    },
+    {
+     "id": 252,
+     "name": "env_vent",
+     "type": "",
+     "x": 420,
+     "y": 550,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.34
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.58
+      }
+     ]
+    },
+    {
+     "id": 253,
+     "name": "env_vent",
+     "type": "",
+     "x": 800,
+     "y": 550,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.34
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.58
+      }
+     ]
+    },
+    {
+     "id": 254,
+     "name": "env_vent",
+     "type": "",
+     "x": 1480,
+     "y": 420,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.34
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.58
+      }
+     ]
+    },
+    {
+     "id": 255,
+     "name": "env_vent",
+     "type": "",
+     "x": 1840,
+     "y": 420,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.34
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.58
+      }
+     ]
+    },
+    {
+     "id": 256,
+     "name": "env_vent",
+     "type": "",
+     "x": 1480,
+     "y": 550,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.34
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.58
+      }
+     ]
+    },
+    {
+     "id": 257,
+     "name": "env_vent",
+     "type": "",
+     "x": 1840,
+     "y": 550,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.34
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.58
+      }
+     ]
+    },
+    {
+     "id": 258,
+     "name": "env_cable_channel",
+     "type": "",
+     "x": 500,
+     "y": 730,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 1.4
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.34
+      }
+     ]
+    },
+    {
+     "id": 259,
+     "name": "env_cable_channel",
+     "type": "",
+     "x": 900,
+     "y": 730,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 1.4
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.34
+      }
+     ]
+    },
+    {
+     "id": 260,
+     "name": "env_cable_channel",
+     "type": "",
+     "x": 1440,
+     "y": 730,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 1.4
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.34
+      }
+     ]
+    },
+    {
+     "id": 261,
+     "name": "env_cable_channel",
+     "type": "",
+     "x": 1840,
+     "y": 730,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 1.4
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.34
+      }
+     ]
+    },
+    {
+     "id": 262,
+     "name": "env_cable_channel",
+     "type": "",
+     "x": 1200,
+     "y": 1340,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 90,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.65
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.5
+      }
+     ]
+    },
+    {
+     "id": 263,
+     "name": "env_cable_channel",
+     "type": "",
+     "x": 1200,
+     "y": 1180,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 90,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.65
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.46
+      }
+     ]
+    },
+    {
+     "id": 264,
+     "name": "env_cable_channel",
+     "type": "",
+     "x": 1200,
+     "y": 1020,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 90,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.65
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.42
+      }
+     ]
+    },
+    {
+     "id": 265,
+     "name": "env_cable_channel",
+     "type": "",
+     "x": 1200,
+     "y": 870,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 90,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.65
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.38
+      }
+     ]
+    },
+    {
+     "id": 266,
+     "name": "env_kerb",
+     "type": "",
+     "x": 1000,
+     "y": 1268,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.72
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.5
+      }
+     ]
+    },
+    {
+     "id": 267,
+     "name": "env_kerb",
+     "type": "",
+     "x": 1400,
+     "y": 1268,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.72
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.5
+      }
+     ]
+    },
+    {
+     "id": 268,
+     "name": "env_drain",
+     "type": "",
+     "x": 700,
+     "y": 1265,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.38
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.55
+      }
+     ]
+    },
+    {
+     "id": 269,
+     "name": "env_drain",
+     "type": "",
+     "x": 1700,
+     "y": 1265,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.38
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.55
+      }
+     ]
+    },
+    {
+     "id": 270,
+     "name": "env_cable_channel",
+     "type": "",
+     "x": 1080,
+     "y": 1420,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 90,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.65
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.42
+      }
+     ]
+    },
+    {
+     "id": 271,
+     "name": "env_cable_channel",
+     "type": "",
+     "x": 1320,
+     "y": 1420,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 90,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.65
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.42
+      }
+     ]
+    },
+    {
+     "id": 272,
+     "name": "env_kerb",
+     "type": "",
+     "x": 1200,
+     "y": 1480,
+     "width": 0,
+     "height": 0,
+     "point": true,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "scale",
+       "type": "float",
+       "value": 0.9
+      },
+      {
+       "name": "alpha",
+       "type": "float",
+       "value": 0.36
+      }
+     ]
     }
    ]
   }
