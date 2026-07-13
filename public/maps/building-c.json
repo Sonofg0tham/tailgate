@@ -11,7 +11,7 @@
   "width": 75,
   "height": 50,
   "nextlayerid": 11,
-  "nextobjectid": 643,
+  "nextobjectid": 653,
   "tilesets": [],
   "layers": [
     {
@@ -61,8 +61,14 @@
         { "id": 32, "name": "serverDividerLower", "type": "", "x": 2056, "y": 620, "width": 24, "height": 148, "rotation": 0, "visible": true },
         { "id": 33, "name": "loadingDockTopLeft", "type": "", "x": 1712, "y": 828, "width": 188, "height": 24, "rotation": 0, "visible": true },
         { "id": 34, "name": "loadingDockTopRight", "type": "", "x": 2020, "y": 828, "width": 316, "height": 24, "rotation": 0, "visible": true },
+        { "id": 649, "name": "securityBottomLeft", "type": "", "x": 1712, "y": 768, "width": 128, "height": 24, "rotation": 0, "visible": true },
+        { "id": 650, "name": "securityBottomRight", "type": "", "x": 1940, "y": 768, "width": 108, "height": 24, "rotation": 0, "visible": true },
+        { "id": 651, "name": "serverBottomLeft", "type": "", "x": 2080, "y": 768, "width": 50, "height": 24, "rotation": 0, "visible": true },
+        { "id": 652, "name": "serverBottomRight", "type": "", "x": 2230, "y": 768, "width": 106, "height": 24, "rotation": 0, "visible": true },
         { "id": 35, "name": "receptionLeft", "type": "", "x": 976, "y": 1000, "width": 24, "height": 224, "rotation": 0, "visible": true },
         { "id": 36, "name": "receptionRight", "type": "", "x": 1560, "y": 1000, "width": 24, "height": 224, "rotation": 0, "visible": true },
+        { "id": 643, "name": "receptionNorthLeft", "type": "", "x": 976, "y": 976, "width": 144, "height": 24, "rotation": 0, "visible": true },
+        { "id": 644, "name": "receptionNorthRight", "type": "", "x": 1380, "y": 976, "width": 204, "height": 24, "rotation": 0, "visible": true },
         { "id": 37, "name": "van", "type": "", "x": 180, "y": 1360, "width": 170, "height": 104, "rotation": 0, "visible": true }
       ]
     },
@@ -146,7 +152,11 @@
         { "id": 619, "name": "env_sign_panel", "type": "", "x": 1080, "y": 1040, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.24 }, { "name": "label", "type": "string", "value": "VISITOR" }] },
         { "id": 620, "name": "env_fire_exit", "type": "", "x": 340, "y": 1190, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.22 }] },
         { "id": 621, "name": "env_fire_exit", "type": "", "x": 2020, "y": 800, "width": 0, "height": 0, "point": true, "rotation": 180, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.22 }] },
-        { "id": 622, "name": "env_barrier", "type": "", "x": 2210, "y": 1315, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.52 }, { "name": "alpha", "type": "float", "value": 0.85 }] }
+        { "id": 622, "name": "env_barrier", "type": "", "x": 2210, "y": 1315, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.52 }, { "name": "alpha", "type": "float", "value": 0.85 }] },
+        { "id": 645, "name": "env_sign_panel", "type": "", "x": 1065, "y": 988, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.24 }, { "name": "label", "type": "string", "value": "RECEPTION" }] },
+        { "id": 646, "name": "env_sign_panel", "type": "", "x": 1745, "y": 650, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.24 }, { "name": "label", "type": "string", "value": "SECURITY" }] },
+        { "id": 647, "name": "env_sign_panel", "type": "", "x": 2125, "y": 650, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.24 }, { "name": "label", "type": "string", "value": "SERVER ROOM" }] },
+        { "id": 648, "name": "env_sign_panel", "type": "", "x": 2175, "y": 520, "width": 0, "height": 0, "point": true, "rotation": 0, "visible": true, "properties": [{ "name": "scale", "type": "float", "value": 0.24 }, { "name": "label", "type": "string", "value": "RACK 4" }] }
       ]
     },
     {

@@ -7,6 +7,7 @@ interface TiledObject {
   name?: string;
   type?: string;
   point?: boolean;
+  x?: number;
   width?: number;
   height?: number;
   y?: number;
@@ -63,5 +64,46 @@ describe('map-authored venue dressing', () => {
     const exteriorDecals = decals?.objects?.filter((object) => (object.y ?? 0) >= 1280);
 
     expect(exteriorDecals?.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('gives the Building C reception corridor one deliberate passage', () => {
+    const buildingC = MAPS[0][1];
+    const walls = buildingC.layers.find((layer) => layer.name === 'walls');
+    const northBoundary = walls?.objects
+      ?.filter((object) => object.y === 976 && object.height === 24)
+      .map(({ x, width }) => ({ x, width }));
+
+    expect(northBoundary).toEqual([
+      { x: 976, width: 144 },
+      { x: 1380, width: 204 },
+    ]);
+  });
+
+  it('gives each Building C restricted room one doorway onto its corridor', () => {
+    const buildingC = MAPS[0][1];
+    const walls = buildingC.layers.find((layer) => layer.name === 'walls');
+    const southBoundaries = walls?.objects
+      ?.filter((object) => object.y === 768 && object.height === 24)
+      .map(({ x, width }) => ({ x, width }));
+
+    expect(southBoundaries).toEqual([
+      { x: 1712, width: 128 },
+      { x: 1940, width: 108 },
+      { x: 2080, width: 50 },
+      { x: 2230, width: 106 },
+    ]);
+  });
+
+  it('labels the Building C route and objective with presentation-only signs', () => {
+    const buildingC = MAPS[0][1];
+    const presentationObjects = buildingC.layers
+      .filter((layer) => ['props', 'decals'].includes(layer.name))
+      .flatMap((layer) => layer.objects ?? []);
+    const labels = presentationObjects
+      ?.flatMap((object) => object.properties ?? [])
+      .filter((property) => property.name === 'label')
+      .map((property) => property.value);
+
+    expect(labels).toEqual(expect.arrayContaining(['RECEPTION', 'SECURITY', 'SERVER ROOM', 'RACK 4']));
   });
 });
