@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import credits from '../../CREDITS.md?raw';
+import { PALETTE_HEX } from './palette';
+import * as tileConfig from './tiles';
 import { IMAGE_ASSETS } from './tiles';
 
 const REQUIRED_ENVIRONMENT_KEYS = [
@@ -44,6 +46,23 @@ describe('environment asset manifest', () => {
 
     expect(paths.every(Boolean)).toBe(true);
     expect(new Set(paths).size).toBe(3);
+  });
+
+  it('subdues the yellow barrier through a neutral render treatment', () => {
+    const treatments = (
+      tileConfig as typeof tileConfig & {
+        DECORATION_TREATMENTS?: Record<
+          string,
+          { colour: number; alpha: number; tintMode: string }
+        >;
+      }
+    ).DECORATION_TREATMENTS;
+    const barrier = treatments?.env_barrier;
+
+    expect(barrier).toMatchObject({ tintMode: 'fill' });
+    expect(barrier?.alpha).toBeLessThan(1);
+    expect(barrier?.colour).not.toBe(PALETTE_HEX.amber);
+    expect(barrier?.colour).not.toBe(PALETTE_HEX.alarm);
   });
 
   it('credits every new repository image', () => {

@@ -8,9 +8,16 @@ export interface ShadowTreatment extends TintTreatment {
   offsetY: number;
 }
 
+export interface RouteSurfaceTreatment extends TintTreatment {
+  textureKey: string;
+  textureScale: number;
+  edge: TintTreatment;
+  threshold: TintTreatment;
+}
+
 export interface VenueVisualProfile {
   id: string;
-  routeSurface: TintTreatment;
+  routeSurface: RouteSurfaceTreatment;
   wall: {
     defaultTextureKey: string;
     textureScale: number;
@@ -24,7 +31,14 @@ export interface VenueVisualProfile {
 
 const BUILDING_C: VenueVisualProfile = {
   id: 'building-c',
-  routeSurface: { colour: 0x1a2027, alpha: 1 },
+  routeSurface: {
+    textureKey: 'floor_tile',
+    textureScale: 2,
+    colour: 0x6f7983,
+    alpha: 0.72,
+    edge: { colour: 0x87939e, alpha: 0.13 },
+    threshold: { colour: 0xb2bac1, alpha: 0.28 },
+  },
   wall: {
     defaultTextureKey: 'wall_office',
     textureScale: 0.5,
@@ -42,7 +56,14 @@ const BUILDING_C: VenueVisualProfile = {
 
 const DATA_CENTRE: VenueVisualProfile = {
   id: 'data-centre',
-  routeSurface: { colour: 0x151c22, alpha: 1 },
+  routeSurface: {
+    textureKey: 'floor_tile_cool',
+    textureScale: 2,
+    colour: 0x53686e,
+    alpha: 0.72,
+    edge: { colour: 0x71858b, alpha: 0.12 },
+    threshold: { colour: 0x98a8ad, alpha: 0.24 },
+  },
   wall: {
     defaultTextureKey: 'wall_data_panel',
     textureScale: 0.5,
@@ -60,7 +81,14 @@ const DATA_CENTRE: VenueVisualProfile = {
 
 const WAREHOUSE: VenueVisualProfile = {
   id: 'warehouse',
-  routeSurface: { colour: 0x202328, alpha: 1 },
+  routeSurface: {
+    textureKey: 'floor_concrete',
+    textureScale: 2,
+    colour: 0x9a9790,
+    alpha: 1,
+    edge: { colour: 0x8f8b82, alpha: 0.13 },
+    threshold: { colour: 0xaaa499, alpha: 0.25 },
+  },
   wall: {
     defaultTextureKey: 'wall_warehouse_block',
     textureScale: 0.5,

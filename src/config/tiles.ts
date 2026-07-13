@@ -103,5 +103,13 @@ export const FLOOR_TEXTURES: Record<string, string> = {
 /** Used if a zone has no explicit floor mapping, so a typo is still walkable. */
 export const FLOOR_FALLBACK = 'floor_tile';
 
-/** The wall texture tiled over every wall rectangle. */
-export const WALL_TEXTURE = 'wall_brick';
+export interface DecorationRenderTreatment {
+  colour: number;
+  alpha: number;
+  tintMode: 'fill' | 'multiply';
+}
+
+/** Renderer-only treatments for sprites whose source colours compete with game signals. */
+export const DECORATION_TREATMENTS: Readonly<Record<string, DecorationRenderTreatment>> = {
+  env_barrier: { colour: 0x7d8791, alpha: 0.72, tintMode: 'fill' },
+};

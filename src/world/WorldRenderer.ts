@@ -1,5 +1,10 @@
 import Phaser from 'phaser';
-import { FLOOR_FALLBACK, FLOOR_TEXTURES, RENDER } from '../config/tiles';
+import {
+  DECORATION_TREATMENTS,
+  FLOOR_FALLBACK,
+  FLOOR_TEXTURES,
+  RENDER,
+} from '../config/tiles';
 import { FONTS, PALETTE } from '../config/palette';
 import { getVenueVisualProfile, type VenueVisualProfile } from '../config/venueVisualProfiles';
 import { FALLBACK_TINT, GRID_TINT, ZONE_TINT_ALPHA, ZONE_TINTS } from '../config/zones';
@@ -10,13 +15,14 @@ import { selectKnownDecorations, type DecorationPoint } from './mapPresentation'
 const GRID_STEP = 32;
 
 /**
- * Draws the building from Kenney CC0 tiles: each zone floored with a texture and
- * washed with a subtle room colour, walls tiled with brick, and furniture props
- * placed from the map's props layer. The 32px reference grid is kept as a debug
- * overlay, hidden by default and toggled with toggleGrid().
+ * Draws each venue from credited tiles: circulation routes and zones use tiled
+ * materials, walls use the venue profile, and furniture comes from map data.
+ * The 32px reference grid is kept as a debug overlay, hidden by default and
+ * toggled with toggleGrid().
  *
- * Depth order: route -5, floor 0, wash 1, light pools 2, decals 4, walls
- * 9-11, props 14-15, grid 20. The player (depth 40) stays above the world.
+ * Depth order: route -5, floor 0, wash 1, light pools 2, route cues 3, decals
+ * 4, walls 9-11, props 14-15, grid 20. The player (depth 40) stays above the
+ * world.
  */
 export class WorldRenderer {
   private readonly grid: Phaser.GameObjects.Graphics;
@@ -26,6 +32,7 @@ export class WorldRenderer {
     this.drawRouteSurface(scene, map, profile);
     this.drawFloors(scene, map);
     this.drawLightPools(scene, map, profile);
+    this.drawCirculationCues(scene, map, profile);
     this.drawDecals(scene, map);
     this.drawWalls(scene, map, profile);
     this.drawProps(scene, map, profile);
@@ -43,16 +50,44 @@ export class WorldRenderer {
     map: BuildingMap,
     profile: VenueVisualProfile
   ): void {
-    scene.add
-      .rectangle(
-        map.widthInPixels / 2,
-        map.heightInPixels / 2,
-        map.widthInPixels,
-        map.heightInPixels,
-        profile.routeSurface.colour,
-        profile.routeSurface.alpha
-      )
-      .setDepth(-5);
+    const route = scene.add.tileSprite(
+      map.widthInPixels / 2,
+      map.heightInPixels / 2,
+      map.widthInPixels,
+      map.heightInPixels,
+      profile.routeSurface.textureKey
+    );
+    route.setTileScale(profile.routeSurface.textureScale, profile.routeSurface.textureScale);
+    route.setTint(profile.routeSurface.colour);
+    route.setAlpha(profile.routeSurface.alpha);
+    route.setDepth(-5);
+  }
+
+  private drawCirculationCues(
+    scene: Phaser.Scene,
+    map: BuildingMap,
+    profile: VenueVisualProfile
+  ): void {
+    const cues = scene.add.graphics().setDepth(3);
+    cues.lineStyle(1, profile.routeSurface.edge.colour, profile.routeSurface.edge.alpha);
+    for (const zone of map.zones) {
+      cues.strokeRect(zone.x + 0.5, zone.y + 0.5, zone.width - 1, zone.height - 1);
+    }
+
+    cues.lineStyle(
+      2,
+      profile.routeSurface.threshold.colour,
+      profile.routeSurface.threshold.alpha
+    );
+    for (const door of map.doors) {
+      if (door.width >= door.height) {
+        const y = door.y + door.height / 2;
+        cues.lineBetween(door.x + 3, y, door.x + door.width - 3, y);
+      } else {
+        const x = door.x + door.width / 2;
+        cues.lineBetween(x, door.y + 3, x, door.y + door.height - 3);
+      }
+    }
   }
 
   private drawFloors(scene: Phaser.Scene, map: BuildingMap): void {
@@ -122,15 +157,15 @@ export class WorldRenderer {
         wall.width,
         wall.height
       );
-      const brick = scene.add.tileSprite(
+      const wallSurface = scene.add.tileSprite(
         cx,
         cy,
         wall.width,
         wall.height,
         profile.wall.defaultTextureKey
       );
-      brick.setTileScale(profile.wall.textureScale, profile.wall.textureScale);
-      brick.setDepth(10);
+      wallSurface.setTileScale(profile.wall.textureScale, profile.wall.textureScale);
+      wallSurface.setDepth(10);
       edges.fillRect(wall.x, wall.y, wall.width, Math.min(2, wall.height));
       edges.fillRect(wall.x, wall.y, Math.min(2, wall.width), wall.height);
     }
@@ -163,12 +198,18 @@ export class WorldRenderer {
     decoration: DecorationPoint,
     depth: number
   ): void {
-    scene.add
+    const treatment = DECORATION_TREATMENTS[decoration.key];
+    const sprite = scene.add
       .sprite(decoration.x, decoration.y, decoration.key)
       .setScale(RENDER.propScale * decoration.scale)
       .setAngle(decoration.rotation)
-      .setAlpha(decoration.alpha)
+      .setAlpha(decoration.alpha * (treatment?.alpha ?? 1))
       .setDepth(depth);
+    if (treatment?.tintMode === 'fill') {
+      sprite.setTintFill(treatment.colour);
+    } else if (treatment) {
+      sprite.setTint(treatment.colour);
+    }
     if (decoration.label) {
       scene.add
         .text(decoration.x, decoration.y, decoration.label, {
