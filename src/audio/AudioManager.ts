@@ -628,6 +628,14 @@ export class AudioManager {
     }
   }
 
+  /** Plays one subtle procedural shutter click when photographic evidence is saved. */
+  playPhotographCue(): void {
+    if (!graph || graph.ctx.state !== 'running') {
+      return;
+    }
+    playClick(graph.ctx, graph.buses.foley.gain, graph.noiseBuffer, AUDIO.photograph);
+  }
+
   /** Plays one player footstep for the given floor surface. */
   playFootstep(surface: Surface): void {
     if (!graph || graph.ctx.state !== 'running') {

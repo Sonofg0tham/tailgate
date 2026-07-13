@@ -492,6 +492,9 @@ export class BuildingScene extends Phaser.Scene {
         label: 'PLANT SITE',
       });
     }
+    if (objTick.photographedNow) {
+      this.audio.playPhotographCue();
+    }
     if (objTick.exfilNow) {
       this.missionOver = true;
       recordExfil();
@@ -983,6 +986,20 @@ export class BuildingScene extends Phaser.Scene {
       // Staff collide with walls like everyone else, so a route authored
       // through a wall strands visibly in playtesting instead of ghosting.
       this.physics.add.collider(member.sprite, this.walls);
+      this.physics.add.collider(
+        this.player.sprite,
+        member.sprite,
+        () => {
+          member.sprite.setImmovable(false);
+        },
+        () => {
+          // Circle-to-circle separation otherwise moves both bodies even when
+          // staff are not pushable. Anchor only for this contact, then release
+          // them so wall and closed-door collision still works normally.
+          member.sprite.setImmovable(true);
+          return true;
+        }
+      );
     }
   }
 
