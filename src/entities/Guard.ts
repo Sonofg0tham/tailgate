@@ -2,10 +2,12 @@ import Phaser from 'phaser';
 import { CONE_RANGE_PX, DETECTION } from '../config/detection';
 import { DISGUISE } from '../config/disguise';
 import { LIGHTING } from '../config/lighting';
+import { NAVIGATION } from '../config/navigation';
 import { RENDER } from '../config/tiles';
 import { getSettings } from '../state/settings';
 import type { SpeedState } from '../input/InputState';
 import { CharacterAnimator } from '../systems/CharacterAnimator';
+import type { NavGrid, NavPoint } from '../systems/NavGrid';
 import { VisionCone, type ConeEdge } from '../systems/VisionCone';
 import type { WallRect } from '../world/BuildingMap';
 
@@ -58,9 +60,6 @@ const STATE_EDGE: Record<GuardState, ConeEdge> = {
   alert: 'pulsing',
 };
 
-/** How close, in pixels, the guard must be to a target to count as arrived. */
-const ARRIVE_EPS = 6;
-
 export class Guard {
   readonly sprite: Phaser.Physics.Arcade.Sprite;
   readonly cone: VisionCone;
@@ -86,13 +85,36 @@ export class Guard {
   private readonly onStateCue: (state: GuardState) => void;
   private readonly animator: CharacterAnimator;
 
+  // Navigation (Phase 20 playtest fix). Before this the guard drove straight at
+  // its target and pressed into whatever wall was in the way. It now walks a
+  // path, and watches its own progress so it can never stay pinned.
+  private readonly nav?: NavGrid;
+  /** The current plan, world space. Reused in place, so following costs nothing. */
+  private readonly path: NavPoint[] = [];
+  private pathIndex = 0;
+  private hasPlan = false;
+  private planGoalX = 0;
+  private planGoalY = 0;
+  private lastPlanAt = Number.NEGATIVE_INFINITY;
+  private planHoldUntil = 0;
+  private navVersion = -1;
+  /** Speed the guard is trying to make, which is what the stuck check expects. */
+  private intendedSpeed = 0;
+  private progressWindowFrom = 0;
+  private progressMovedPx = 0;
+  private progressExpectedPx = 0;
+  private stuckStrikes = 0;
+  private forceReplan = false;
+
   constructor(
     scene: Phaser.Scene,
     route: PatrolNode[],
     walls: WallRect[],
-    onStateCue: (state: GuardState) => void
+    onStateCue: (state: GuardState) => void,
+    nav?: NavGrid
   ) {
     this.route = route;
+    this.nav = nav;
     const start = route[0] ?? { x: 0, y: 0, pauseMs: 0 };
 
     this.sprite = scene.physics.add.sprite(start.x, start.y, 'guard');
@@ -130,6 +152,7 @@ export class Guard {
   setRoute(route: PatrolNode[]): void {
     this.route = route;
     this.routeIndex = route.length > 0 ? this.routeIndex % route.length : 0;
+    this.clearPlan(); // the node under the index may be somewhere else entirely now
   }
   get x(): number {
     return this.sprite.x;
@@ -158,8 +181,12 @@ export class Guard {
     const dtSec = dtMs / 1000;
     const { playerX, playerY } = perception;
 
-    // Closed doors block sight this frame just like walls do.
+    // Closed doors block sight this frame just like walls do, and they block the
+    // way just like walls do as well: a guard cannot open a shut door, so the
+    // nav grid gets the same set before anything plans a route through one.
     this.cone.setDynamicOccluders(perception.closedDoors);
+    this.nav?.setDynamicBlockers(perception.closedDoors);
+    this.trackProgress(now, dtSec);
     this.perceive(perception, dtSec);
     const spottedNow = this.updateState(now);
     this.act(now, playerX, playerY);
@@ -307,7 +334,7 @@ export class Guard {
     switch (this.guardState) {
       case 'alert':
         // Chase the player's current position.
-        this.moveToward(playerX, playerY, DETECTION.speed.chase * mult);
+        this.moveToward(now, playerX, playerY, DETECTION.speed.chase * mult);
         break;
       case 'curious':
         if (now < this.investigateUntil) {
@@ -315,7 +342,7 @@ export class Guard {
           this.stop();
           this.facing = this.investigateBaseFacing + Math.sin(now / 350) * 0.7;
         } else if (
-          this.moveToward(this.lastSeen.x, this.lastSeen.y, DETECTION.speed.investigate * mult)
+          this.moveToward(now, this.lastSeen.x, this.lastSeen.y, DETECTION.speed.investigate * mult)
         ) {
           // Just reached the last-seen spot: start the timed look-around.
           this.investigateBaseFacing = this.facing;
@@ -339,28 +366,212 @@ export class Guard {
       return;
     }
     const node = this.route[this.routeIndex];
-    if (this.moveToward(node.x, node.y, DETECTION.speed.patrol * this.speedScale())) {
+    if (this.moveToward(now, node.x, node.y, DETECTION.speed.patrol * this.speedScale())) {
       this.stop();
       this.resumeAt = now + node.pauseMs;
       this.routeIndex = (this.routeIndex + 1) % this.route.length;
     }
   }
 
-  /** Moves toward a target and faces it. Returns true once within ARRIVE_EPS. */
-  private moveToward(tx: number, ty: number, speed: number): boolean {
+  /**
+   * Walks toward a destination and faces the way it is going.
+   *
+   * Returns true once the guard has arrived, or once it has done everything it
+   * usefully can: the spot turned out to be unreachable, or the guard gave up
+   * after being pinned on the geometry. Every caller keeps exactly the contract
+   * it had before pathfinding existed, so a patrol node still ticks over and an
+   * investigation still turns into a look-around.
+   */
+  private moveToward(now: number, tx: number, ty: number, speed: number): boolean {
     const dx = tx - this.x;
     const dy = ty - this.y;
     const dist = Math.hypot(dx, dy);
-    if (dist <= ARRIVE_EPS) {
-      this.body.setVelocity(0, 0);
+    if (dist <= NAVIGATION.follow.goalArriveEps) {
+      this.clearPlan();
+      this.stop();
       return true;
     }
-    this.facing = Math.atan2(dy, dx);
-    this.body.setVelocity((dx / dist) * speed, (dy / dist) * speed);
+
+    const nav = this.nav;
+    if (!nav) {
+      // No grid for this level: the old straight line, unchanged.
+      this.driveTowards(dx, dy, dist, speed);
+      return false;
+    }
+
+    // Pinned for too long. Stop shoving and report "as far as I can get", so the
+    // caller moves on. This is the promise that a guard can never end up stuck
+    // on a wall permanently, whatever the geometry does.
+    if (this.stuckStrikes >= NAVIGATION.stuck.strikesBeforeGiveUp) {
+      this.stuckStrikes = 0;
+      this.forceReplan = false;
+      this.planHoldUntil = now + NAVIGATION.stuck.giveUpCooldownMs;
+      this.clearPlan();
+      this.facing = Math.atan2(dy, dx);
+      this.stop();
+      return true;
+    }
+
+    // Fast path. Most patrol legs run straight down a clear corridor, and a
+    // guard that can see the player can usually just walk at them. No search
+    // needed, and it doubles as string pulling once a corner has been turned.
+    if (nav.hasClearLine(this.x, this.y, tx, ty)) {
+      this.clearPlan();
+      this.driveTowards(dx, dy, dist, speed);
+      return false;
+    }
+
+    this.ensurePlan(now, nav, tx, ty);
+    if (!this.hasPlan) {
+      // Either nothing is reachable (a shut door sealing the only way), or we
+      // are simply between searches. Stand and look at the spot rather than
+      // walking into the wall in front of us. The caller's own episode timeout
+      // ends this, and the stuck watchdog gives up on it either way.
+      this.facing = Math.atan2(dy, dx);
+      this.holdStill(speed);
+      return false;
+    }
+
+    const waypoint = this.currentWaypoint(nav);
+    if (!waypoint) {
+      if (dist > NAVIGATION.follow.finalApproachPx) {
+        // Off the end of the plan and still a long way out, usually because the
+        // guard was shoved off its route. Wait for the next search rather than
+        // striking off across the map on a straight line.
+        this.clearPlan();
+        this.holdStill(speed);
+        return false;
+      }
+      // Last stretch. No waypoint lands on the destination because it sits
+      // inside the fattened geometry, so close the gap directly. If there is
+      // genuinely no room, the stuck watchdog above ends it.
+      this.driveTowards(dx, dy, dist, speed);
+      return false;
+    }
+    const wx = waypoint.x - this.x;
+    const wy = waypoint.y - this.y;
+    this.driveTowards(wx, wy, Math.hypot(wx, wy), speed);
     return false;
   }
 
+  /**
+   * Plans a route if the current one is stale. Searching is deliberately rare:
+   * a chase moves its goal every frame, and searching every frame would burn
+   * time and twitch the guard between near-identical routes.
+   */
+  private ensurePlan(now: number, nav: NavGrid, tx: number, ty: number): void {
+    if (now < this.planHoldUntil) {
+      return; // cooling off after a give-up
+    }
+    const goalMoved =
+      Math.hypot(tx - this.planGoalX, ty - this.planGoalY) > NAVIGATION.repath.goalMovedEps;
+    const doorsChanged = this.navVersion !== nav.version;
+    if (this.hasPlan && !goalMoved && !doorsChanged && !this.forceReplan) {
+      return;
+    }
+    if (
+      !doorsChanged &&
+      !this.forceReplan &&
+      now - this.lastPlanAt < NAVIGATION.repath.minIntervalMs
+    ) {
+      return;
+    }
+
+    this.lastPlanAt = now;
+    this.forceReplan = false;
+    this.navVersion = nav.version;
+    this.planGoalX = tx;
+    this.planGoalY = ty;
+    this.pathIndex = 0;
+    const found = nav.findPath(this.x, this.y, tx, ty, this.path);
+    this.hasPlan = found !== null && found.length > 0;
+  }
+
+  /**
+   * The waypoint to steer at, skipping any already reached. One look-ahead per
+   * frame: if the node after this one is already in plain sight, cut across to
+   * it. That turns corners into smooth diagonals instead of a visible stagger,
+   * which matters for readability as much as for looks.
+   */
+  private currentWaypoint(nav: NavGrid): NavPoint | undefined {
+    const eps = NAVIGATION.follow.waypointArriveEps;
+    while (this.pathIndex < this.path.length) {
+      const point = this.path[this.pathIndex];
+      if (Math.hypot(point.x - this.x, point.y - this.y) > eps) {
+        break;
+      }
+      this.pathIndex += 1;
+    }
+    if (this.pathIndex >= this.path.length) {
+      return undefined;
+    }
+    const next = this.path[this.pathIndex + 1];
+    if (next !== undefined && nav.hasClearLine(this.x, this.y, next.x, next.y)) {
+      this.pathIndex += 1;
+    }
+    return this.path[this.pathIndex];
+  }
+
+  /**
+   * The stuck watchdog. Comparing how far the body actually travelled against
+   * how far it was trying to travel catches every flavour of pinned without
+   * guessing at the cause: a wall, a door that shut in the guard's face, or a
+   * destination inside geometry. One bad window forces a fresh search, which
+   * fixes almost everything; a run of them makes the guard give up.
+   */
+  private trackProgress(now: number, dtSec: number): void {
+    if (this.progressWindowFrom === 0) {
+      this.progressWindowFrom = now;
+    }
+    // deltaX/deltaY are the completed physics step, so this is real travel, not
+    // the velocity we asked for and may not have got.
+    this.progressMovedPx += Math.hypot(this.body.deltaX(), this.body.deltaY());
+    this.progressExpectedPx += this.intendedSpeed * dtSec;
+    if (now - this.progressWindowFrom < NAVIGATION.stuck.windowMs) {
+      return;
+    }
+
+    const expected = this.progressExpectedPx;
+    const moved = this.progressMovedPx;
+    this.progressWindowFrom = now;
+    this.progressMovedPx = 0;
+    this.progressExpectedPx = 0;
+    if (expected < NAVIGATION.stuck.minExpectedPx) {
+      this.stuckStrikes = 0; // standing still on purpose is not being stuck
+      return;
+    }
+    if (moved >= expected * NAVIGATION.stuck.progressFraction) {
+      this.stuckStrikes = 0;
+      return;
+    }
+    this.stuckStrikes += 1;
+    this.forceReplan = true;
+  }
+
+  private clearPlan(): void {
+    this.hasPlan = false;
+    this.pathIndex = 0;
+  }
+
+  /** Sets velocity toward a direction and points the guard (and its cone) that way. */
+  private driveTowards(dx: number, dy: number, dist: number, speed: number): void {
+    if (dist <= 0) {
+      this.holdStill(speed); // standing exactly on it: keep the current facing
+      return;
+    }
+    this.facing = Math.atan2(dy, dx);
+    this.intendedSpeed = speed;
+    this.body.setVelocity((dx / dist) * speed, (dy / dist) * speed);
+  }
+
+  /** Holds position while still wanting to move, so the stuck watchdog counts it. */
+  private holdStill(speed: number): void {
+    this.intendedSpeed = speed;
+    this.body.setVelocity(0, 0);
+  }
+
   private stop(): void {
+    this.intendedSpeed = 0;
     this.body.setVelocity(0, 0);
   }
 
