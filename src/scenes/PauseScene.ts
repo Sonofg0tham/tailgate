@@ -5,6 +5,7 @@ import { FONTS, PALETTE, PALETTE_HEX } from '../config/palette';
 import { getActiveLevelId } from '../state/levels';
 import { resetMission } from '../state/mission';
 import { resetRunStats } from '../state/runStats';
+import { getSettings } from '../state/settings';
 import { MenuController } from '../ui/MenuController';
 
 /** The badge card geometry, drawn portrait like a real access lanyard. */
@@ -32,6 +33,9 @@ export class PauseScene extends Phaser.Scene {
   private prevStart = false;
   /** Skip the first frame so the Start press that opened pause does not resume it. */
   private startPrimed = false;
+  /** The hanging card and its sway, held so SCREEN EFFECTS can still it. */
+  private badge!: Phaser.GameObjects.Container;
+  private swayTween?: Phaser.Tweens.Tween;
 
   constructor() {
     super('pause');
@@ -138,21 +142,38 @@ export class PauseScene extends Phaser.Scene {
    * menu's mouse hit areas exactly where they have always been.
    */
   private hangBadge(parts: BadgePart[], pivotY: number): void {
-    const badge = this.add.container(CARD.x, pivotY, parts);
+    // The scene object is reused across pauses; forget the last visit's tween.
+    this.swayTween = undefined;
+    this.badge = this.add.container(CARD.x, pivotY, parts);
     // The parts were laid out in screen coordinates; rebase them on the clip.
     for (const part of parts) {
       part.x -= CARD.x;
       part.y -= pivotY;
     }
-    badge.setRotation(-KIOSK.badgeSway.amplitudeRad);
-    this.tweens.add({
-      targets: badge,
-      rotation: KIOSK.badgeSway.amplitudeRad,
-      duration: KIOSK.badgeSway.swingMs,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
+    // The sway is looping dressing, so it rides the SCREEN EFFECTS setting
+    // like the kiosk's loops, re-checked when the settings sheet resumes us.
+    this.applySwaySetting();
+    this.events.on(Phaser.Scenes.Events.RESUME, () => this.applySwaySetting());
+  }
+
+  /** Starts or stills the badge sway to match the SCREEN EFFECTS setting. */
+  private applySwaySetting(): void {
+    const on = getSettings().screenEffects;
+    if (on && !this.swayTween) {
+      this.badge.setRotation(-KIOSK.badgeSway.amplitudeRad);
+      this.swayTween = this.tweens.add({
+        targets: this.badge,
+        rotation: KIOSK.badgeSway.amplitudeRad,
+        duration: KIOSK.badgeSway.swingMs,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    } else if (!on) {
+      this.swayTween?.remove();
+      this.swayTween = undefined;
+      this.badge.setRotation(0);
+    }
   }
 
   update(): void {

@@ -60,7 +60,12 @@ export const FEED = {
     alpha: 0.04,
     /**
      * How often the noise pattern jumps, ms. Stepped, never per frame: analogue
-     * shimmer without a strobe. Never set this below 120.
+     * shimmer without a strobe. This is deliberately outside the 2 second loop
+     * floor, which governs coherent swings of brightness or position: this is
+     * uncorrelated static at 4 percent opacity, it carries no rhythm the eye
+     * can lock onto, the multiplexer inset shipped the same treatment at 120ms
+     * in Phase 10, and the whole sheet obeys the SCREEN EFFECTS toggle. Never
+     * set this below 120.
      */
     stepMs: 150,
     /** Edge of the generated noise tile, px. */

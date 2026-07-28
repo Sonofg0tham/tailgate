@@ -33,9 +33,13 @@ const SLOTS = {
   summaryTitle: 168,
 } as const;
 
-/** The rating stamp's resting look: tilted and slightly uneven, as if hurried. */
-const STAMP_TILT = -0.07;
-const STAMP_ALPHA = 0.92;
+/**
+ * The rating stamp's resting tilt and opacity live in KIOSK.stamp
+ * (restTiltRad, restAlpha) with the rest of the landing animation's numbers,
+ * so the whole settle is tunable from one place.
+ */
+const STAMP_TILT = KIOSK.stamp.restTiltRad;
+const STAMP_ALPHA = KIOSK.stamp.restAlpha;
 
 /**
  * The Engagement Report end screen. Renders the report built by

@@ -8,9 +8,12 @@
  * - Nothing flashes. Every fade is eased, and the blinking caret dims rather
  *   than switching off, so there is never a hard on/off edge.
  * - Anything that loops runs a full cycle in 2 seconds or longer, with a tiny
- *   amplitude. The badge sway stays under half a degree.
- * - Every one-shot reveal finishes inside 1.2 seconds AND completes instantly
- *   on any key, pad button or click, so nothing ever has to be sat through.
+ *   amplitude, and every looping dressing tween also switches off with the
+ *   SCREEN EFFECTS setting. The badge sway stays under half a degree.
+ * - Reveals (the type-on and the printed sheets) are one-shot, not loops, so
+ *   the 2 second floor does not apply to them. They finish inside 1.2 seconds
+ *   and complete instantly on any key, pad button or click, so nothing ever
+ *   has to be sat through.
  * - Menus stay live and navigable the whole time any of this is playing.
  *
  * Red appears nowhere in this file: red belongs to detection alone.
@@ -20,12 +23,15 @@ export const KIOSK = {
   caret: {
     /**
      * One fade leg, ms. The tween yoyos, so a full dim-and-back cycle is twice
-     * this. Matches the security console's status pip (ART.console.pipBlinkMs)
-     * so the kiosk and the building read as the same hardware.
+     * this, and that cycle must stay at 2 seconds or longer per the comfort
+     * rules above. Close to the security console's status pip
+     * (ART.console.pipBlinkMs, 900) so the kiosk and the building still read
+     * as the same hardware; the pip predates the 2 second floor and is left
+     * as it shipped.
      */
-    fadeMs: 900,
+    fadeMs: 1000,
     /** The caret dims to this, never to nothing: a hard blink would flash. */
-    minAlpha: 0.22,
+    minAlpha: 0.35,
     widthPx: 10,
     heightPx: 20,
     /** Gap between the end of the row's label and the caret, px. */
@@ -75,6 +81,13 @@ export const KIOSK = {
     fromAlpha: 0.4,
     /** Gap between one contract card's stamp landing and the next, ms. */
     staggerMs: 80,
+    /**
+     * The report rating stamp's resting look once landed: tilted and slightly
+     * uneven, as if hurried. The landing tween settles onto these, so they are
+     * animation targets as much as art direction.
+     */
+    restTiltRad: -0.07,
+    restAlpha: 0.92,
   },
 
   /** Selection feedback on the contract schedule's cards. */

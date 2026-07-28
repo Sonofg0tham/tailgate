@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { KIOSK } from '../config/kiosk';
 import { FONTS, PALETTE, PALETTE_HEX } from '../config/palette';
 import { initLevelRegistry } from '../state/levels';
+import { getSettings } from '../state/settings';
 import { MenuController } from '../ui/MenuController';
 
 /** The kiosk card geometry, a lighter sheet on the near-black like the report. */
@@ -40,6 +41,13 @@ export class MenuScene extends Phaser.Scene {
   private caretRow = -1;
   /** Pre-measured caret x for each row, so update() never measures text. */
   private caretX: number[] = [];
+  /** The looping dressing, held so the SCREEN EFFECTS setting can stop it. */
+  private loopTweens: Phaser.Tweens.Tween[] = [];
+  private sheen!: Phaser.GameObjects.Text;
+  private sheenBand!: Phaser.GameObjects.Graphics;
+  private sheenTravel = 0;
+  private sheenBaseX = 0;
+  private glow!: Phaser.GameObjects.Rectangle;
 
   constructor() {
     super('menu');
@@ -52,6 +60,9 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Scene objects are reused across restarts, so drop any dead tween handles
+    // from the last visit before the loop gating below reads them.
+    this.loopTweens = [];
     initLevelRegistry(this.cache.json.get('levels'));
 
     this.add.rectangle(480, 270, 960, 540, PALETTE_HEX.base);
@@ -107,6 +118,12 @@ export class MenuScene extends Phaser.Scene {
     this.buildCaret(actions.map((action) => action.label));
 
     this.drawControls();
+
+    // The looping dressing rides the SCREEN EFFECTS setting, and re-checks it
+    // whenever the settings sheet resumes us, so switching it off takes effect
+    // the moment the player is back on the kiosk.
+    this.applyLoopSetting();
+    this.events.on(Phaser.Scenes.Events.RESUME, () => this.applyLoopSetting());
 
     // Belt and braces: the looping dressing tweens and the off-list mask shape
     // go with the scene rather than outliving it.
@@ -171,7 +188,7 @@ export class MenuScene extends Phaser.Scene {
    * never changes, and one pass every nine seconds is nowhere near a flash.
    */
   private buildTitleSheen(title: Phaser.GameObjects.Text): void {
-    const sheen = this.add
+    this.sheen = this.add
       .text(title.x, title.y, title.text, {
         fontFamily: FONTS.display,
         fontSize: '58px',
@@ -181,27 +198,27 @@ export class MenuScene extends Phaser.Scene {
       .setAlpha(KIOSK.sheen.alpha);
 
     // The mask shape stays off the display list: it only carves the highlight.
-    const band = this.make.graphics({}, false);
-    band.fillStyle(0xffffff, 1);
-    band.fillRect(-KIOSK.sheen.bandPx / 2, title.y - title.height, KIOSK.sheen.bandPx, title.height * 2);
-    sheen.setMask(band.createGeometryMask());
+    this.sheenBand = this.make.graphics({}, false);
+    this.sheenBand.fillStyle(0xffffff, 1);
+    this.sheenBand.fillRect(
+      -KIOSK.sheen.bandPx / 2,
+      title.y - title.height,
+      KIOSK.sheen.bandPx,
+      title.height * 2
+    );
+    this.sheen.setMask(this.sheenBand.createGeometryMask());
 
-    const travel = title.width / 2 + KIOSK.sheen.bandPx;
-    band.setX(title.x - travel);
-    this.tweens.add({
-      targets: band,
-      x: title.x + travel,
-      duration: KIOSK.sheen.sweepMs,
-      delay: KIOSK.sheen.firstDelayMs,
-      repeat: -1,
-      repeatDelay: Math.max(0, KIOSK.sheen.periodMs - KIOSK.sheen.sweepMs),
-    });
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => band.destroy());
+    // The sweep tween itself starts in applyLoopSetting, so the sheen obeys
+    // the SCREEN EFFECTS setting; here the band just parks off the wordmark.
+    this.sheenTravel = title.width / 2 + KIOSK.sheen.bandPx;
+    this.sheenBaseX = title.x;
+    this.sheenBand.setX(title.x - this.sheenTravel);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.sheenBand.destroy());
   }
 
   /** A ring just outside the sign-in card, breathing so the kiosk reads as live. */
   private buildCardGlow(): void {
-    const glow = this.add
+    this.glow = this.add
       .rectangle(
         CARD.x,
         CARD.y,
@@ -209,14 +226,6 @@ export class MenuScene extends Phaser.Scene {
         CARD.h + KIOSK.cardGlow.insetPx * 2
       )
       .setStrokeStyle(2, PALETTE_HEX.amber, KIOSK.cardGlow.minAlpha);
-    this.tweens.add({
-      targets: glow,
-      strokeAlpha: KIOSK.cardGlow.maxAlpha,
-      duration: KIOSK.cardGlow.breathMs,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
   }
 
   /**
@@ -245,14 +254,57 @@ export class MenuScene extends Phaser.Scene {
       )
       .setOrigin(0, 0.5);
     this.caretRow = 0;
-    this.tweens.add({
-      targets: this.caret,
-      alpha: KIOSK.caret.minAlpha,
-      duration: KIOSK.caret.fadeMs,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
+  }
+
+  /**
+   * Starts or stops the looping dressing to match the SCREEN EFFECTS setting:
+   * the wordmark sheen, the card glow breathe and the caret blink. With the
+   * setting off the kiosk holds a rest state, a solid caret and a faint steady
+   * ring, so nothing on the screen moves on its own. One-shot reveals like the
+   * header type-on are not loops and stay either way.
+   */
+  private applyLoopSetting(): void {
+    const on = getSettings().screenEffects;
+    if (on && this.loopTweens.length === 0) {
+      this.sheen.setVisible(true);
+      this.sheenBand.setX(this.sheenBaseX - this.sheenTravel);
+      this.loopTweens = [
+        this.tweens.add({
+          targets: this.sheenBand,
+          x: this.sheenBaseX + this.sheenTravel,
+          duration: KIOSK.sheen.sweepMs,
+          delay: KIOSK.sheen.firstDelayMs,
+          repeat: -1,
+          repeatDelay: Math.max(0, KIOSK.sheen.periodMs - KIOSK.sheen.sweepMs),
+        }),
+        this.tweens.add({
+          targets: this.glow,
+          strokeAlpha: KIOSK.cardGlow.maxAlpha,
+          duration: KIOSK.cardGlow.breathMs,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        }),
+        this.tweens.add({
+          targets: this.caret,
+          alpha: KIOSK.caret.minAlpha,
+          duration: KIOSK.caret.fadeMs,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        }),
+      ];
+      return;
+    }
+    if (!on) {
+      for (const tween of this.loopTweens) {
+        tween.remove();
+      }
+      this.loopTweens = [];
+      this.sheen.setVisible(false);
+      this.caret.setAlpha(1);
+      this.glow.setStrokeStyle(2, PALETTE_HEX.amber, KIOSK.cardGlow.minAlpha);
+    }
   }
 
   /** Parks the block cursor on whichever row the menu has selected. */

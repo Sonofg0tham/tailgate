@@ -20,10 +20,12 @@ interface Settings {
   extraBrightness: number;
   /**
    * The security-feed atmosphere: the vignette, faint static and cool cast over
-   * the picture, its alert tinting, and the slow breathe on the building's
-   * lights. Pure presentation, so turning it off changes nothing a guard can
-   * see. Default on. The DETAINED flash and the alarm shake are sudden-motion
-   * effects and stay under screenShake instead.
+   * the picture, its alert tinting, the slow breathe on the building's lights,
+   * and every looping dressing tween on the meta screens (the kiosk's sheen,
+   * caret blink and card glow, and the pause badge's sway). Pure presentation,
+   * so turning it off changes nothing a guard can see. Default on. The
+   * DETAINED flash and the alarm shake are sudden-motion effects and stay
+   * under screenShake instead.
    */
   screenEffects: boolean;
   /**
