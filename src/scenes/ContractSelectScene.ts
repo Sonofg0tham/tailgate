@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { KIOSK } from '../config/kiosk';
 import { FONTS, PALETTE, PALETTE_HEX } from '../config/palette';
 import { getLevels, setActiveLevel, type LevelDef } from '../state/levels';
 import { getLevelProgress, hasSeenBriefing, unlockLevel } from '../state/progress';
@@ -16,12 +17,24 @@ const INNER_LEFT = CARD.x - CARD.w / 2 + 30;
 /** Right edge for the rating stamp column. */
 const STAMP_RIGHT = CARD.x + CARD.w / 2 - 30;
 
+/** One redaction bar with its resting opacity, so a shimmer can return to it. */
+interface RedactionBar {
+  rect: Phaser.GameObjects.Rectangle;
+  restAlpha: number;
+}
+
 /**
  * The engagement schedule, styled as the consultancy's contract list per the
  * access-control identity. Each contract is a card: the signed ones open, the
  * rest redacted until the previous job is complete. Selecting a signed
  * contract starts that engagement. Fully navigable on the pad alone, like
  * every meta screen.
+ *
+ * The schedule reads as paperwork being dealt onto a desk: every status stamp
+ * settles in with a one-shot rubber-stamp animation, the selected contract
+ * lifts a soft amber ring, and a redacted card's bars shimmer once as the
+ * selection lands on them. All of it is feedback on top of the menu, never a
+ * gate in front of it.
  */
 export class ContractSelectScene extends Phaser.Scene {
   private menu!: MenuController;
@@ -29,12 +42,24 @@ export class ContractSelectScene extends Phaser.Scene {
   private briefingKey?: Phaser.Input.Keyboard.Key;
   private prevPadX = false;
   private levels: readonly LevelDef[] = [];
+  /** The selection ring around each contract card, by card index. */
+  private cardGlows: Phaser.GameObjects.Rectangle[] = [];
+  /** Redaction bars by card index; undefined for a countersigned contract. */
+  private redactionBars: (RedactionBar[] | undefined)[] = [];
+  /** Last row the selection ring was drawn for, so it only moves on a change. */
+  private lastSelected = -1;
 
   constructor() {
     super('contracts');
   }
 
   create(): void {
+    // Scene instances are reused across restarts, so last visit's game objects
+    // must not linger in these lists.
+    this.cardGlows = [];
+    this.redactionBars = [];
+    this.lastSelected = -1;
+
     this.add.rectangle(480, 270, 960, 540, PALETTE_HEX.base);
 
     this.add
@@ -65,6 +90,9 @@ export class ContractSelectScene extends Phaser.Scene {
     this.input.keyboard?.addCapture('TAB');
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.input.keyboard?.removeCapture('TAB');
+      // The stamp settles are short one-shots, but a fast player can leave
+      // mid-stagger: drop them with the scene rather than let them run on.
+      this.tweens.killAll();
     });
     // Primed true so an X already held on entry must be released before it can
     // open a briefing: a carried-over press is not a fresh one.
@@ -108,6 +136,7 @@ export class ContractSelectScene extends Phaser.Scene {
     const plugin = this.input.gamepad;
     const pad = plugin && plugin.total > 0 ? plugin.getPad(0) : undefined;
     this.menu.update(pad);
+    this.syncSelection();
 
     // TAB or pad X opens the selected contract's briefing sheet on demand.
     const keyEdge = this.briefingKey ? Phaser.Input.Keyboard.JustDown(this.briefingKey) : false;
@@ -132,19 +161,67 @@ export class ContractSelectScene extends Phaser.Scene {
     this.scene.start('briefing', { levelId: level.id });
   }
 
+  /**
+   * Follows the menu's own selection: lifts the amber ring onto the selected
+   * contract and shimmers a redacted card's bars once as it lands. Driven off
+   * selectedIndex, so pad, keyboard and mouse all get identical feedback.
+   */
+  private syncSelection(): void {
+    const row = this.menu.selectedIndex;
+    if (row === this.lastSelected) {
+      return;
+    }
+    this.lastSelected = row;
+
+    this.cardGlows.forEach((glow, i) => {
+      this.tweens.killTweensOf(glow);
+      this.tweens.add({
+        targets: glow,
+        strokeAlpha: i === row ? KIOSK.cardSelect.glowAlpha : 0,
+        duration: KIOSK.cardSelect.fadeMs,
+        ease: 'Sine.easeInOut',
+      });
+    });
+
+    // One pass, no loop: the bars brighten and settle straight back.
+    for (const bar of this.redactionBars[row] ?? []) {
+      this.tweens.killTweensOf(bar.rect);
+      bar.rect.fillAlpha = bar.restAlpha;
+      this.tweens.add({
+        targets: bar.rect,
+        fillAlpha: bar.restAlpha + KIOSK.cardSelect.shimmerAlphaLift,
+        duration: KIOSK.cardSelect.shimmerMs / 2,
+        yoyo: true,
+        ease: 'Sine.easeInOut',
+      });
+    }
+  }
+
   /** Draws one contract card and returns its menu row. */
   private buildCard(level: LevelDef, index: number): MenuItem {
     const y = CARD.firstY + index * CARD.gap;
     const unlocked = getLevelProgress(level.id).unlocked;
+
+    // The selection ring, resting invisible just outside the card edge.
+    this.cardGlows.push(
+      this.add
+        .rectangle(
+          CARD.x,
+          y,
+          CARD.w + KIOSK.cardSelect.insetPx * 2,
+          CARD.h + KIOSK.cardSelect.insetPx * 2
+        )
+        .setStrokeStyle(2, PALETTE_HEX.amber, 0)
+    );
 
     this.add
       .rectangle(CARD.x, y, CARD.w, CARD.h, 0x151a21)
       .setStrokeStyle(1, PALETTE_HEX.amber, unlocked ? 0.9 : 0.3);
 
     if (unlocked) {
-      this.drawOpenCard(level, y);
+      this.drawOpenCard(level, y, index);
     } else {
-      this.drawRedactedCard(y);
+      this.drawRedactedCard(y, index);
     }
 
     const label = unlocked ? level.name : `CONTRACT ${pad2(index + 1)} [REDACTED]`;
@@ -156,49 +233,78 @@ export class ContractSelectScene extends Phaser.Scene {
   }
 
   /** Client, scope and the rating stamp for a countersigned contract. */
-  private drawOpenCard(level: LevelDef, cardY: number): void {
+  private drawOpenCard(level: LevelDef, cardY: number, index: number): void {
     this.mono(INNER_LEFT, cardY + 4, `${level.ref}  ${level.client} / ${level.site}`, PALETTE.text);
     this.mono(INNER_LEFT, cardY + 22, `SCOPE  ${level.scope}`, PALETTE.text);
 
     const progress = getLevelProgress(level.id);
     if (!level.playable) {
-      this.stamp(cardY, 'COUNTERSIGNED', 'SITE SURVEY PENDING', PALETTE.text);
+      this.stamp(cardY, index, 'COUNTERSIGNED', 'SITE SURVEY PENDING', PALETTE.text);
     } else if (progress.bestRating) {
       const best =
         progress.bestTimeSec !== null
           ? `BEST ${formatTime(progress.bestTimeSec)} / RUNS ${progress.completions}`
           : `RUNS ${progress.completions}`;
-      this.stamp(cardY, `RATING: ${progress.bestRating}`, best, PALETTE.amber);
+      this.stamp(cardY, index, `RATING: ${progress.bestRating}`, best, PALETTE.amber);
     } else {
-      this.stamp(cardY, 'NOT YET ASSESSED', '', PALETTE.text);
+      this.stamp(cardY, index, 'NOT YET ASSESSED', '', PALETTE.text);
     }
   }
 
   /** Redaction bars instead of copy, for a contract not yet countersigned. */
-  private drawRedactedCard(cardY: number): void {
-    this.add.rectangle(INNER_LEFT + 130, cardY + 10, 260, 9, PALETTE_HEX.text, 0.28).setOrigin(0, 0.5);
-    this.add.rectangle(INNER_LEFT + 130, cardY + 28, 380, 9, PALETTE_HEX.text, 0.18).setOrigin(0, 0.5);
-    this.stamp(cardY, 'AWAITING', 'COUNTERSIGNATURE', PALETTE.text);
+  private drawRedactedCard(cardY: number, index: number): void {
+    const bars: RedactionBar[] = [
+      { rect: this.add.rectangle(INNER_LEFT + 130, cardY + 10, 260, 9, PALETTE_HEX.text, 0.28), restAlpha: 0.28 },
+      { rect: this.add.rectangle(INNER_LEFT + 130, cardY + 28, 380, 9, PALETTE_HEX.text, 0.18), restAlpha: 0.18 },
+    ];
+    for (const bar of bars) {
+      bar.rect.setOrigin(0, 0.5);
+    }
+    this.redactionBars[index] = bars;
+    this.stamp(cardY, index, 'AWAITING', 'COUNTERSIGNATURE', PALETTE.text);
   }
 
-  /** The right-hand stamp column: a headline and a small line under it. */
-  private stamp(cardY: number, headline: string, detail: string, colour: string): void {
-    this.add
-      .text(STAMP_RIGHT, cardY - 8, headline, {
-        fontFamily: FONTS.mono,
-        fontSize: '14px',
-        color: colour,
-      })
-      .setOrigin(1, 0.5);
-    if (detail) {
+  /**
+   * The right-hand stamp column: a headline and a small line under it, grouped
+   * so the pair can settle in together like a rubber stamp coming off the
+   * page. Staggered card by card, one shot only, done inside half a second.
+   */
+  private stamp(
+    cardY: number,
+    index: number,
+    headline: string,
+    detail: string,
+    colour: string
+  ): void {
+    const parts: Phaser.GameObjects.Text[] = [
       this.add
-        .text(STAMP_RIGHT, cardY + 10, detail, {
-          fontFamily: FONTS.mono,
-          fontSize: '10px',
-          color: PALETTE.text,
-        })
-        .setOrigin(1, 0.5);
+        .text(0, -8, headline, { fontFamily: FONTS.mono, fontSize: '14px', color: colour })
+        .setOrigin(1, 0.5),
+    ];
+    if (detail) {
+      parts.push(
+        this.add
+          .text(0, 10, detail, { fontFamily: FONTS.mono, fontSize: '10px', color: PALETTE.text })
+          .setOrigin(1, 0.5)
+      );
     }
+
+    // The group pivots on the stamp column's right edge, so the settle pushes
+    // into the margin and the finished position is exactly where it was.
+    const group = this.add
+      .container(STAMP_RIGHT, cardY, parts)
+      .setScale(KIOSK.stamp.fromScale)
+      .setRotation(KIOSK.stamp.fromRotationRad)
+      .setAlpha(KIOSK.stamp.fromAlpha);
+    this.tweens.add({
+      targets: group,
+      scale: 1,
+      rotation: 0,
+      alpha: 1,
+      duration: KIOSK.stamp.durationMs,
+      delay: index * KIOSK.stamp.staggerMs,
+      ease: 'Cubic.easeOut',
+    });
   }
 
   private selectContract(level: LevelDef, unlocked: boolean): void {

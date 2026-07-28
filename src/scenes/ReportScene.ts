@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { AudioManager } from '../audio/AudioManager';
+import { KIOSK } from '../config/kiosk';
 import { FONTS, PALETTE, PALETTE_HEX } from '../config/palette';
 import { generateReport, type Finding, type ReportModel } from '../report/generateReport';
 import { getActiveLevel, nextLevelAfter } from '../state/levels';
@@ -32,6 +33,10 @@ const SLOTS = {
   summaryTitle: 168,
 } as const;
 
+/** The rating stamp's resting look: tilted and slightly uneven, as if hurried. */
+const STAMP_TILT = -0.07;
+const STAMP_ALPHA = 0.92;
+
 /**
  * The Engagement Report end screen. Renders the report built by
  * generateReport() as a one-page corporate access-control artefact: header,
@@ -40,6 +45,11 @@ const SLOTS = {
  * Everything is read straight from the run and mission singletons at create
  * time, so the scene takes no init data. The reset button starts a completely
  * fresh engagement and drops the player back into the building.
+ *
+ * The page prints itself line by line in a shade over a second, and the rating
+ * stamp lands last with the document-stamp foley under it. Any key, pad button
+ * or click completes the lot instantly, and the menu is live from the first
+ * frame either way.
  */
 export class ReportScene extends Phaser.Scene {
   private menu!: MenuController;
@@ -47,13 +57,30 @@ export class ReportScene extends Phaser.Scene {
   private exporting = false;
   /** The fading EXPORTED caption, destroyed before any new capture. */
   private exportNote?: Phaser.GameObjects.Text;
+  /** Every line of the page, in printing order, for the reveal. */
+  private printed: Phaser.GameObjects.Text[] = [];
+  private printTween?: Phaser.Tweens.Tween;
+  private printing = false;
+  /** The rating stamp group, its landing timer and whether it has landed. */
+  private stampGroup?: Phaser.GameObjects.Container;
+  private stampTimer?: Phaser.Time.TimerEvent;
+  private stampLanded = false;
+  private readonly audio = new AudioManager();
 
   constructor() {
     super('report');
   }
 
   create(): void {
-    new AudioManager().playFoley('document-stamp', 0.62);
+    // Scene instances are reused across restarts, so nothing from the last
+    // report may linger in the print list or the stamp state.
+    this.printed = [];
+    this.printing = false;
+    this.printTween = undefined;
+    this.stampGroup = undefined;
+    this.stampTimer = undefined;
+    this.stampLanded = false;
+
     const stats = getRunStats();
     const mission = getMission();
     const level = getActiveLevel();
@@ -99,6 +126,10 @@ export class ReportScene extends Phaser.Scene {
     this.drawSummary(left, summaryTitleY, model);
     this.drawRatingStamp(centreX, centreY, model);
     this.buildMenu(centreX);
+
+    this.startPrint();
+    this.armSkip();
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.tweens.killAll());
   }
 
   update(): void {
@@ -110,17 +141,108 @@ export class ReportScene extends Phaser.Scene {
     this.menu.update(pad);
   }
 
+  /**
+   * Brings the page up line by line, in the order it was laid out, so it reads
+   * as printing rather than fading. The rating stamp is deliberately not part
+   * of it: it lands on top once the page is done.
+   */
+  private startPrint(): void {
+    const targets = this.printed.filter((line) => line.active);
+    this.stampTimer = this.time.delayedCall(KIOSK.print.reportMs, () => this.landStamp(false));
+    if (targets.length === 0) {
+      return;
+    }
+    for (const line of targets) {
+      line.setAlpha(0);
+    }
+    this.printing = true;
+    const step = (KIOSK.print.reportMs - KIOSK.print.lineFadeMs) / Math.max(1, targets.length - 1);
+    this.printTween = this.tweens.add({
+      targets,
+      alpha: 1,
+      duration: KIOSK.print.lineFadeMs,
+      delay: this.tweens.stagger(Math.max(0, step), {}),
+      onComplete: () => {
+        this.printing = false;
+        this.printTween = undefined;
+      },
+    });
+  }
+
+  /**
+   * Jumps to the finished page: every line up, the stamp landed. Used by the
+   * skip and by the export, so a snapshot is never half printed.
+   */
+  private finishReveal(): void {
+    if (this.printing) {
+      this.printing = false;
+      this.printTween?.stop();
+      this.printTween = undefined;
+      for (const line of this.printed) {
+        if (line.active) {
+          line.setAlpha(1);
+        }
+      }
+    }
+    this.landStamp(true);
+  }
+
+  /** Any key, pad button or click completes the whole reveal on the spot. */
+  private armSkip(): void {
+    const finish = (): void => this.finishReveal();
+    this.input.keyboard?.once('keydown', finish);
+    this.input.gamepad?.once('down', finish);
+    this.input.once('pointerdown', finish);
+  }
+
+  /**
+   * Drops the rating stamp on the page, the last thing to land, with the
+   * document-stamp foley under it. The foley fires exactly once, whether the
+   * page printed itself out or the player skipped straight to the end.
+   */
+  private landStamp(immediate: boolean): void {
+    const group = this.stampGroup;
+    if (!group) {
+      return;
+    }
+    this.stampTimer?.remove();
+    this.stampTimer = undefined;
+
+    if (immediate) {
+      // A skip or an export wants the finished page, not a stamp mid-air.
+      this.tweens.killTweensOf(group);
+      group.setScale(1).setRotation(STAMP_TILT).setAlpha(STAMP_ALPHA);
+    } else if (!this.stampLanded) {
+      group.setAlpha(STAMP_ALPHA * KIOSK.stamp.fromAlpha);
+      this.tweens.add({
+        targets: group,
+        scale: 1,
+        rotation: STAMP_TILT,
+        alpha: STAMP_ALPHA,
+        duration: KIOSK.stamp.durationMs,
+        ease: 'Cubic.easeOut',
+      });
+    }
+
+    if (!this.stampLanded) {
+      this.stampLanded = true;
+      this.audio.playFoley('document-stamp', 0.62);
+    }
+  }
+
   /** Draws the confidential caption, big title and the header fields. */
   private drawHeader(left: number, top: number, model: ReportModel): number {
     let y = top;
     this.mono(left, y, 'PHYSICAL SECURITY ASSESSMENT / PRIVATE AND CONFIDENTIAL', 10, PALETTE.text);
     y += 16;
 
-    this.add.text(left, y, 'ENGAGEMENT REPORT', {
-      fontFamily: FONTS.display,
-      fontSize: '34px',
-      color: PALETTE.amber,
-    });
+    this.printed.push(
+      this.add.text(left, y, 'ENGAGEMENT REPORT', {
+        fontFamily: FONTS.display,
+        fontSize: '34px',
+        color: PALETTE.amber,
+      })
+    );
     y += 40;
 
     const { header } = model;
@@ -174,6 +296,7 @@ export class ReportScene extends Phaser.Scene {
         wordWrap: { width: WRAP_WIDTH },
         lineSpacing: 2,
       });
+      this.printed.push(body);
       const advance = Math.max(lineGap, body.height) + blockGap;
 
       // Every finding but the last must also leave room for the overflow line.
@@ -225,18 +348,21 @@ export class ReportScene extends Phaser.Scene {
     this.mono(left + 480, y, `SECONDARIES:  ${summary.secondaries}`, 11, PALETTE.text);
     y += 20;
 
-    this.add.text(left, y, model.ratingRemark, {
-      fontFamily: FONTS.mono,
-      fontSize: '11px',
-      color: PALETTE.text,
-      wordWrap: { width: PAGE.width - PAGE.padX * 2 },
-    });
+    this.printed.push(
+      this.add.text(left, y, model.ratingRemark, {
+        fontFamily: FONTS.mono,
+        fontSize: '11px',
+        color: PALETTE.text,
+        wordWrap: { width: PAGE.width - PAGE.padX * 2 },
+      })
+    );
   }
 
   /**
    * The outcome rating as a rubber stamp across the header's empty top-right
    * corner. A fixed slot over fixed content, so however many findings the run
-   * produced, the stamp can never sit on top of flowing text again.
+   * produced, the stamp can never sit on top of flowing text again. It starts
+   * invisible and lands once the page has finished printing, see landStamp().
    */
   private drawRatingStamp(centreX: number, centreY: number, model: ReportModel): void {
     // Red is reserved for detection states; DETAINED is one, the rest amber.
@@ -261,7 +387,12 @@ export class ReportScene extends Phaser.Scene {
       .setFillStyle(0, 0);
 
     // The slight anticlockwise tilt and uneven alpha sell "stamped in a hurry".
-    this.add.container(x, y, [border, label]).setRotation(-0.07).setAlpha(0.92);
+    // It is held off the page at a touch oversized until it lands.
+    this.stampGroup = this.add
+      .container(x, y, [border, label])
+      .setScale(KIOSK.stamp.fromScale)
+      .setRotation(STAMP_TILT + KIOSK.stamp.fromRotationRad)
+      .setAlpha(0);
   }
 
   /** The end-of-run actions, navigable on pad, keyboard and mouse alike. */
@@ -289,6 +420,8 @@ export class ReportScene extends Phaser.Scene {
       return;
     }
     const ref = getActiveLevel().ref.replace(/[^A-Za-z0-9-]+/g, '');
+    // The exported PNG must always show the finished page, never a half print.
+    this.finishReveal();
     this.exporting = true;
     // A still-fading note from a previous export must not end up in the file.
     this.exportNote?.destroy();
@@ -359,7 +492,10 @@ export class ReportScene extends Phaser.Scene {
     this.scene.start('menu');
   }
 
-  /** Small helper for a left-aligned mono line, keeping create() readable. */
+  /**
+   * Small helper for a left-aligned mono line, keeping create() readable.
+   * Every line joins the print list so the page reveals in layout order.
+   */
   private mono(
     x: number,
     y: number,
@@ -367,10 +503,12 @@ export class ReportScene extends Phaser.Scene {
     size: number,
     colour: string
   ): Phaser.GameObjects.Text {
-    return this.add.text(x, y, text, {
+    const line = this.add.text(x, y, text, {
       fontFamily: FONTS.mono,
       fontSize: `${size}px`,
       color: colour,
     });
+    this.printed.push(line);
+    return line;
   }
 }
