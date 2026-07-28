@@ -8,6 +8,7 @@ import {
   setHudScale,
   setMasterVolume,
   setMuted,
+  setScreenEffects,
   setScreenShake,
 } from '../state/settings';
 import { MenuController } from '../ui/MenuController';
@@ -91,6 +92,13 @@ export class SettingsScene extends Phaser.Scene {
         },
         {
           kind: 'value',
+          label: 'SCREEN EFFECTS',
+          getDisplay: () => (getSettings().screenEffects ? 'ON' : 'OFF'),
+          adjust: () => setScreenEffects(!getSettings().screenEffects),
+          repeatable: false,
+        },
+        {
+          kind: 'value',
           label: 'VISIBILITY FLOOR',
           getDisplay: () => `${Math.round((getSettings().extraBrightness / BRIGHT_MAX) * 100)}%`,
           adjust: (d) =>
@@ -107,7 +115,9 @@ export class SettingsScene extends Phaser.Scene {
         },
         { kind: 'action', label: 'BACK', onSelect: () => this.close() },
       ],
-      { x: 480, top: 190, rowHeight: 38, width: 420, labelSize: 17, valueSize: 16 },
+      // Eight rows now, so the pitch tightens a little to keep the whole list
+      // centred inside the card with even margins top and bottom.
+      { x: 480, top: 187, rowHeight: 34, width: 420, labelSize: 17, valueSize: 16 },
       { onBack: () => this.close() }
     );
 
