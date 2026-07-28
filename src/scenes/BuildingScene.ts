@@ -9,6 +9,7 @@ import { zoneAt } from '../audio/zoneAt';
 import { velocityFromDisplacement } from '../audio/audioPolicy';
 import { BadgeAttemptEdges } from '../audio/foleyPolicy';
 import { ART } from '../config/art';
+import { CAMERAS } from '../config/cameras';
 import { DETECTION } from '../config/detection';
 import { HIJACK } from '../config/hijack';
 import { INPUT } from '../config/input';
@@ -39,6 +40,7 @@ import { AmbientParticles } from '../systems/AmbientParticles';
 import { FeedTreatment } from '../systems/FeedTreatment';
 import { LightModel } from '../systems/LightModel';
 import { LightingRenderer } from '../systems/LightingRenderer';
+import { NavGrid } from '../systems/NavGrid';
 import type { PickupPoint, WallRect, ZoneRect } from '../world/BuildingMap';
 import {
   getMission,
@@ -111,6 +113,8 @@ export class BuildingScene extends Phaser.Scene {
   private audio!: AudioManager;
   private mapZones: ZoneRect[] = [];
   private mapWalls: WallRect[] = [];
+  /** The walkable map guards path across. Rebuilt with the level on every restart. */
+  private navGrid!: NavGrid;
   private followOffset = new Phaser.Math.Vector2(0, 0);
   private promptText!: Phaser.GameObjects.Text;
   private guardDebug!: Phaser.GameObjects.Graphics;
@@ -201,6 +205,10 @@ export class BuildingScene extends Phaser.Scene {
     for (const [key, path] of Object.entries(IMAGE_ASSETS)) {
       this.load.image(key, path);
     }
+    // The CCTV prop art. It lives with the camera tuning rather than in the
+    // tile manifest because Camera.ts owns it, not the map's props layer.
+    this.load.image(CAMERAS.art.housingKey, CAMERAS.art.housingPath);
+    this.load.image(CAMERAS.art.lensKey, CAMERAS.art.lensPath);
   }
 
   create(): void {
@@ -223,6 +231,10 @@ export class BuildingScene extends Phaser.Scene {
     const map = new BuildingMap(this, this.mapKey);
     this.mapZones = map.zones;
     this.mapWalls = map.walls;
+    // Phase 20 playtest fix: guards need a real map to walk, not a straight line
+    // at whatever they are chasing. Built once here from the wall data, before
+    // anything that navigates exists.
+    this.navGrid = new NavGrid(map.widthInPixels, map.heightInPixels, map.walls);
     this.world = new WorldRenderer(this, map, this.level.id);
     this.lightModel = new LightModel(map.zones, map.lights);
 
@@ -654,7 +666,10 @@ export class BuildingScene extends Phaser.Scene {
       return null;
     }
     if (getMission().alertLevel >= HIJACK.lockoutAlertLevel) {
-      return 'CONSOLE LOCKED: SITE ON LOCKDOWN';
+      // Tell the player the lock is temporary. Lockdown stands down once the
+      // site has been quiet for a while (DETECTION.alert.level2DecayMs), and
+      // without saying so the console reads as permanently broken.
+      return 'CONSOLE LOCKED: SITE ON LOCKDOWN. STAY OUT OF SIGHT AND IT WILL STAND DOWN.';
     }
     if (interactPressed) {
       this.openConsole();
@@ -919,7 +934,7 @@ export class BuildingScene extends Phaser.Scene {
 
   /** Applies level decay and (re)applies guard effects when the level changes. */
   private updateAlertLevel(now: number): void {
-    decayAlert(now, DETECTION.alert.level1DecayMs);
+    decayAlert(now, DETECTION.alert.level1DecayMs, DETECTION.alert.level2DecayMs);
     const level = getMission().alertLevel;
     if (level === this.appliedAlertLevel || !this.guard) {
       return;
@@ -1082,6 +1097,15 @@ export class BuildingScene extends Phaser.Scene {
 
   /** A bolt landed: pull any guard within earshot to investigate the spot. */
   private onNoise(x: number, y: number): void {
+    // Draw the reach of the noise whether or not anyone is close enough to
+    // hear it. A throw that lands out of earshot is still information: it
+    // shows the player how far a bolt carries, which is what made bolts feel
+    // redundant in the Phase 20 playtest.
+    this.noiseRings.spawn(x, y, this.time.now, {
+      endRadiusPx: THROW.noiseRadiusPx,
+      lifeMs: THROW.noiseRingLifeMs,
+    });
+
     if (!this.guard) {
       return;
     }
@@ -1112,7 +1136,13 @@ export class BuildingScene extends Phaser.Scene {
     this.baseRoute = first.route;
     this.cautiousExtra = first.cautiousExtra ?? [];
     this.guardId = first.id;
-    this.guard = new Guard(this, first.route, map.walls, (state) => this.onGuardStateCue(state));
+    this.guard = new Guard(
+      this,
+      first.route,
+      map.walls,
+      (state) => this.onGuardStateCue(state),
+      this.navGrid
+    );
     this.physics.add.collider(this.guard.sprite, this.walls);
   }
 

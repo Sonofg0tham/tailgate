@@ -317,20 +317,30 @@ export class MenuScene extends Phaser.Scene {
     this.caret.setPosition(this.caretX[row] ?? this.caretX[0], ROWS.top + row * ROWS.rowHeight);
   }
 
-  /** The two control legends, gamepad on the left, keyboard on the right. */
+  /**
+   * The two control legends, gamepad on the left, keyboard on the right.
+   *
+   * Every row is one input and one action. The Phase 20 playtest lost the run
+   * control entirely: the old legend paired "Shift / C" against "Creep / Run"
+   * and left the reader to work out which key was which, so running was never
+   * found. Paired rows read as a puzzle, and a puzzle in a legend is a bug.
+   */
   private drawControls(): void {
-    const top = 428;
+    const top = 410;
     const gamepad: [string, string][] = [
-      ['Left stick', 'Move & set pace'],
+      ['Left stick', 'Move'],
+      ['Push further', 'Creep to run'],
       ['A', 'Interact'],
       ['R2 / R-stick', 'Throw & aim'],
       ['Start', 'Pause'],
     ];
     const keyboard: [string, string][] = [
       ['WASD / Arrows', 'Move'],
-      ['Shift / C', 'Creep / Run'],
+      ['Hold Shift', 'Creep, silent'],
+      ['Hold C', 'Run, loud'],
       ['E', 'Interact'],
-      ['Click / Esc', 'Throw / Pause'],
+      ['Click', 'Throw bolt'],
+      ['Esc', 'Pause'],
     ];
     this.drawLegend(250, top, 'GAMEPAD', gamepad);
     this.drawLegend(560, top, 'KEYBOARD', keyboard);

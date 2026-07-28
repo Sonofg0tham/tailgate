@@ -23,7 +23,11 @@ interface MissionState {
   levelId: string | null;
   /** Building alert level: 0 calm, 1 cautious, 2 lockdown. */
   alertLevel: number;
-  /** Scene-clock timestamp when level 1 last had an incident (for decay). */
+  /**
+   * Scene-clock timestamp of the last incident at the current level, used by
+   * both decay steps. Named for level 1 because that was the only level that
+   * decayed before Phase 20; it now times the lockdown stand-down too.
+   */
   level1SetAt: number;
   /** The last checkpoint, or null to start at the van. */
   checkpoint: Checkpoint | null;
@@ -93,16 +97,30 @@ export function raiseAlert(nowMs: number): number {
   return state.alertLevel;
 }
 
-/** Marks fresh trouble at level 1, restarting the decay clock. */
+/** Marks fresh trouble at the current raised level, restarting the decay clock. */
 export function touchAlert(nowMs: number): void {
-  if (state.alertLevel === 1) {
+  if (state.alertLevel > 0) {
     state.level1SetAt = nowMs;
   }
 }
 
-/** Decays cautious back to calm after the quiet period. Lockdown never decays. */
-export function decayAlert(nowMs: number, decayMs: number): void {
-  if (state.alertLevel === 1 && nowMs - state.level1SetAt >= decayMs) {
+/**
+ * Steps the alert down one level once the site has been quiet long enough.
+ *
+ * Lockdown stands down to cautious, and cautious then decays to calm on its
+ * own clock, so a bad moment always has a route back if the player hides and
+ * waits. Before Phase 20 lockdown was permanent, which took the security
+ * console away for the whole engagement (see DETECTION.alert.level2DecayMs).
+ * Each step restarts the clock, so standing down from lockdown does not also
+ * clear cautious in the same instant.
+ */
+export function decayAlert(nowMs: number, level1DecayMs: number, level2DecayMs: number): void {
+  if (state.alertLevel === 2 && nowMs - state.level1SetAt >= level2DecayMs) {
+    state.alertLevel = 1;
+    state.level1SetAt = nowMs;
+    return;
+  }
+  if (state.alertLevel === 1 && nowMs - state.level1SetAt >= level1DecayMs) {
     state.alertLevel = 0;
   }
 }

@@ -94,9 +94,25 @@ export const DETECTION = {
     radioAfterMs: 3000,
     /** Cautious (level 1) decays back to calm after this long without incident. */
     level1DecayMs: 60000,
+    /**
+     * Lockdown (level 2) stands down to cautious after this long with no fresh
+     * incident. Deliberately far longer than the cautious decay: a lockdown
+     * should be a serious setback you have to wait out from cover, not a
+     * shrug.
+     *
+     * Phase 20 playtest: lockdown used to be permanent for the engagement,
+     * which quietly killed the camera hijack. The security console refuses to
+     * serve at lockdown (HIJACK.lockoutAlertLevel), so one camera catching the
+     * player took the whole loop mechanic away for the rest of the run with no
+     * route back, and it read as the feature being broken. A site that can
+     * stand down keeps the pressure without the dead end. Raise this to make
+     * lockdown harsher; set it to Infinity to restore the old never-decays
+     * behaviour.
+     */
+    level2DecayMs: 120000,
     /** Guard speed multiplier while the building is cautious. */
     level1SpeedMult: 1.3,
-    /** Guard speed multiplier during lockdown (the sweep). Never decays. */
+    /** Guard speed multiplier during lockdown (the sweep). */
     level2SpeedMult: 1.6,
   },
 
