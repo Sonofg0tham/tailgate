@@ -19,6 +19,14 @@ interface Settings {
   /** Extra brightness on top of the lighting visibility floor, 0 to 1. */
   extraBrightness: number;
   /**
+   * The security-feed atmosphere: the vignette, faint static and cool cast over
+   * the picture, its alert tinting, and the slow breathe on the building's
+   * lights. Pure presentation, so turning it off changes nothing a guard can
+   * see. Default on. The DETAINED flash and the alarm shake are sudden-motion
+   * effects and stay under screenShake instead.
+   */
+  screenEffects: boolean;
+  /**
    * Assist mode: guards move at a reduced speed. No score penalty and no shame
    * copy anywhere, per the accessibility design. Default off.
    */
@@ -33,6 +41,7 @@ const settings: Settings = {
   muted: false,
   hudScale: 1,
   extraBrightness: 0,
+  screenEffects: true,
   assistMode: false,
 };
 
@@ -80,6 +89,11 @@ export function setHudScale(v: number): void {
 
 export function setExtraBrightness(v: number): void {
   settings.extraBrightness = Math.max(0, Math.min(1, v));
+  persist();
+}
+
+export function setScreenEffects(on: boolean): void {
+  settings.screenEffects = on;
   persist();
 }
 

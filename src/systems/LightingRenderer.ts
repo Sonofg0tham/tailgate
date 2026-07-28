@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CONE_RANGE_PX } from '../config/detection';
+import { FEED } from '../config/feed';
 import { LIGHTING } from '../config/lighting';
 import { PALETTE_HEX } from '../config/palette';
 import { getSettings } from '../state/settings';
@@ -21,13 +22,16 @@ const MASK_KEY = 'lightMask';
  * The veil sits at depth 25, above the world and cones-are-lifted-above-it, so
  * floors, walls and props dim in the dark while the player, guard, vision cones
  * and HUD stay fully readable. Detection light is computed separately in
- * LightModel; this renderer is purely what the human sees.
+ * LightModel; this renderer is purely what the human sees, which is why the
+ * static lights can breathe here without touching what a guard can spot.
  */
 export class LightingRenderer {
+  private readonly scene: Phaser.Scene;
   private readonly rt: Phaser.GameObjects.RenderTexture;
   private readonly brush: Phaser.GameObjects.Image;
 
   constructor(scene: Phaser.Scene) {
+    this.scene = scene;
     LightingRenderer.ensureMask(scene);
 
     this.rt = scene.add
@@ -47,8 +51,9 @@ export class LightingRenderer {
     guard: Guard | undefined,
     sources: readonly LightSource[]
   ): void {
+    const settings = getSettings();
     const veil = Phaser.Math.Clamp(
-      1 - LIGHTING.visibilityFloorGlobal - getSettings().extraBrightness,
+      1 - LIGHTING.visibilityFloorGlobal - settings.extraBrightness,
       0,
       1
     );
@@ -57,9 +62,16 @@ export class LightingRenderer {
 
     const ox = cam.worldView.x;
     const oy = cam.worldView.y;
+    const nowMs = this.scene.time.now;
 
     for (const s of sources) {
-      this.eraseLight(s.x - ox, s.y - oy, s.radiusPx, s.intensity);
+      // The breathe is atmosphere, so it rides on the screen-effects setting.
+      // The source's own intensity is never written to: LightModel hands out a
+      // readonly list and detection must keep seeing the authored numbers.
+      const intensity = settings.screenEffects
+        ? s.intensity * this.breatheFactor(s, nowMs)
+        : s.intensity;
+      this.eraseLight(s.x - ox, s.y - oy, s.radiusPx, intensity);
     }
 
     // The guard's own sightline glows softly, so its cone reads as a torch beam.
@@ -83,6 +95,24 @@ export class LightingRenderer {
   /** The screen-fixed veil texture, so secondary feed cameras can ignore it. */
   get veil(): Phaser.GameObjects.RenderTexture {
     return this.rt;
+  }
+
+  /**
+   * Presentation-only breathe on one static light: a slow, tiny swell in
+   * brightness whose phase and period come from where the light sits, so no two
+   * lights in the building are ever in step and the place reads as occupied
+   * rather than animated. Room pools and the dock flood share one set of
+   * numbers, server rack LEDs get their own slightly quicker shimmer. Both are
+   * far too slow and far too small to register as a flicker.
+   */
+  private breatheFactor(s: LightSource, nowMs: number): number {
+    const cfg = s.kind === 'rack' ? FEED.lights.rack : FEED.lights.pool;
+    // A stable 0..1 spread from the light's position: the same light always
+    // breathes the same way, across a detain restart as well as across frames.
+    const seed = s.x * 0.0137 + s.y * 0.0219;
+    const spread = seed - Math.floor(seed);
+    const periodMs = cfg.minPeriodMs + spread * (cfg.maxPeriodMs - cfg.minPeriodMs);
+    return 1 + cfg.amplitude * Math.sin((nowMs / periodMs) * Math.PI * 2 + seed);
   }
 
   private eraseLight(sx: number, sy: number, radiusPx: number, intensity: number): void {

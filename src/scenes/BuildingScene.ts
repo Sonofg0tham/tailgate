@@ -36,6 +36,7 @@ import {
   type FreezeResult,
 } from '../systems/CameraSystem';
 import { AmbientParticles } from '../systems/AmbientParticles';
+import { FeedTreatment } from '../systems/FeedTreatment';
 import { LightModel } from '../systems/LightModel';
 import { LightingRenderer } from '../systems/LightingRenderer';
 import type { PickupPoint, WallRect, ZoneRect } from '../world/BuildingMap';
@@ -106,6 +107,7 @@ export class BuildingScene extends Phaser.Scene {
   private cameraSystem!: CameraSystem;
   private lightModel!: LightModel;
   private lightingRenderer!: LightingRenderer;
+  private feedTreatment!: FeedTreatment;
   private audio!: AudioManager;
   private mapZones: ZoneRect[] = [];
   private mapWalls: WallRect[] = [];
@@ -310,6 +312,10 @@ export class BuildingScene extends Phaser.Scene {
     // Lighting and audio. The renderer draws last each frame; audio arms its
     // autoplay unlock on the first input and makes no sound before that.
     this.lightingRenderer = new LightingRenderer(this);
+    // The security-feed look over the finished picture: cool cast, faint static
+    // and an alert-coloured vignette, all above the veil and below the HUD.
+    this.feedTreatment = new FeedTreatment(this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.feedTreatment.destroy());
     this.audio = new AudioManager();
     setAudioGameplayPaused(false);
     this.audio.init(this);
@@ -565,13 +571,15 @@ export class BuildingScene extends Phaser.Scene {
     });
     this.drawGuardDebug();
 
-    // Lighting draws last so it reflects this frame's final positions.
+    // Lighting draws last so it reflects this frame's final positions, then the
+    // feed treatment tints the finished picture and carries the alert level.
     this.lightingRenderer.update(
       this.cameras.main,
       this.player,
       this.guard,
       this.lightModel.sources
     );
+    this.feedTreatment.update(now, delta, getMission().alertLevel);
   }
 
   /** Eases the camera to lead the player's travel a touch, for comfort. */
@@ -738,6 +746,7 @@ export class BuildingScene extends Phaser.Scene {
     );
     this.feedCam.ignore([
       this.lightingRenderer.veil,
+      ...this.feedTreatment.screenObjects,
       this.promptText,
       this.disguiseTag,
       ...this.overlay.screenObjects,
