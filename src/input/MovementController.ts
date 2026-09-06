@@ -16,6 +16,11 @@ export class MovementController {
 
   constructor(private readonly player: Player) {}
 
+  /** Whichever input last produced movement, for the dev HUD line. */
+  get activeDevice(): InputDevice {
+    return this.lastDevice;
+  }
+
   /**
    * Reads both inputs, applies velocity and noise to the player, and returns the
    * resolved intent so the overlay can display it.

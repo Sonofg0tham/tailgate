@@ -84,6 +84,25 @@ export const DETECTION = {
   /** How close (pixels, centre to centre) counts as the guard catching the player. */
   detainRadius: 22,
 
+  /**
+   * What a guard does while paused at a patrol node. Phase 21: guards used to
+   * freeze at every stop, facing whichever way they arrived, which read as a
+   * mannequin and made every pause a free pass. Now a pause long enough to be
+   * a real stop becomes a look-around: the cone sweeps either side of the
+   * arrival heading, so a stop is a moment to wait out, not walk past.
+   *
+   * This DOES change detection: a scanning guard covers more of the room.
+   * Set scanAmplitudeRad to 0 to restore the old frozen pause.
+   */
+  patrol: {
+    /** Pauses shorter than this stay a plain stop (no sweep). */
+    minPauseForScanMs: 700,
+    /** How far either side of the arrival heading the sweep reaches, radians. */
+    scanAmplitudeRad: 0.55,
+    /** One full left-right-left sweep, ms. Slow on purpose (nystagmus note). */
+    scanPeriodMs: 2800,
+  },
+
   /** Building alert levels 0-2 (calm, cautious, lockdown). */
   alert: {
     /**

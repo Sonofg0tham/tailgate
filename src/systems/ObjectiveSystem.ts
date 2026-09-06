@@ -60,6 +60,30 @@ export class ObjectiveSystem {
     this.progress = scene.add.graphics().setDepth(60);
   }
 
+  /**
+   * The primary objective right now, for the HUD and the border marker: the
+   * plant point until the device is in, then the van. Null once exfil fired.
+   */
+  currentTarget(): { x: number; y: number; kind: 'plant' | 'exfil' } | null {
+    if (this.exfilFired) {
+      return null;
+    }
+    const mission = getMission();
+    if (mission.planted) {
+      return { x: this.exfil.x, y: this.exfil.y, kind: 'exfil' };
+    }
+    const plant = this.points.find((point) => point.kind === 'plant');
+    return plant ? { x: plant.x, y: plant.y, kind: 'plant' } : null;
+  }
+
+  /** Secondary objectives photographed so far, and how many the level has. */
+  secondaryProgress(): { done: number; total: number } {
+    const mission = getMission();
+    const photos = this.points.filter((point) => point.kind !== 'plant');
+    const done = photos.filter((point) => mission.photographed.includes(point.id)).length;
+    return { done, total: photos.length };
+  }
+
   update(frame: ObjectiveFrame): ObjectiveTick {
     const tick: ObjectiveTick = {
       plantedNow: false,

@@ -45,9 +45,7 @@ export const READABILITY = {
   chevron: {
     /** Guards further away than this stay unannounced, even agitated. */
     rangePx: 700,
-    /** How far in from the screen edge the chevron sits. */
-    edgeInsetPx: 26,
-    /** Chevron size in pixels. */
+    /** Chevron size in pixels. Where it sits is HUD.edgeInsets (Phase 21). */
     sizePx: 11,
   },
 
