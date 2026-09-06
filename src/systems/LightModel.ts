@@ -27,7 +27,8 @@ const GUARD_HALF_FOV = Phaser.Math.DegToRad(DETECTION.cone.fovDegrees) / 2;
 export class LightModel {
   private readonly zones: ZoneRect[];
   private readonly staticSources: LightSource[];
-  private torch: { x: number; y: number; facing: number } | null = null;
+  /** Every guard's sightline this frame. Phase 21: one per guard on site. */
+  private torches: { x: number; y: number; facing: number }[] = [];
 
   constructor(zones: ZoneRect[], lights: LightRect[]) {
     this.zones = zones;
@@ -38,15 +39,12 @@ export class LightModel {
     return this.staticSources;
   }
 
-  setGuardTorch(x: number, y: number, facing: number): void {
-    this.torch = { x, y, facing };
+  /** Replaces the guard sightlines for this frame. Pass an empty list for none. */
+  setGuardTorches(torches: readonly { x: number; y: number; facing: number }[]): void {
+    this.torches = [...torches];
   }
 
-  clearGuardTorch(): void {
-    this.torch = null;
-  }
-
-  /** Analytic light 0..1 at a point: the max of ambient, pools and the guard torch. */
+  /** Analytic light 0..1 at a point: the max of ambient, pools and the guard torches. */
   computeLightAt(x: number, y: number): number {
     let light = this.zoneAmbientAt(x, y);
 
@@ -58,12 +56,12 @@ export class LightModel {
       }
     }
 
-    if (this.torch) {
-      const dx = x - this.torch.x;
-      const dy = y - this.torch.y;
+    for (const torch of this.torches) {
+      const dx = x - torch.x;
+      const dy = y - torch.y;
       const dist = Math.hypot(dx, dy);
       if (dist < CONE_RANGE_PX && dist > 1) {
-        const diff = Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(dy, dx) - this.torch.facing));
+        const diff = Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(dy, dx) - torch.facing));
         if (diff <= GUARD_HALF_FOV) {
           const falloff = 1 - dist / CONE_RANGE_PX;
           light = Math.max(light, LIGHTING.guardTorchIntensity * falloff);

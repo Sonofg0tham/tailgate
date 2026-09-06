@@ -7,6 +7,7 @@ import { resetMission } from '../state/mission';
 import { markBriefingSeen } from '../state/progress';
 import { resetRunStats } from '../state/runStats';
 import { MenuController } from '../ui/MenuController';
+import { fadeIn, fadeToScene } from '../ui/transitions';
 
 /** Sheet geometry, matching the Engagement Report's printed-page framing. */
 const PAGE = { width: 880, height: 500, padX: 28, padTop: 20 } as const;
@@ -43,6 +44,7 @@ export class BriefingScene extends Phaser.Scene {
   }
 
   create(): void {
+    fadeIn(this);
     // Scene instances are reused across restarts, so last visit's lines must
     // not linger in the print list.
     this.printed = [];
@@ -226,11 +228,11 @@ export class BriefingScene extends Phaser.Scene {
     setActiveLevel(this.level.id);
     resetMission(this.level.id);
     resetRunStats();
-    this.scene.start('building');
+    fadeToScene(this, 'building');
   }
 
   private back(): void {
-    this.scene.start('contracts');
+    fadeToScene(this, 'contracts');
   }
 
   /** Small helper for a left-aligned mono line. Every line joins the print list. */

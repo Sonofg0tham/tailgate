@@ -8,6 +8,7 @@ import { getMission, resetMission } from '../state/mission';
 import { recordCompletion, unlockLevel } from '../state/progress';
 import { getRunStats, resetRunStats } from '../state/runStats';
 import { MenuController } from '../ui/MenuController';
+import { fadeIn, fadeToScene } from '../ui/transitions';
 
 /** Page geometry. The report sits on the near-black like a printed sheet. */
 const PAGE = {
@@ -76,6 +77,7 @@ export class ReportScene extends Phaser.Scene {
   }
 
   create(): void {
+    fadeIn(this);
     // Scene instances are reused across restarts, so nothing from the last
     // report may linger in the print list or the stamp state.
     this.printed = [];
@@ -479,21 +481,21 @@ export class ReportScene extends Phaser.Scene {
   private newEngagement(): void {
     resetRunStats();
     resetMission(getActiveLevel().id);
-    this.scene.start('building');
+    fadeToScene(this, 'building');
   }
 
   /** Clears the run and returns to the contract schedule. */
   private contracts(): void {
     resetRunStats();
     resetMission();
-    this.scene.start('contracts');
+    fadeToScene(this, 'contracts');
   }
 
   /** Clears the run and returns to the sign-in kiosk. */
   private mainMenu(): void {
     resetRunStats();
     resetMission();
-    this.scene.start('menu');
+    fadeToScene(this, 'menu');
   }
 
   /**

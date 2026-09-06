@@ -4,6 +4,7 @@ import { FONTS, PALETTE, PALETTE_HEX } from '../config/palette';
 import { initLevelRegistry } from '../state/levels';
 import { getSettings } from '../state/settings';
 import { MenuController } from '../ui/MenuController';
+import { fadeIn, fadeToScene } from '../ui/transitions';
 
 /** The kiosk card geometry, a lighter sheet on the near-black like the report. */
 const CARD = { x: 480, y: 268, w: 580, h: 260 } as const;
@@ -128,6 +129,7 @@ export class MenuScene extends Phaser.Scene {
     // Belt and braces: the looping dressing tweens and the off-list mask shape
     // go with the scene rather than outliving it.
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.tweens.killAll());
+    fadeIn(this);
   }
 
   update(): void {
@@ -138,7 +140,7 @@ export class MenuScene extends Phaser.Scene {
 
   /** Opens the contract schedule; picking a contract starts that engagement. */
   private openContracts(): void {
-    this.scene.start('contracts');
+    fadeToScene(this, 'contracts');
   }
 
   /** Opens settings over the paused kiosk; it resumes us when it closes. */

@@ -6,6 +6,7 @@ import { getLevelProgress, hasSeenBriefing, unlockLevel } from '../state/progres
 import { resetMission } from '../state/mission';
 import { resetRunStats } from '../state/runStats';
 import { MenuController, type MenuItem } from '../ui/MenuController';
+import { fadeIn, fadeToScene } from '../ui/transitions';
 
 /** The gamepad X button (standard mapping), the "view briefing" control. */
 const PAD_X = 2;
@@ -54,6 +55,7 @@ export class ContractSelectScene extends Phaser.Scene {
   }
 
   create(): void {
+    fadeIn(this);
     // Scene instances are reused across restarts, so last visit's game objects
     // must not linger in these lists.
     this.cardGlows = [];
@@ -99,7 +101,7 @@ export class ContractSelectScene extends Phaser.Scene {
     this.prevPadX = true;
 
     const items: MenuItem[] = levels.map((level, i) => this.buildCard(level, i));
-    items.push({ kind: 'action', label: 'BACK', onSelect: () => this.scene.start('menu') });
+    items.push({ kind: 'action', label: 'BACK', onSelect: () => fadeToScene(this, 'menu') });
 
     // Menu rows sit on each card's name line; BACK lands below the last card.
     this.menu = new MenuController(this, items, {
@@ -158,7 +160,7 @@ export class ContractSelectScene extends Phaser.Scene {
       this.status.setText('NO BRIEFING ON FILE FOR THIS CONTRACT.').setAlpha(1);
       return;
     }
-    this.scene.start('briefing', { levelId: level.id });
+    fadeToScene(this, 'briefing', { levelId: level.id });
   }
 
   /**
@@ -319,13 +321,13 @@ export class ContractSelectScene extends Phaser.Scene {
     // A contract's first run goes via its briefing sheet; afterwards the
     // schedule starts the site directly and the sheet stays on TAB / pad X.
     if (!hasSeenBriefing(level.id)) {
-      this.scene.start('briefing', { levelId: level.id });
+      fadeToScene(this, 'briefing', { levelId: level.id });
       return;
     }
     setActiveLevel(level.id);
     resetMission(level.id);
     resetRunStats();
-    this.scene.start('building');
+    fadeToScene(this, 'building');
   }
 
   private mono(x: number, y: number, text: string, colour: string): void {

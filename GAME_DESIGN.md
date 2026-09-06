@@ -37,6 +37,10 @@ No combat. No takedowns. If a guard reaches the player, the player is detained.
 
 State machine: PATROL, CURIOUS, SEARCHING, ALERT, SWEEP, back to PATROL.
 
+- Every guard in a level's `guards.json` is on site (Phase 21). v1 shipped one patrol per contract; each contract now runs two, each with its own route, alert extras, radio call and footstep cadence. Add or remove guards by editing the data.
+- At a patrol stop long enough to be a real stop, a guard looks around: the cone sweeps either side of the arrival heading (`config/detection.ts`, `patrol`). Short pauses stay still.
+- What a guard is thinking is drawn over their head: a suspicion arc that fills as they notice you, a "?" while curious and a "!" once alert, a spoken bark line from `config/barks.ts`, a dashed marker at the spot a searching guard is heading for, and a ring around the "!" that fills over the radio delay while they can see you. Break line of sight before it closes and the building never hears.
+
 - Vision cone: range 7 tiles, 70 degree field of view, fully blocked by walls and closed doors.
 - Player inside a cone fills that guard's suspicion meter. Fill rate scales with proximity and player speed. Creeping at max range takes roughly 3 seconds to fill, running at close range is near-instant.
 - CURIOUS: a single noise ping or a partial glimpse. Guard walks to the point of interest, looks around, returns to patrol.
@@ -188,6 +192,13 @@ Done when: each contract briefs its own mechanic, hints never repeat, and all co
 
 **Phase 17, audio atmosphere.** A procedural tension bed that tracks the alert ladder (silent at CALM, pulsing at CAUTIOUS, darker at LOCKDOWN), distinct stingers for guard-curious, camera-ping and camera-alarm, and per-venue weighting of the ambience beds. Security, tension and venue layers are synthesised. Footsteps and interaction foley use a compact, credited Kenney CC0 sample set with restrained runtime surface, pitch, filtering and spatial treatment.
 Done when: the alert ladder is audible with the screen covered, and nothing clips at full volume.
+
+## v4 build phases
+
+Phases 18 to 20 landed between v3 and here without a design entry: the surveillance-noir visual foundation (per-venue materials, wall extrusion, contact shadows, the security-feed treatment), the meta-screen motion pass (kiosk, briefing, report and pause), and the playtest fixes (guard pathfinding, lockdown stand-down, the camera prop). v4 opens with the pass that turns all of that from a working game into one that feels finished.
+
+**Phase 21, studio feel.** Every guard in the data is on site, not just the first, with a second patrol authored per contract to cover the floor the first never reached. Guards look around at patrol stops instead of freezing. A guard awareness layer over every guard: suspicion arc, "?" and "!" glyphs, bark lines from data, last-known-position marker, radio countdown ring. The HUD becomes a proper field readout (site, pace and noise bar, an exposure meter for how lit you are, bolt pips, the current objective with its venue line, evidence count, hi-vis state) and a border diamond points at the objective when it is off screen. A banner announces every change of site alert level in words. Footsteps ripple the player's own noise ring. Every scene fades through the base colour instead of hard-cutting, including the detain restart.
+Done when: both guards on each site walk their full route without sticking, a stranger can read a guard's state from across the room without the debug view, a new player knows where the objective is from the car park, and typecheck, lint and tests are clean.
 
 ## v2 parking lot (still parked, do not build)
 

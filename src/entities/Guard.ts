@@ -61,6 +61,8 @@ const STATE_EDGE: Record<GuardState, ConeEdge> = {
 };
 
 export class Guard {
+  /** Stable id from guards.json, for audio, the report and the debug view. */
+  readonly id: string;
   readonly sprite: Phaser.Physics.Arcade.Sprite;
   readonly cone: VisionCone;
 
@@ -81,8 +83,16 @@ export class Guard {
   private investigateBaseFacing = 0; // facing the scan sweeps around
   private curiousDeadline = 0; // hard timeout on a CURIOUS episode
   private sawPlayer = false;
+  /** True while a CURIOUS guard stands at the spot sweeping its cone. */
+  private lookingAround = false;
 
-  private readonly onStateCue: (state: GuardState) => void;
+  // The look-around at a patrol stop (Phase 21): the heading the guard
+  // arrived on, when the stop began and how long it lasts.
+  private pauseBaseFacing = 0;
+  private pauseStartedAt = 0;
+  private pauseLenMs = 0;
+
+  private readonly onStateCue: (state: GuardState, previous: GuardState) => void;
   private readonly animator: CharacterAnimator;
 
   // Navigation (Phase 20 playtest fix). Before this the guard drove straight at
@@ -108,11 +118,13 @@ export class Guard {
 
   constructor(
     scene: Phaser.Scene,
+    id: string,
     route: PatrolNode[],
     walls: WallRect[],
-    onStateCue: (state: GuardState) => void,
+    onStateCue: (state: GuardState, previous: GuardState) => void,
     nav?: NavGrid
   ) {
+    this.id = id;
     this.route = route;
     this.nav = nav;
     const start = route[0] ?? { x: 0, y: 0, pauseMs: 0 };
@@ -146,6 +158,17 @@ export class Guard {
   /** Scene-clock ms when the current ALERT episode started, or 0 if not alert. */
   get alertSince(): number {
     return this.alertSinceMs;
+  }
+  /** Where the guard last saw or heard the player: the spot it is heading for. */
+  get lastSeenX(): number {
+    return this.lastSeen.x;
+  }
+  get lastSeenY(): number {
+    return this.lastSeen.y;
+  }
+  /** True while a CURIOUS guard has reached the spot and is sweeping its cone. */
+  get isLookingAround(): boolean {
+    return this.lookingAround;
   }
 
   /** Swaps the patrol route (e.g. adding cautious nodes when the alert rises). */
@@ -309,7 +332,7 @@ export class Guard {
     this.alertSinceMs = this.guardState === 'alert' ? this.alertSinceMs || now : 0;
 
     if (this.guardState !== previous) {
-      this.onStateCue(this.guardState);
+      this.onStateCue(this.guardState, previous);
     }
     return this.guardState === 'alert' && previous !== 'alert';
   }
@@ -331,6 +354,7 @@ export class Guard {
 
   private act(now: number, playerX: number, playerY: number): void {
     const mult = this.speedScale();
+    this.lookingAround = this.guardState === 'curious' && now < this.investigateUntil;
     switch (this.guardState) {
       case 'alert':
         // Chase the player's current position.
@@ -363,14 +387,35 @@ export class Guard {
     }
     if (now < this.resumeAt) {
       this.stop(); // pausing at a node
+      this.scanWhilePaused(now);
       return;
     }
     const node = this.route[this.routeIndex];
     if (this.moveToward(now, node.x, node.y, DETECTION.speed.patrol * this.speedScale())) {
       this.stop();
       this.resumeAt = now + node.pauseMs;
+      this.pauseBaseFacing = this.facing;
+      this.pauseStartedAt = now;
+      this.pauseLenMs = node.pauseMs;
       this.routeIndex = (this.routeIndex + 1) % this.route.length;
     }
+  }
+
+  /**
+   * The look-around at a patrol stop (Phase 21). A pause long enough to be a
+   * real stop sweeps the cone either side of the arrival heading, so a guard
+   * at rest reads as a person checking the room rather than a mannequin, and
+   * a stop becomes something to wait out instead of walk past. Short pauses
+   * (a beat at a corner) stay still, so nothing twitches. Tuning, including
+   * the off switch, lives in DETECTION.patrol.
+   */
+  private scanWhilePaused(now: number): void {
+    const { minPauseForScanMs, scanAmplitudeRad, scanPeriodMs } = DETECTION.patrol;
+    if (this.pauseLenMs < minPauseForScanMs || scanAmplitudeRad <= 0) {
+      return;
+    }
+    const t = (now - this.pauseStartedAt) / scanPeriodMs;
+    this.facing = this.pauseBaseFacing + Math.sin(t * Math.PI * 2) * scanAmplitudeRad;
   }
 
   /**

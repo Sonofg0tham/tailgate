@@ -48,7 +48,7 @@ export class LightingRenderer {
   update(
     cam: Phaser.Cameras.Scene2D.Camera,
     player: Player,
-    guard: Guard | undefined,
+    guards: readonly Guard[],
     sources: readonly LightSource[]
   ): void {
     const settings = getSettings();
@@ -74,8 +74,8 @@ export class LightingRenderer {
       this.eraseLight(s.x - ox, s.y - oy, s.radiusPx, intensity);
     }
 
-    // The guard's own sightline glows softly, so its cone reads as a torch beam.
-    if (guard) {
+    // Each guard's own sightline glows softly, so its cone reads as a torch beam.
+    for (const guard of guards) {
       this.eraseLight(guard.x - ox, guard.y - oy, CONE_RANGE_PX * 0.6, LIGHTING.guardTorchIntensity * 0.7);
     }
 

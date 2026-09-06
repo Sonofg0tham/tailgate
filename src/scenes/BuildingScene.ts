@@ -9,9 +9,11 @@ import { zoneAt } from '../audio/zoneAt';
 import { velocityFromDisplacement } from '../audio/audioPolicy';
 import { BadgeAttemptEdges } from '../audio/foleyPolicy';
 import { ART } from '../config/art';
+import { AUDIO } from '../config/audio';
 import { CAMERAS } from '../config/cameras';
 import { DETECTION } from '../config/detection';
 import { HIJACK } from '../config/hijack';
+import { HUD } from '../config/hud';
 import { INPUT } from '../config/input';
 import { READABILITY } from '../config/readability';
 import { NoiseRings } from '../systems/NoiseRings';
@@ -21,8 +23,9 @@ import { MOVEMENT } from '../config/movement';
 import { FONTS, PALETTE, PALETTE_HEX } from '../config/palette';
 import { THROW } from '../config/throw';
 import { IMAGE_ASSETS, RENDER } from '../config/tiles';
+import { NOISE_RING_TINT } from '../config/zones';
 import { Door } from '../entities/Door';
-import { Guard, type GuardState, type PatrolNode } from '../entities/Guard';
+import type { Guard, GuardState } from '../entities/Guard';
 import { Player } from '../entities/Player';
 import { Staff, type StaffDef } from '../entities/Staff';
 import type { KeyboardKeys } from '../input/KeyboardInput';
@@ -38,6 +41,8 @@ import {
 } from '../systems/CameraSystem';
 import { AmbientParticles } from '../systems/AmbientParticles';
 import { FeedTreatment } from '../systems/FeedTreatment';
+import { GuardAwareness } from '../systems/GuardAwareness';
+import { GuardRoster, type GuardDef } from '../systems/GuardRoster';
 import { LightModel } from '../systems/LightModel';
 import { LightingRenderer } from '../systems/LightingRenderer';
 import { NavGrid } from '../systems/NavGrid';
@@ -66,7 +71,10 @@ import {
 } from '../state/runStats';
 import { ObjectiveSystem } from '../systems/ObjectiveSystem';
 import { ThrowController } from '../systems/ThrowController';
-import { DebugOverlay, type GuardHudInfo } from '../ui/DebugOverlay';
+import { AlertBanner } from '../ui/AlertBanner';
+import { FieldHud, type HudFrame } from '../ui/FieldHud';
+import { ScreenEdgeMarkers } from '../ui/ScreenEdgeMarkers';
+import { fadeIn, fadeOutThen, fadeToScene } from '../ui/transitions';
 import { HintSystem } from '../systems/HintSystem';
 import { BuildingMap } from '../world/BuildingMap';
 import { WorldRenderer } from '../world/WorldRenderer';
@@ -81,27 +89,30 @@ const STAFF_BUMP_DISTANCE = 26;
 const SITE_LABELS = ['CALM', 'CAUTIOUS', 'LOCKDOWN'] as const;
 
 interface GuardsData {
-  guards: { id: string; route: PatrolNode[]; cautiousExtra?: PatrolNode[] }[];
+  guards: GuardDef[];
 }
 interface StaffData {
   staff: StaffDef[];
 }
 
 /**
- * The gameplay scene. Building C, the player at the van, one patrolling guard,
- * staff on their rounds, and three gated ways in: a badge gate you tailgate, a
- * timed smokers' door and a timed loading-dock shutter. The player can throw
- * bolts to distract the guard, and running footsteps make noise the guard hears.
+ * The gameplay scene. The player at the van, every guard in the level's
+ * guards.json on their rounds, staff on theirs, and three gated ways in: a
+ * badge gate you tailgate, a timed smokers' door and a timed loading-dock
+ * shutter. The player can throw bolts to distract guards, and running
+ * footsteps make noise the guards hear.
  */
 export class BuildingScene extends Phaser.Scene {
   private player!: Player;
   private controller!: MovementController;
-  private overlay!: DebugOverlay;
+  private hud!: FieldHud;
   private world!: WorldRenderer;
   private walls!: Phaser.Physics.Arcade.StaticGroup;
   private keys?: KeyboardKeys;
-  private guard?: Guard;
-  private guardId = '';
+  /** Every guard on site. Phase 21: as many as the data lists, not one. */
+  private guards!: GuardRoster;
+  /** What each guard is thinking, drawn over their head. */
+  private awareness!: GuardAwareness;
   private doors: Door[] = [];
   private staff: Staff[] = [];
   private throwController!: ThrowController;
@@ -122,11 +133,8 @@ export class BuildingScene extends Phaser.Scene {
   private lightingHidden = false;
   private detained = false;
   private missionOver = false;
-  private radioedThisEpisode = false;
   private appliedAlertLevel = -1;
   private playerWasOutside = true;
-  private baseRoute: PatrolNode[] = [];
-  private cautiousExtra: PatrolNode[] = [];
   private gridKey?: Phaser.Input.Keyboard.Key;
   private guardDebugKey?: Phaser.Input.Keyboard.Key;
   private lightingKey?: Phaser.Input.Keyboard.Key;
@@ -146,8 +154,6 @@ export class BuildingScene extends Phaser.Scene {
   private exteriorZoneNames = new Set<string>();
   /** Hi-vis pickups still on the floor, with their greybox marker objects. */
   private hivisPickups: { x: number; y: number; objects: Phaser.GameObjects.GameObject[] }[] = [];
-  /** The screen-fixed HI-VIS: WORN / BLOWN tag, top right. */
-  private disguiseTag!: Phaser.GameObjects.Text;
   /** True while the CCTV multiplexer overlay is open. */
   private consoleOpen = false;
   /**
@@ -161,16 +167,18 @@ export class BuildingScene extends Phaser.Scene {
   private lastDoorId: string | null = null;
   /** The last camera ping, so the DETAINED banner can name the tip-off. */
   private lastCameraCue: { id: string; atMs: number } | null = null;
-  /** Screen-fixed chevron pointing at an agitated off-screen guard. */
-  private chevrons!: Phaser.GameObjects.Graphics;
+  /** Screen-border markers: agitated off-screen guards and the objective. */
+  private edgeMarkers!: ScreenEdgeMarkers;
+  /** The site-alert banner that announces a change of alert level. */
+  private alertBanner!: AlertBanner;
   /** The visual ear: rings at guard footfalls within hearing range. */
   private noiseRings!: NoiseRings;
+  /** The player's own steady noise ring. */
+  private playerRing!: Phaser.GameObjects.Graphics;
+  /** Footstep cadence for the player's noise ripples, ms accumulated. */
+  private playerStepMs = 0;
   /** First-run consultant notes at points of interest, once per profile. */
   private hintSystem!: HintSystem;
-  /** Scene-clock ts of the last guard footfall ring. */
-  private guardStepAt = 0;
-  /** The guard's position last frame, to ring only while they move. */
-  private prevGuardPos: { x: number; y: number } | null = null;
   /** The secondary camera rendering the live feed inside the multiplexer. */
   private feedCam?: Phaser.Cameras.Scene2D.Camera;
 
@@ -214,19 +222,16 @@ export class BuildingScene extends Phaser.Scene {
   create(): void {
     this.detained = false;
     this.missionOver = false;
-    this.radioedThisEpisode = false;
     this.appliedAlertLevel = -1;
     this.doors = [];
     this.staff = [];
     this.followOffset.set(0, 0);
     // The scene instance persists across restart(), so every per-life field
     // must reset here. A camera cue from the previous life must not be blamed
-    // on the next banner, and a stale guard position must not ring a phantom
-    // footstep on the first frame.
+    // on the next banner.
     this.lastCameraCue = null;
     this.lastDoorId = null;
-    this.prevGuardPos = null;
-    this.guardStepAt = 0;
+    this.playerStepMs = 0;
 
     const map = new BuildingMap(this, this.mapKey);
     this.mapZones = map.zones;
@@ -248,7 +253,7 @@ export class BuildingScene extends Phaser.Scene {
     const startY = checkpoint?.y ?? map.spawn.y;
     this.player = new Player(this, startX, startY);
     this.buildWalls(map);
-    this.spawnGuard(map);
+    this.spawnGuards(map);
     this.spawnDoors(map);
     this.spawnStaff();
     this.wireDoorColliders();
@@ -284,11 +289,13 @@ export class BuildingScene extends Phaser.Scene {
 
     this.keys = this.buildKeyboard();
     this.controller = new MovementController(this.player);
-    this.overlay = new DebugOverlay(this);
+    this.hud = new FieldHud(this);
     this.guardDebug = this.add.graphics().setDepth(50);
-    // Screen-edge warning for an agitated guard outside the viewport.
-    this.chevrons = this.add.graphics().setScrollFactor(0).setDepth(998);
+    this.playerRing = this.add.graphics().setDepth(30);
+    this.edgeMarkers = new ScreenEdgeMarkers(this);
+    this.alertBanner = new AlertBanner(this);
     this.noiseRings = new NoiseRings(this);
+    this.awareness = new GuardAwareness(this);
     this.hintSystem = new HintSystem(this, this.level.id, this.level.hints ?? []);
     this.throwController = new ThrowController(
       this,
@@ -308,18 +315,7 @@ export class BuildingScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(1000);
-
-    // The disguise tag, top right, screen fixed. Text states, never colour alone.
-    this.disguiseTag = this.add
-      .text(this.scale.width - 12, 12, '', {
-        fontFamily: FONTS.mono,
-        fontSize: '12px',
-        color: PALETTE.amber,
-      })
-      .setOrigin(1, 0)
-      .setScrollFactor(0)
-      .setDepth(1000);
-    this.refreshDisguiseTag();
+    this.refreshDisguiseCast();
 
     // Lighting and audio. The renderer draws last each frame; audio arms its
     // autoplay unlock on the first input and makes no sound before that.
@@ -353,14 +349,19 @@ export class BuildingScene extends Phaser.Scene {
         __lightModel: LightModel;
         __cameras: CameraSystem;
         __audio: AudioManager;
+        __guards: GuardRoster;
         __fillMultiplierAt: (x: number, y: number) => number;
       };
       dev.__lightModel = this.lightModel;
       dev.__cameras = this.cameraSystem;
       dev.__audio = this.audio;
+      dev.__guards = this.guards;
       dev.__fillMultiplierAt = (x, y) =>
         Phaser.Math.Linear(LIGHTING.concealmentFloor, 1, this.lightModel.computeLightAt(x, y));
     }
+
+    // Every arrival on site, first start or detain restart, comes up from black.
+    fadeIn(this);
   }
 
   update(_time: number, delta: number): void {
@@ -423,45 +424,40 @@ export class BuildingScene extends Phaser.Scene {
     this.trackIngressAndCheckpoint();
     this.hearFootsteps();
 
-    // Shared occluder set for the guard, cameras and audio this frame.
+    // Shared occluder set for the guards, cameras and audio this frame.
     const closedDoors = this.doors.filter((d) => !d.isOpen).map((d) => d.rect);
 
-    let guardActualVelocity = { x: 0, y: 0 };
-    if (this.guard) {
-      // Capture the completed physics step before Guard.update writes the next
-      // requested velocity, matching the player footstep rule.
-      guardActualVelocity = velocityFromDisplacement(
-        this.guard.displacementX,
-        this.guard.displacementY,
-        delta
-      );
-      // The guard's own sightline lights where it looks; darkness elsewhere is
-      // cover, so sample the light at the player and feed it into perception.
-      this.lightModel.setGuardTorch(this.guard.x, this.guard.y, this.guard.facingAngle);
-      const lightAtPlayer = this.lightModel.computeLightAt(this.player.x, this.player.y);
-      const tick = this.guard.update(now, delta, {
-        playerX: this.player.x,
-        playerY: this.player.y,
-        playerSpeed: intent.speed,
-        closedDoors,
-        lightLevel: lightAtPlayer,
-        disguised: this.isDisguisePlausible(),
-      });
-      if (tick.spottedNow) {
-        recordSpotted();
-      }
-      if (tick.caughtPlayer) {
-        this.detain();
-        return;
-      }
-      this.witnessTailgate();
-      this.updateRadio(now);
-    } else {
-      this.lightModel.clearGuardTorch();
+    // Every guard's sightline lights where it looks; darkness elsewhere is
+    // cover, so sample the light at the player and feed it into perception.
+    // The nearest guard's displacement is captured before Guard.update writes
+    // the next requested velocity, matching the player footstep rule.
+    const nearest = this.guards.nearestTo(this.player.x, this.player.y);
+    const nearestActualVelocity = nearest
+      ? velocityFromDisplacement(nearest.displacementX, nearest.displacementY, delta)
+      : { x: 0, y: 0 };
+    this.lightModel.setGuardTorches(this.guards.torches());
+    const lightAtPlayer = this.lightModel.computeLightAt(this.player.x, this.player.y);
+    const disguised = this.isDisguisePlausible();
+    const rosterTick = this.guards.update(now, delta, () => ({
+      playerX: this.player.x,
+      playerY: this.player.y,
+      playerSpeed: intent.speed,
+      closedDoors,
+      lightLevel: lightAtPlayer,
+      disguised,
+    }));
+    if (rosterTick.spottedNow) {
+      recordSpotted();
     }
+    if (rosterTick.caughtBy) {
+      this.detain();
+      return;
+    }
+    this.witnessTailgate();
+    this.updateRadio(now);
 
-    // Cameras run after the guard so a curious ping targets its fresh state and
-    // a camera-driven alert lands in the same escalation slot as the radio.
+    // Cameras run after the guards so a curious ping targets their fresh state
+    // and a camera-driven alert lands in the same escalation slot as the radio.
     const camTick = this.cameraSystem.update(
       now,
       delta,
@@ -471,7 +467,8 @@ export class BuildingScene extends Phaser.Scene {
       this.consoleOpen ? false : interactPressed
     );
     for (const p of camTick.investigatePoints) {
-      this.guard?.investigatePoint(p.investigateX, p.investigateY);
+      // The nearest unit answers the camera's call; the rest keep their rounds.
+      this.guards.dispatchNearest(p.investigateX, p.investigateY);
       this.lastCameraCue = { id: p.id, atMs: now };
       this.offerSecurityCue('camera-ping', now, p.sourceX, p.sourceY, closedDoors);
     }
@@ -497,7 +494,7 @@ export class BuildingScene extends Phaser.Scene {
       playerY: this.player.y,
       interactHeld: this.consoleOpen ? false : this.isInteractHeld(pad),
       playerMoving: intent.speed !== 'idle',
-      seenByGuard: this.guard?.canSeePlayer ?? false,
+      seenByGuard: this.guards.anyCanSeePlayer(),
       bumped: this.isBumped(),
     });
     if (objTick.plantedNow) {
@@ -516,7 +513,7 @@ export class BuildingScene extends Phaser.Scene {
     if (objTick.exfilNow) {
       this.missionOver = true;
       recordExfil();
-      this.scene.start('report');
+      fadeToScene(this, 'report');
       return;
     }
     // The objective prompt wins, then the console, then a pickup, then the
@@ -527,7 +524,6 @@ export class BuildingScene extends Phaser.Scene {
       this.consoleOpen ? '' : (objTick.prompt ?? consoleLine ?? pickupLine ?? camTick.prompt ?? '')
     );
     this.promptText.setScale(getSettings().hudScale);
-    this.disguiseTag.setScale(getSettings().hudScale);
 
     if (this.consoleOpen) {
       // Clicks made on the multiplexer belong to the multiplexer: drop them,
@@ -545,14 +541,16 @@ export class BuildingScene extends Phaser.Scene {
         velocityX: playerActualVelocity.x,
         velocityY: playerActualVelocity.y,
       },
-      guard: this.guard
+      // The audio follows whichever guard is nearest: their footsteps through
+      // the walls and their radio are the ones the player can actually hear.
+      guard: nearest
         ? {
-            id: this.guardId,
-            x: this.guard.x,
-            y: this.guard.y,
-            velocityX: guardActualVelocity.x,
-            velocityY: guardActualVelocity.y,
-            state: this.guard.state,
+            id: nearest.id,
+            x: nearest.x,
+            y: nearest.y,
+            velocityX: nearestActualVelocity.x,
+            velocityY: nearestActualVelocity.y,
+            state: nearest.state,
           }
         : null,
       playerSpeed: intent.speed,
@@ -563,24 +561,20 @@ export class BuildingScene extends Phaser.Scene {
       venueAudio: this.level.audio,
     });
 
-    this.drawGuardChevron();
-    this.updateGuardNoiseRings(now);
+    this.edgeMarkers.update(
+      this.cameras.main,
+      this.scale.width,
+      this.scale.height,
+      this.player.x,
+      this.player.y,
+      this.guards.guards,
+      this.objectives.currentTarget()
+    );
+    this.updateNoiseRings(now, delta, intent.speed, playerActualVelocity);
+    this.awareness.update(now, this.guards.guards, (guard) => this.radioProgress(guard, now));
     this.hintSystem.update(now, this.player.x, this.player.y);
 
-    this.overlay.update(this.player, intent, {
-      bolts: this.throwController.remaining,
-      site: SITE_LABELS[getMission().alertLevel] ?? 'CALM',
-      loops: this.cameraSystem
-        .feedInfos(now)
-        .filter((f) => f.frozenRemainingMs > 0)
-        .map((f) => ({ id: f.id, secondsLeft: Math.ceil(f.frozenRemainingMs / 1000) })),
-      light: this.guardDebugOn
-        ? Math.round(this.lightModel.computeLightAt(this.player.x, this.player.y) * 100)
-        : null,
-      guard: this.guardInfo(),
-      doors: this.doorDebugLines(),
-      cameras: this.guardDebugOn ? this.cameraSystem.debugLines() : null,
-    });
+    this.hud.update(this.buildHudFrame(now, intent.speed, lightAtPlayer, nearest));
     this.drawGuardDebug();
 
     // Lighting draws last so it reflects this frame's final positions, then the
@@ -588,7 +582,7 @@ export class BuildingScene extends Phaser.Scene {
     this.lightingRenderer.update(
       this.cameras.main,
       this.player,
-      this.guard,
+      this.guards.guards,
       this.lightModel.sources
     );
     this.feedTreatment.update(now, delta, getMission().alertLevel);
@@ -745,7 +739,7 @@ export class BuildingScene extends Phaser.Scene {
   /**
    * The feed view is a second scene camera with a small viewport, scrolled to
    * whichever CCTV the multiplexer is showing. It skips the screen-fixed veil
-   * and HUD: greybox feeds show the unlit world, dressed in Phase 10.
+   * and HUD: a camera shows the room, not the consultant's readouts.
    */
   private ensureFeedView(): void {
     if (this.feedCam) {
@@ -763,11 +757,12 @@ export class BuildingScene extends Phaser.Scene {
       this.lightingRenderer.veil,
       ...this.feedTreatment.screenObjects,
       this.promptText,
-      this.disguiseTag,
-      ...this.overlay.screenObjects,
+      ...this.hud.screenObjects,
+      ...this.alertBanner.screenObjects,
       this.guardDebug,
-      this.chevrons,
+      this.edgeMarkers.gameObject,
       this.noiseRings.gameObject,
+      this.playerRing,
       this.hintSystem.gameObject,
     ]);
   }
@@ -860,7 +855,7 @@ export class BuildingScene extends Phaser.Scene {
         this.hivisPickups = [];
         wearDisguise();
         recordDisguiseWorn();
-        this.refreshDisguiseTag();
+        this.refreshDisguiseCast();
         return null;
       }
       return '[E] TAKE HI-VIS VEST';
@@ -868,32 +863,21 @@ export class BuildingScene extends Phaser.Scene {
     return null;
   }
 
-  /** Repaints the top-right tag and the on-sprite vest cast from mission state. */
-  private refreshDisguiseTag(): void {
-    const disguise = getMission().disguise;
-    // The vest reads on the sprite too: an amber cast while it is worn. The
-    // text tag stays the authoritative signal, per the never-colour-alone rule.
-    if (disguise.worn) {
+  /**
+   * The vest reads on the sprite: an amber cast while it is worn. The HUD's
+   * HI-VIS line stays the authoritative signal, per the never-colour-alone rule.
+   */
+  private refreshDisguiseCast(): void {
+    if (getMission().disguise.worn) {
       this.player.sprite.setTint(ART.hivis.tint);
     } else {
       this.player.sprite.clearTint();
     }
-    if (!disguise.worn) {
-      this.disguiseTag.setText('');
-    } else if (disguise.blown) {
-      this.disguiseTag.setText('HI-VIS: BLOWN').setColor(PALETTE.text);
-    } else {
-      this.disguiseTag.setText('HI-VIS: WORN').setColor(PALETTE.amber);
-    }
   }
 
-  /** True if a staff member or the guard is pressed up against the player. */
+  /** True if a staff member or a guard is pressed up against the player. */
   private isBumped(): boolean {
-    if (
-      this.guard &&
-      Phaser.Math.Distance.Between(this.guard.x, this.guard.y, this.player.x, this.player.y) <=
-        STAFF_BUMP_DISTANCE
-    ) {
+    if (this.guards.anyWithin(this.player.x, this.player.y, STAFF_BUMP_DISTANCE)) {
       return true;
     }
     for (const member of this.staff) {
@@ -910,44 +894,56 @@ export class BuildingScene extends Phaser.Scene {
   /**
    * The guard radio rule: an ALERT guard raises the building alert level once
    * its alert has lasted radioAfterMs, unless the player broke line of sight
-   * first. Each radio raises one level; level 2 (lockdown) never decays.
+   * first. Each radio raises one level, and each guard radios once per episode.
    */
   private updateRadio(now: number): void {
-    const guard = this.guard;
-    if (!guard || guard.state !== 'alert') {
-      this.radioedThisEpisode = false;
-      return;
+    const tick = this.guards.radio(now, DETECTION.alert.radioAfterMs);
+    if (tick.anyAlert) {
+      touchAlert(now);
     }
-    touchAlert(now);
-    if (
-      !this.radioedThisEpisode &&
-      guard.alertSince > 0 &&
-      now - guard.alertSince >= DETECTION.alert.radioAfterMs &&
-      guard.canSeePlayer
-    ) {
-      this.radioedThisEpisode = true;
+    for (const guard of tick.radioed) {
       const level = raiseAlert(now);
       recordAlertLevel(level);
       this.triggerAlarmShake();
+      this.awareness.bark(guard, 'radio', now, this.player.x, this.player.y);
     }
   }
 
-  /** Applies level decay and (re)applies guard effects when the level changes. */
+  /**
+   * How far along a guard's radio call is, 0..1, for the ring over their
+   * head. -1 when there is no call to show: not alert, cannot see the player,
+   * or already made the call this episode.
+   */
+  private radioProgress(guard: Guard, now: number): number {
+    if (
+      guard.state !== 'alert' ||
+      !guard.canSeePlayer ||
+      guard.alertSince <= 0 ||
+      this.guards.hasRadioed(guard)
+    ) {
+      return -1;
+    }
+    return Phaser.Math.Clamp((now - guard.alertSince) / DETECTION.alert.radioAfterMs, 0, 1);
+  }
+
+  /**
+   * Applies level decay and (re)applies guard effects when the level changes.
+   * A change after the first application also raises the banner: the first
+   * application is the scene settling in (a fresh start or a detain restart
+   * on an already-raised site), which is not news.
+   */
   private updateAlertLevel(now: number): void {
     decayAlert(now, DETECTION.alert.level1DecayMs, DETECTION.alert.level2DecayMs);
     const level = getMission().alertLevel;
-    if (level === this.appliedAlertLevel || !this.guard) {
+    if (level === this.appliedAlertLevel) {
       return;
     }
+    const previous = this.appliedAlertLevel;
     this.appliedAlertLevel = level;
-    this.guard.speedMultiplier =
-      level >= 2
-        ? DETECTION.alert.level2SpeedMult
-        : level >= 1
-          ? DETECTION.alert.level1SpeedMult
-          : 1;
-    // Cautious and lockdown add the extra sweep nodes to the patrol.
-    this.guard.setRoute(level >= 1 ? [...this.baseRoute, ...this.cautiousExtra] : this.baseRoute);
+    this.guards.applyAlertLevel(level);
+    if (previous !== -1) {
+      this.alertBanner.show(level, previous);
+    }
   }
 
   /**
@@ -1030,8 +1026,8 @@ export class BuildingScene extends Phaser.Scene {
   private wireDoorColliders(): void {
     for (const door of this.doors) {
       this.physics.add.collider(this.player.sprite, door.gameObject);
-      if (this.guard) {
-        this.physics.add.collider(this.guard.sprite, door.gameObject);
+      for (const guard of this.guards.guards) {
+        this.physics.add.collider(guard.sprite, door.gameObject);
       }
       for (const member of this.staff) {
         this.physics.add.collider(member.sprite, door.gameObject);
@@ -1079,20 +1075,12 @@ export class BuildingScene extends Phaser.Scene {
     }
   }
 
-  /** Running (and, up close, walking) footsteps make noise the guard investigates. */
+  /** Running (and, up close, walking) footsteps make noise the guards investigate. */
   private hearFootsteps(): void {
-    if (!this.guard || this.player.noiseRadius <= 0) {
+    if (this.player.noiseRadius <= 0) {
       return;
     }
-    const dist = Phaser.Math.Distance.Between(
-      this.player.x,
-      this.player.y,
-      this.guard.x,
-      this.guard.y
-    );
-    if (dist <= this.player.noiseRadius) {
-      this.guard.investigatePoint(this.player.x, this.player.y);
-    }
+    this.guards.hearNoise(this.player.x, this.player.y, this.player.noiseRadius);
   }
 
   /** A bolt landed: pull any guard within earshot to investigate the spot. */
@@ -1105,54 +1093,45 @@ export class BuildingScene extends Phaser.Scene {
       endRadiusPx: THROW.noiseRadiusPx,
       lifeMs: THROW.noiseRingLifeMs,
     });
-
-    if (!this.guard) {
-      return;
-    }
-    if (Phaser.Math.Distance.Between(x, y, this.guard.x, this.guard.y) <= THROW.noiseRadiusPx) {
-      this.guard.investigatePoint(x, y);
-    }
+    this.guards.hearNoise(x, y, THROW.noiseRadiusPx);
   }
 
   /** If the player slips through an open badge door in a guard's sight, it reacts. */
   private witnessTailgate(): void {
-    if (!this.guard || !this.guard.canSeePlayer) {
-      return;
-    }
-    for (const door of this.doors) {
-      if (door.kind === 'badge' && door.isOpen && door.contains(this.player.x, this.player.y)) {
-        this.guard.investigatePoint(this.player.x, this.player.y);
-        return;
+    for (const guard of this.guards.guards) {
+      if (!guard.canSeePlayer) {
+        continue;
+      }
+      for (const door of this.doors) {
+        if (door.kind === 'badge' && door.isOpen && door.contains(this.player.x, this.player.y)) {
+          guard.investigatePoint(this.player.x, this.player.y);
+          break;
+        }
       }
     }
   }
 
-  private spawnGuard(map: BuildingMap): void {
+  private spawnGuards(map: BuildingMap): void {
     const data = this.cache.json.get(this.guardDataKey) as GuardsData | undefined;
-    const first = data?.guards?.[0];
-    if (!first || first.route.length === 0) {
-      return;
-    }
-    this.baseRoute = first.route;
-    this.cautiousExtra = first.cautiousExtra ?? [];
-    this.guardId = first.id;
-    this.guard = new Guard(
+    this.guards = new GuardRoster(
       this,
-      first.route,
+      data?.guards ?? [],
       map.walls,
-      (state) => this.onGuardStateCue(state),
-      this.navGrid
+      this.navGrid,
+      (guard, state, previous) => this.onGuardStateCue(guard, state, previous)
     );
-    this.physics.add.collider(this.guard.sprite, this.walls);
+    for (const guard of this.guards.guards) {
+      this.physics.add.collider(guard.sprite, this.walls);
+    }
   }
 
-  /** Caught: a sharp DETAINED beat, then reset the run to the last checkpoint. */
+  /** Caught: a sharp DETAINED beat, then fade and reset the run to the last checkpoint. */
   private detain(): void {
     this.closeConsole();
     recordDetain();
     this.detained = true;
     this.physics.pause();
-    this.chevrons.clear();
+    this.edgeMarkers.clear();
 
     const cx = this.scale.width / 2;
     const cy = this.scale.height / 2;
@@ -1210,111 +1189,86 @@ export class BuildingScene extends Phaser.Scene {
         .setDepth(2001);
     });
 
-    this.time.delayedCall(READABILITY.detain.bannerMs, () => this.scene.restart());
+    this.time.delayedCall(READABILITY.detain.bannerMs, () =>
+      fadeOutThen(this, () => this.scene.restart())
+    );
   }
 
   /**
-   * Rings guard footfalls the player can hear. Cadence and range live in
-   * config/readability.ts; rings only spawn while the guard actually moves,
-   * so a paused investigation goes quiet exactly like its audio does.
+   * The noise the player can see. Guard footfalls ring within hearing range
+   * (Phase 15's visual ear, now one cadence per guard). The player's own noise
+   * is a faint steady ring at the radius guards can hear, plus a ripple per
+   * footstep that grows to that same radius, so a run visibly shouts and a
+   * creep visibly says nothing.
    */
-  private updateGuardNoiseRings(now: number): void {
-    if (this.guard) {
-      const moved =
-        this.prevGuardPos !== null &&
-        (Math.abs(this.guard.x - this.prevGuardPos.x) > 0.5 ||
-          Math.abs(this.guard.y - this.prevGuardPos.y) > 0.5);
-      this.prevGuardPos = { x: this.guard.x, y: this.guard.y };
-      const inRange =
-        Phaser.Math.Distance.Between(this.player.x, this.player.y, this.guard.x, this.guard.y) <=
-        READABILITY.noiseRings.rangePx;
-      if (moved && inRange && now - this.guardStepAt >= READABILITY.noiseRings.stepIntervalMs) {
-        this.guardStepAt = now;
-        this.noiseRings.spawn(this.guard.x, this.guard.y, now);
+  private updateNoiseRings(
+    now: number,
+    dtMs: number,
+    pace: 'idle' | 'creep' | 'walk' | 'run',
+    playerVelocity: { x: number; y: number }
+  ): void {
+    for (const guard of this.guards.footfalls(
+      now,
+      this.player.x,
+      this.player.y,
+      READABILITY.noiseRings.rangePx,
+      READABILITY.noiseRings.stepIntervalMs
+    )) {
+      this.noiseRings.spawn(guard.x, guard.y, now);
+    }
+
+    const radius = this.player.noiseRadius;
+    this.playerRing.clear();
+    const moving = Math.hypot(playerVelocity.x, playerVelocity.y) > 1;
+    if (radius > 0 && pace !== 'idle') {
+      this.playerRing.lineStyle(2, NOISE_RING_TINT, HUD.playerNoise.ringAlpha);
+      this.playerRing.strokeCircle(this.player.x, this.player.y, radius);
+      if (moving) {
+        this.playerStepMs += dtMs;
+        const interval = AUDIO.stepIntervalMs[pace];
+        if (this.playerStepMs >= interval) {
+          this.playerStepMs -= interval;
+          this.noiseRings.spawn(this.player.x, this.player.y, now, {
+            endRadiusPx: radius,
+            lifeMs: HUD.playerNoise.rippleLifeMs,
+          });
+        }
       }
+    } else {
+      this.playerStepMs = 0;
     }
     this.noiseRings.update(now);
   }
 
   /**
-   * Points a screen-edge chevron at the guard when they are worked up but out
-   * of view: a hollow amber outline while curious, a doubled solid red chevron
-   * once they are fully ALERT (chasing, which is trouble, so red is honest).
-   * Shape and colour change together, per the never-colour-alone rule, the
-   * same reason the vision cones pair colour with an edge style. A calm
-   * patrol draws nothing, scouting still means walking over and looking.
+   * A guard changed state: bark, offer one transition cue, and shake exactly
+   * on ALERT. The bark event depends on where the guard came from, so a
+   * guard losing sight of you says something different from one hearing a
+   * noise for the first time.
    */
-  private drawGuardChevron(): void {
-    this.chevrons.clear();
-    const guard = this.guard;
-    if (!guard || guard.state === 'patrol') {
-      return;
-    }
-    const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, guard.x, guard.y);
-    if (dist > READABILITY.chevron.rangePx) {
-      return;
-    }
-    const cam = this.cameras.main;
-    const sx = guard.x - cam.scrollX;
-    const sy = guard.y - cam.scrollY;
-    const w = this.scale.width;
-    const h = this.scale.height;
-    if (sx >= 0 && sx <= w && sy >= 0 && sy <= h) {
-      return; // visible: the guard themself is the warning
-    }
-
-    // Clamp the direction ray from the screen centre onto the inset border.
-    const { edgeInsetPx, sizePx } = READABILITY.chevron;
-    const dx = sx - w / 2;
-    const dy = sy - h / 2;
-    const scale = Math.min(
-      (w / 2 - edgeInsetPx) / Math.max(Math.abs(dx), 0.001),
-      (h / 2 - edgeInsetPx) / Math.max(Math.abs(dy), 0.001),
-      1
-    );
-    const px = w / 2 + dx * scale;
-    const py = h / 2 + dy * scale;
-    const angle = Math.atan2(dy, dx);
-    const triangle = (cx2: number, cy2: number) => {
-      const point = (a: number) => ({
-        x: cx2 + Math.cos(a) * sizePx,
-        y: cy2 + Math.sin(a) * sizePx,
-      });
-      return [point(angle), point(angle + 2.5), point(angle - 2.5)] as const;
-    };
-
-    if (guard.state === 'alert') {
-      // Chasing: two solid red arrowheads stacked along the direction.
-      this.chevrons.fillStyle(PALETTE_HEX.alarm, 0.95);
-      const back = triangle(px - Math.cos(angle) * sizePx * 1.4, py - Math.sin(angle) * sizePx * 1.4);
-      const front = triangle(px, py);
-      this.chevrons.fillTriangle(front[0].x, front[0].y, front[1].x, front[1].y, front[2].x, front[2].y);
-      this.chevrons.fillTriangle(back[0].x, back[0].y, back[1].x, back[1].y, back[2].x, back[2].y);
-    } else {
-      // Curious: a single hollow amber outline.
-      const [tip, left, right] = triangle(px, py);
-      this.chevrons.lineStyle(2, PALETTE_HEX.amber, 0.95);
-      this.chevrons.strokeTriangle(tip.x, tip.y, left.x, left.y, right.x, right.y);
-    }
-  }
-
-  /** The guard changed state: offer one transition cue and shake exactly on ALERT. */
-  private onGuardStateCue(state: GuardState): void {
-    if (state === 'curious' && this.guard) {
-      this.offerSecurityCue('guard-curious', this.time.now, this.guard.x, this.guard.y);
-    }
-    if (state === 'alert') {
+  private onGuardStateCue(guard: Guard, state: GuardState, previous: GuardState): void {
+    const now = this.time.now;
+    const px = this.player.x;
+    const py = this.player.y;
+    if (state === 'curious') {
+      if (previous === 'alert') {
+        this.awareness.bark(guard, 'lostSight', now, px, py);
+      } else {
+        this.awareness.bark(guard, 'curious', now, px, py);
+        this.offerSecurityCue('guard-curious', now, guard.x, guard.y);
+      }
+    } else if (state === 'patrol') {
+      this.awareness.bark(guard, 'giveUp', now, px, py);
+    } else if (state === 'alert') {
+      this.awareness.bark(guard, 'alert', now, px, py);
       // A guard going full ALERT on a disguised player burns the disguise for
       // the rest of the run: security now knows the vest.
       const disguise = getMission().disguise;
       if (disguise.worn && !disguise.blown) {
         blowDisguise();
         recordDisguiseBlown();
-        this.refreshDisguiseTag();
       }
-      if (this.guard) {
-        this.offerSecurityCue('guard-alert', this.time.now, this.guard.x, this.guard.y);
-      }
+      this.offerSecurityCue('guard-alert', now, guard.x, guard.y);
       this.triggerAlarmShake();
     }
   }
@@ -1354,53 +1308,92 @@ export class BuildingScene extends Phaser.Scene {
     });
   }
 
-  private guardInfo(): GuardHudInfo | null {
-    if (!this.guardDebugOn || !this.guard) {
-      return null;
-    }
-    const stats = getRunStats();
+  /** Assembles everything the HUD shows this frame from live state. */
+  private buildHudFrame(
+    now: number,
+    pace: 'idle' | 'creep' | 'walk' | 'run',
+    lightAtPlayer: number,
+    nearest: Guard | undefined
+  ): HudFrame {
+    const target = this.objectives.currentTarget();
+    const plantTarget = (this.level.venue?.plantTarget ?? 'rack 4 in the server room').toUpperCase();
+    const objective =
+      target?.kind === 'exfil'
+        ? { heading: HUD.objective.exfil, detail: HUD.objective.exfilDetail }
+        : target
+          ? { heading: HUD.objective.plant, detail: plantTarget }
+          : { heading: HUD.objective.exfil, detail: HUD.objective.exfilDetail };
+    const disguise = getMission().disguise;
     return {
-      state: this.guard.state,
-      suspicion: this.guard.suspicion,
-      sees: this.guard.canSeePlayer,
-      spotted: stats.timesSpotted,
-      detains: stats.detains,
+      pace,
+      noiseRadiusPx: this.player.noiseRadius,
+      noiseMaxPx: MOVEMENT.noiseRadii.run,
+      bolts: this.throwController.remaining,
+      boltsMax: THROW.boltCount,
+      site: SITE_LABELS[getMission().alertLevel] ?? 'CALM',
+      exposure: lightAtPlayer,
+      objective,
+      evidence: this.objectives.secondaryProgress(),
+      disguise: !disguise.worn ? 'none' : disguise.blown ? 'blown' : 'worn',
+      loops: this.cameraSystem
+        .feedInfos(now)
+        .filter((f) => f.frozenRemainingMs > 0)
+        .map((f) => ({ id: f.id, secondsLeft: Math.ceil(f.frozenRemainingMs / 1000) })),
+      dev: import.meta.env.DEV
+        ? { device: this.controller.activeDevice, lines: this.debugLines(nearest) }
+        : null,
     };
   }
 
-  private doorDebugLines(): string[] | null {
+  /** The dev-build readouts under the HUD when the guard view (H) is on. */
+  private debugLines(nearest: Guard | undefined): string[] {
     if (!this.guardDebugOn) {
-      return null;
+      return [];
     }
-    return this.doors.map((d) => `${d.id.padEnd(7)} ${d.isOpen ? 'OPEN' : 'shut'}`);
+    const stats = getRunStats();
+    const lines: string[] = [];
+    if (nearest) {
+      lines.push(
+        `GUARD   ${nearest.id} ${nearest.state.toUpperCase()}`,
+        `SUSP    ${Math.round(nearest.suspicion)}%`,
+        `SEES    ${nearest.canSeePlayer ? 'YES' : 'no'}`,
+        `LIGHT   ${Math.round(this.lightModel.computeLightAt(this.player.x, this.player.y) * 100)}%`,
+        `SPOTS   ${stats.timesSpotted}`,
+        `CATCH   ${stats.detains}`,
+        ''
+      );
+    }
+    lines.push(...this.doors.map((d) => `${d.id.padEnd(7)} ${d.isOpen ? 'OPEN' : 'shut'}`));
+    lines.push('', ...this.cameraSystem.debugLines());
+    return lines;
   }
 
-  /** Guard debug (H): the sight line to the player and a suspicion bar overhead. */
+  /** Guard debug (H): each guard's sight line to the player and a suspicion bar. */
   private drawGuardDebug(): void {
     this.guardDebug.clear();
-    if (!this.guardDebugOn || !this.guard) {
+    if (!this.guardDebugOn) {
       return;
     }
-    const g = this.guard;
+    for (const g of this.guards.guards) {
+      const seen = g.canSeePlayer;
+      this.guardDebug.lineStyle(1.5, seen ? 0x36f06a : 0x555a63, seen ? 0.9 : 0.5);
+      this.guardDebug.lineBetween(g.x, g.y, this.player.x, this.player.y);
 
-    const seen = g.canSeePlayer;
-    this.guardDebug.lineStyle(1.5, seen ? 0x36f06a : 0x555a63, seen ? 0.9 : 0.5);
-    this.guardDebug.lineBetween(g.x, g.y, this.player.x, this.player.y);
-
-    const barW = 40;
-    const barH = 5;
-    const bx = g.x - barW / 2;
-    const by = g.y - 34;
-    this.guardDebug.fillStyle(PALETTE_HEX.base, 0.5);
-    this.guardDebug.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
-    const colour =
-      g.state === 'alert'
-        ? PALETTE_HEX.alarm
-        : g.state === 'curious'
-          ? PALETTE_HEX.amber
-          : PALETTE_HEX.text;
-    this.guardDebug.fillStyle(colour, 1);
-    this.guardDebug.fillRect(bx, by, barW * (g.suspicion / 100), barH);
+      const barW = 40;
+      const barH = 5;
+      const bx = g.x - barW / 2;
+      const by = g.y - 34;
+      this.guardDebug.fillStyle(PALETTE_HEX.base, 0.5);
+      this.guardDebug.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
+      const colour =
+        g.state === 'alert'
+          ? PALETTE_HEX.alarm
+          : g.state === 'curious'
+            ? PALETTE_HEX.amber
+            : PALETTE_HEX.text;
+      this.guardDebug.fillStyle(colour, 1);
+      this.guardDebug.fillRect(bx, by, barW * (g.suspicion / 100), barH);
+    }
   }
 
   /** Turns each wall rectangle from the map into a static collision body. */
