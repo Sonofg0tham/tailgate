@@ -56,6 +56,12 @@ Three contracts, unlocked in order:
 
 Clear a contract at any rating and the next one is countersigned on the consultancy's engagement schedule, a contract-select screen styled like a real scheduling sheet. Your best rating and time for each contract are kept in localStorage alongside your settings, so you can come back and try to beat your own run.
 
+## Reading the room
+
+Guards wear their state on their heads. A thin arc over a guard fills as they start to notice you; a "?" means they heard or half saw something and are going to look, and a dashed marker shows the spot they are heading for. A "!" means you are made. While a guard can see you with the "!" up, a ring around it fills over three seconds: that is the radio call that raises the site alert, and breaking line of sight before it closes stops the call. Guards also say what they are thinking, in short lines above their heads, and look around at patrol stops rather than standing still.
+
+The HUD is a pair of field-readout chips. Top left: the site alert state, your pace with a noise bar, how lit you are (HIDDEN, DIM or LIT, with a bar) and your bolts as pips. Top right: the current objective, the evidence count and the hi-vis state when you are wearing one. A hollow diamond on the screen border points at the objective whenever it is out of view. Each site runs two guards on separate rounds.
+
 ## Field kit
 
 Two tools sit alongside the classic tailgating, distraction and breaker tricks:
@@ -85,7 +91,7 @@ npm run lint       # ESLint
 
 Tailgate is a portfolio piece built with a deliberately disciplined AI-assisted workflow. Craig owns the design, architecture and every decision. Claude Code writes the code.
 
-v1 shipped in seven phases (skeleton, the space, being watched, doors and people, the job, atmosphere, ship). v2 added six more on top: multi-level foundation, camera hijack, hi-vis disguise, an art pass, the data centre, and the warehouse, finishing with a campaign ship phase to balance all three contracts together. Each phase was one feature branch, one pull request to `main`, and one deployed Vercel preview, gated on a clean typecheck and lint, with adversarial multi-agent code reviews on the later phases. Mechanics were greyboxed with coloured rectangles until they felt right, then dressed with CC0 art following a written checklist so the new levels match the original. Everything a designer would want to tune (detection rates, patrol routes, door windows, lighting, camera timings, hi-vis perception ranges) is data, so the game is balanced by editing config, not rewriting logic.
+v1 shipped in seven phases (skeleton, the space, being watched, doors and people, the job, atmosphere, ship). v2 added six more on top: multi-level foundation, camera hijack, hi-vis disguise, an art pass, the data centre, and the warehouse, finishing with a campaign ship phase to balance all three contracts together. v3 and v4 followed a blind playtest: snags and sharing, world readability, onboarding briefings, audio atmosphere, the surveillance-noir look, motion on the meta screens, pathfinding fixes, and a studio-feel pass (multiple guards, guard awareness, a proper HUD, scene transitions). Each phase was one feature branch, one pull request to `main`, and one deployed Vercel preview, gated on a clean typecheck and lint, with adversarial multi-agent code reviews on the later phases. Mechanics were greyboxed with coloured rectangles until they felt right, then dressed with CC0 art following a written checklist so the new levels match the original. Everything a designer would want to tune (detection rates, patrol routes, door windows, lighting, camera timings, hi-vis perception ranges) is data, so the game is balanced by editing config, not rewriting logic.
 
 ## Licence and credits
 
